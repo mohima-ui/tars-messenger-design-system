@@ -1,0 +1,21 @@
+:root {
+  /* Type scale — tuned for messaging UI */
+  --text-xs: 0.75rem;      /* 12px — timestamps, meta */
+  --text-sm: 0.875rem;     /* 14px — secondary text, captions */
+  --text-base: 0.9375rem;  /* 15px — bubble body */
+  --text-md: 1rem;         /* 16px — composer input */
+  --text-lg: 1.125rem;     /* 18px — agent header */
+  --text-xl: 1.25rem;      /* 20px — section titles */
+  --text-2xl: 1.5rem;      /* 24px — page titles */
+
+  /* Line heights */
+  --leading-tight: 1.25;
+  --leading-snug: 1.4;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;  /* bubble body — easier multi-line scan */
+
+  /* Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+}

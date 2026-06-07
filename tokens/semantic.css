@@ -1,0 +1,134 @@
+:root {
+  /* ─── TARS Messenger DS — role tokens ──────────────────── */
+  /* Surface */
+  --ds-bg-canvas: #FFFDFA;
+  --ds-bg-surface: #FFFFFF;
+  --ds-bg-paper: #F9F3EA;
+  --ds-bg-subtle: #F0EBE0;
+
+  /* Text */
+  --ds-text-ink: #333333;
+  --ds-text-label: #555555;
+  --ds-text-secondary: #6E6E6E;
+  --ds-text-muted: #979797;
+
+  /* Border */
+  --ds-border-line: #E0DAD3;
+  --ds-border-line-strong: #D9D5CC;
+
+  /* Accent — per tenant (Global Payments default) */
+  --ds-accent: #120BF4;
+  --ds-accent-hover: #0A06D4;
+  --ds-accent-pressed: #0805B0;
+  --ds-accent-ink: #0A06A0;
+  --ds-accent-soft: #E0E5FA;
+  --ds-accent-border: #A5B0EE;
+
+  /* Extra surface helpers */
+  --ds-border-line-soft: #EBE3D4;
+  --ds-border-hover: #D8CFC0;
+  --ds-text-faint: #A8A096;
+
+  /* Semantic */
+  --ds-danger: #DC2626;
+  --ds-danger-soft: #FEE2E2;
+  --ds-danger-border: #FCA5A5;
+  --ds-danger-ink: #991B1B;
+  --ds-success-soft: #E8F5EC;
+  --ds-success-ink: #0F7A38;
+
+  /* Tenant override — switch the four accent vars via [data-tenant] */
+  /* &[data-tenant="vodafone"] { --ds-accent: #E60000; --ds-accent-ink: #A30000; --ds-accent-soft: #FEE2E2; --ds-accent-border: #FCA5A5; } */
+  /* &[data-tenant="amex"]     { --ds-accent: #009DDA; --ds-accent-ink: #006FA0; --ds-accent-soft: #DBF0FA; --ds-accent-border: #7DC8E8; } */
+
+  /* ─── Legacy bridge ───────────────────────────────────── */
+  /* Surfaces */
+  --bg-canvas: var(--neutral-0);
+  --bg-surface: var(--neutral-25);
+  --bg-muted: var(--neutral-100);
+
+  /* Message bubbles */
+  --bubble-ai-bg: var(--neutral-25);
+  --bubble-ai-fg: var(--neutral-800);
+  --bubble-ai-border: var(--neutral-100);
+  --bubble-user-bg: var(--accent-600);
+  --bubble-user-fg: var(--neutral-0);
+
+  /* Text */
+  --text-primary: var(--neutral-800);
+  --text-secondary: var(--neutral-600);
+  --text-muted: var(--neutral-400);
+
+  /* Borders */
+  --border-subtle: var(--neutral-200);
+  --border-default: var(--neutral-300);
+
+  /* Accent (brand) */
+  --accent: var(--accent-600);
+  --accent-hover: var(--accent-700);
+
+  /* shadcn primitive bridge — keeps Button/Dialog/etc. on-brand without editing them */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-canvas);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-foreground: var(--neutral-0);
+  --secondary: var(--bg-muted);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: var(--neutral-0);
+  --destructive: var(--danger-600);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--accent);
+}
+
+.dark {
+  /* Surfaces */
+  --bg-canvas: var(--neutral-800);
+  --bg-surface: var(--neutral-700);
+  --bg-muted: var(--neutral-700);
+
+  /* Message bubbles */
+  --bubble-ai-bg: var(--neutral-700);
+  --bubble-ai-fg: var(--neutral-0);
+  --bubble-ai-border: var(--neutral-600);
+  --bubble-user-bg: var(--accent-600);
+  --bubble-user-fg: var(--neutral-0);
+
+  /* Text */
+  --text-primary: var(--neutral-0);
+  --text-secondary: var(--neutral-200);
+  --text-muted: var(--neutral-400);
+
+  /* Borders */
+  --border-subtle: var(--neutral-700);
+  --border-default: var(--neutral-600);
+
+  /* Accent */
+  --accent: var(--accent-600);
+  --accent-hover: var(--accent-700);
+
+  /* shadcn primitive bridge */
+  --background: var(--bg-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-foreground: var(--neutral-0);
+  --secondary: var(--bg-muted);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: var(--neutral-0);
+  --destructive: var(--danger-600);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--accent);
+}

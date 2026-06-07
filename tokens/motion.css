@@ -1,0 +1,12 @@
+:root {
+  /* Durations */
+  --duration-instant: 80ms;   /* hover/press feedback */
+  --duration-fast: 160ms;     /* tooltips, popovers */
+  --duration-base: 240ms;     /* message-in, panel slides */
+  --duration-slow: 400ms;     /* dialog, sheet */
+
+  /* Easings */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);          /* enter — content arriving */
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);           /* exit — content leaving */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);   /* bouncy — typing dots, reactions */
+}
