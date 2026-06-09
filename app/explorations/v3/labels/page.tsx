@@ -94,10 +94,10 @@ export default function LabelsPage() {
       <div className="mx-auto max-w-[760px]">
         <header className="mb-12">
           <a
-            href="/v3"
+            href="/explorations/v3"
             className="mb-6 inline-block text-[12px] text-[#6E6E6E] transition-colors hover:text-[#333333]"
           >
-            ← Back to /v3
+            ← Back to /explorations/v3
           </a>
           <h1
             className="text-[24px] font-semibold tracking-tight"
