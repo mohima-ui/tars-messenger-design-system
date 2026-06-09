@@ -7,6 +7,11 @@ const EXPLORATIONS: { href: string; title: string; note: string }[] = [
     note: "Glassmorphism chatbot. Translucent surfaces, blur, ambient gradients.",
   },
   {
+    href: "/explorations/v2-mobile",
+    title: "v2 — Glassy (Mobile)",
+    note: "Mobile view in a phone frame — full-screen glass chat over the Global Payments site.",
+  },
+  {
     href: "/explorations/v3",
     title: "v3",
     note: "Earlier full chatbot exploration (see /explorations/v3/labels for label studies).",

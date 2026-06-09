@@ -285,42 +285,9 @@ function Section({
   );
 }
 
-const SECTIONS = [
-  { id: "typography", title: "Typography" },
-  { id: "color", title: "Color" },
-  { id: "spacing", title: "Spacing" },
-  { id: "radius", title: "Radius" },
-  { id: "shadow", title: "Shadow" },
-  { id: "components", title: "Components" },
-];
-
 export default function DesignSystemPage() {
   return (
-    <div className="min-h-screen bg-[#FFFDFA]">
-      <header className="sticky top-0 z-10 border-b border-[#E0DAD3] bg-[#FFFDFA]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1080px] items-center justify-between px-8 py-4">
-          <div>
-            <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
-              Tars Messenger
-            </p>
-            <h1 className="text-[16px] font-semibold tracking-tight text-[#333333]">
-              Design System
-            </h1>
-          </div>
-          <nav className="hidden items-center gap-1 text-[12px] md:flex">
-            {SECTIONS.map((s) => (
-              <a
-                key={s.id}
-                href={`#${s.id}`}
-                className="rounded-[6px] px-2.5 py-1 text-[#6E6E6E] transition-colors hover:bg-[#F9F3EA] hover:text-[#333333]"
-              >
-                {s.title}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[#FAFAFA]">
       <main className="mx-auto max-w-[1080px] px-8 py-12">
         <div className="mb-16 max-w-[640px]">
           <p className="text-[12px] font-medium tracking-wider text-[#6E6E6E] uppercase">

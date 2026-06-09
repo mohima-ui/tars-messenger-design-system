@@ -132,6 +132,11 @@ const MUTED = "#6E6E6E";
 const ACCENT = "#632E9A";     // purple brand (matches user bubble)
 const ACCENT_INK = "#4A1F77"; // darker purple (hover/pressed)
 const SUBTLE = "#F0EBE0";
+// accent-derived tints — re-theming a tenant only needs ACCENT changed
+const ACCENT_SOFT = `color-mix(in srgb, ${ACCENT} 10%, #fff)`;
+const ACCENT_SOFT_HOVER = `color-mix(in srgb, ${ACCENT} 16%, #fff)`;
+const ACCENT_SOFT_PRESSED = `color-mix(in srgb, ${ACCENT} 22%, #fff)`;
+const ACCENT_BORDER = `color-mix(in srgb, ${ACCENT} 35%, #fff)`;
 
 /* hover-row icon button background (subtle gray) */
 
@@ -566,6 +571,19 @@ function CornerPillVariant() {
     el.style.height = Math.min(el.scrollHeight, 140) + "px";
   }, [inputText]);
 
+  // launcher pill input — grow up to 4 lines, then scroll
+  const pillInputRef = useRef<HTMLTextAreaElement>(null);
+  const PILL_MAX_H = 100; // ~4 lines at 15px / 1.5 line-height + padding
+  const [pillMultiline, setPillMultiline] = useState(false);
+  useEffect(() => {
+    const el = pillInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const h = el.scrollHeight;
+    el.style.height = Math.min(h, PILL_MAX_H) + "px";
+    setPillMultiline(h > 40); // one line ≈ 32px; >40 means it wrapped
+  }, [inputText, phase]);
+
   // keep the chat pinned to the latest message
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -594,11 +612,13 @@ function CornerPillVariant() {
   };
 
   const [entered, setEntered] = useState(false);
-  const [dismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  // send button is disabled at rest, enabled once the pill is focused / chatting
+  const sendEnabled = phase === "focused" || phase === "chatting";
 
-  // slide the composer in from the right shortly after the page loads / refreshes
+  // slide the launcher in from the right 1s after the page loads / refreshes
   useEffect(() => {
-    const t = setTimeout(() => setEntered(true), 250);
+    const t = setTimeout(() => setEntered(true), 1000);
     return () => clearTimeout(t);
   }, []);
 
@@ -861,6 +881,55 @@ function CornerPillVariant() {
           from { height: 680px; }
           to   { height: 0px; }
         }
+        /* v2 "liquid-glass" gradient stroke — colored ring + gliding white glint */
+        @property --lg-angle {
+          syntax: "<angle>";
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes liquid-edge-orbit { to { --lg-angle: 360deg; } }
+        .liquid-glass::before, .liquid-glass::after {
+          content: "";
+          position: absolute;
+          padding: 1px;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+        .liquid-glass::before {
+          inset: 0;
+          border-radius: 16px;
+          background: conic-gradient(from var(--lg-angle),
+            rgba(180,140,255,1) 0deg,
+            rgba(150,200,255,1) 55deg,
+            rgba(120,230,255,1) 110deg,
+            rgba(220,255,255,1) 160deg,
+            rgba(255,255,255,1) 180deg,
+            rgba(220,255,255,1) 200deg,
+            rgba(120,230,255,1) 250deg,
+            rgba(150,200,255,1) 305deg,
+            rgba(180,140,255,1) 360deg);
+          animation: liquid-edge-orbit 5s linear infinite;
+        }
+        .liquid-glass::after {
+          inset: 0;
+          border-radius: 16px;
+          background: conic-gradient(from var(--lg-angle),
+            transparent 0deg 8deg,
+            rgba(175,205,255,0) 14deg,
+            rgba(175,205,255,0.32) 26deg,
+            rgba(220,235,255,0.7) 38deg,
+            rgba(248,251,255,0.95) 45deg,
+            rgba(255,255,255,1) 49deg,
+            rgba(248,251,255,0.95) 53deg,
+            rgba(215,200,255,0.7) 60deg,
+            rgba(190,205,255,0.32) 72deg,
+            rgba(175,205,255,0) 84deg,
+            transparent 90deg 360deg);
+          animation: liquid-edge-orbit 7s linear infinite;
+        }
+        .liquid-glass.lg-still::before, .liquid-glass.lg-still::after { animation-play-state: paused; }
       `}</style>
       <div className="relative flex flex-col overflow-hidden" style={{ height: "100vh", width: "100%", backgroundColor: "#FFFFFF" }}>
         {/* landing-page background */}
@@ -876,7 +945,13 @@ function CornerPillVariant() {
             style={{ backgroundColor: "rgba(0,0,0,0.05)", animation: "cvc-bg-in 360ms ease-out both" }} />
         )}
         {phase === "focused" && (
-          <div className="absolute inset-0 z-10" onClick={() => setPhase("pill")} />
+          <div
+            className="absolute inset-0 z-20"
+            onClick={() => {
+              if (recording || transcribing) handleCancelRecording();
+              setPhase("pill");
+            }}
+          />
         )}
 
         {/* Single anchor — pill column + FAB share one flex-col so the bottom row is truly items-center */}
@@ -889,28 +964,28 @@ function CornerPillVariant() {
             opacity: entered && !dismissed ? 1 : 0,
             transform: entered && !dismissed ? "translateX(0)" : "translateX(140%)",
             transition:
-              "transform 650ms cubic-bezier(0.22,1,0.36,1), opacity 420ms ease",
-            pointerEvents: dismissed ? "none" : "auto",
+              "transform 1000ms cubic-bezier(0.22,1,0.36,1), opacity 600ms ease",
+            pointerEvents: "none",
           }}
         >
 
           {/* starters */}
-          {phase === "focused" && (
+          {phase === "focused" && !recording && !transcribing && (
             <div className="flex flex-col items-end gap-2">
               {COMPOSER_STARTERS.map((s, i) => (
                 <button key={s}
-                  className="rounded-full border px-4 py-2 text-[14px] text-right whitespace-nowrap"
+                  className="pointer-events-auto rounded-full border px-3.5 py-1.5 text-[14px] text-right whitespace-nowrap"
                   style={{
-                    borderColor: "#C5A8E0",
-                    backgroundColor: pressedIdx === i ? "#E2D1F2" : "#F0E7FA",
-                    color: "#4A1F77",
+                    borderColor: ACCENT_BORDER,
+                    backgroundColor: pressedIdx === i ? ACCENT_SOFT_PRESSED : ACCENT_SOFT,
+                    color: ACCENT,
                     boxShadow: "0 2px 10px -2px rgba(0,0,0,0.10)",
                     animation: `cpill-starter-in 260ms cubic-bezier(0.22,1,0.36,1) both`,
                     animationDelay: `${60 + i * 60}ms`,
                     transition: "background-color 140ms ease-out",
                   }}
-                  onMouseEnter={e => { if (pressedIdx !== i) e.currentTarget.style.backgroundColor = "#E7DAF6"; }}
-                  onMouseLeave={e => { if (pressedIdx !== i) e.currentTarget.style.backgroundColor = "#F0E7FA"; }}
+                  onMouseEnter={e => { if (pressedIdx !== i) e.currentTarget.style.backgroundColor = ACCENT_SOFT_HOVER; }}
+                  onMouseLeave={e => { if (pressedIdx !== i) e.currentTarget.style.backgroundColor = ACCENT_SOFT; }}
                   onClick={e => { e.stopPropagation(); handleStarterClick(i); }}>
                   {s}
                 </button>
@@ -920,7 +995,7 @@ function CornerPillVariant() {
 
           {/* chat panel */}
           {phase === "chatting" && (
-            <div data-chat-card className="relative rounded-[28px] border bg-[#FEFCF8] overflow-hidden flex flex-col"
+            <div data-chat-card className="pointer-events-auto relative rounded-[28px] border bg-[#FEFCF8] overflow-hidden flex flex-col"
               style={{
                 width: panelExpanded ? 515 : 400, height: 680, borderColor: LINE,
                 justifyContent: closing ? "flex-end" : undefined,
@@ -1384,12 +1459,134 @@ function CornerPillVariant() {
             </div>
           )}
 
-        </div>
+          {/* bottom row — Corner Pill; collapses away once the chat window takes over */}
+          <div
+            className="pointer-events-auto relative flex items-center"
+            style={{
+              maxHeight: phase === "chatting" ? 0 : 120,
+              opacity: phase === "chatting" ? 0 : 1,
+              overflow: phase === "chatting" ? "hidden" : "visible",
+              transition:
+                "max-height 320ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease",
+              pointerEvents: phase === "chatting" ? "none" : "auto",
+            }}
+          >
+            {/* floating close badge — detached, sits just above the pill */}
+            <button
+              type="button"
+              aria-label="Close composer"
+              onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+              className="flex items-center justify-center rounded-full bg-white"
+              style={{
+                position: "absolute",
+                left: 0,
+                bottom: "100%",
+                width: 19,
+                height: 19,
+                border: "1px solid #E3E3E3",
+                color: "#979797",
+                transform: "translate(-14px, 0px)",
+                opacity: phase === "pill" ? 1 : 0,
+                pointerEvents: phase === "pill" ? "auto" : "none",
+                transition: "opacity 160ms ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = INK)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#979797")}
+            >
+              <X className="size-2.5" strokeWidth={2.5} />
+            </button>
 
-        {/* Walking Buddy launcher — patrols the bottom; click opens the chat */}
-        {phase !== "chatting" && (
-          <WalkingBuddyLauncher onOpen={() => setPhase("chatting")} />
-        )}
+            {/* pill */}
+            <div
+              className={`liquid-glass relative flex gap-2.5 bg-white cursor-text ${pillMultiline ? "items-end" : "items-center"} ${phase === "focused" ? "lg-still" : ""}`}
+              style={{
+                width: phase === "pill" ? 280 : 380,
+                minHeight: 52,
+                borderRadius: 16,
+                boxShadow: "0 2px 16px -4px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.06)",
+                padding: pillMultiline ? "10px 8px 10px 16px" : "0 8px 0 16px",
+                transition: "width 300ms cubic-bezier(0.22,1,0.36,1), padding 160ms ease-out",
+              }}
+              onClick={() => { if (phase === "pill") setPhase("focused"); }}
+            >
+              {recording ? (
+                <>
+                  {/* cancel */}
+                  <button
+                    type="button"
+                    aria-label="Cancel recording"
+                    onClick={(e) => { e.stopPropagation(); handleCancelRecording(); }}
+                    className="size-7 flex items-center justify-center shrink-0 rounded-full transition-colors"
+                    style={{ color: MUTED }}
+                    onMouseEnter={e => (e.currentTarget.style.color = INK)}
+                    onMouseLeave={e => (e.currentTarget.style.color = MUTED)}
+                  >
+                    <X className="size-4" strokeWidth={2} />
+                  </button>
+                  {/* waveform */}
+                  <div className="flex min-w-0 flex-1 items-center justify-center gap-[3px] overflow-hidden px-1 py-[5px]" style={{ minHeight: 28 }} aria-hidden>
+                    {WAVEFORM_HEIGHTS.map((h, i) => (
+                      <span key={i} className="block w-px origin-center rounded-full"
+                        style={{ height: `${Math.round(h * 18)}px`, backgroundColor: "#632E9A", animation: `wave-bar 1.6s ease-in-out ${i * 45}ms infinite` }} />
+                    ))}
+                  </div>
+                  {/* stop */}
+                  <button
+                    type="button"
+                    aria-label="Stop recording"
+                    onClick={(e) => { e.stopPropagation(); handleStopRecording(); }}
+                    className="size-7 flex items-center justify-center shrink-0 rounded-full text-white transition-colors"
+                    style={{ backgroundColor: "#632E9A" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = ACCENT_INK)}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#632E9A")}
+                  >
+                    <Square className="size-3" strokeWidth={0} fill="currentColor" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <textarea
+                    ref={pillInputRef}
+                    rows={1}
+                    disabled={transcribing}
+                    className="scrollbar-subtle flex-1 min-w-0 resize-none bg-transparent text-[15px] leading-[1.5] tracking-tight outline-none placeholder:text-[14px] placeholder:text-[#979797] py-[5px]"
+                    style={{ color: INK, maxHeight: PILL_MAX_H, overflowY: "auto", boxSizing: "border-box" }}
+                    placeholder={transcribing ? "Transcribing…" : "Ask me anything…"}
+                    readOnly={phase === "pill"}
+                    value={inputText}
+                    onChange={e => setInputText(e.target.value)}
+                    onFocus={() => { if (phase === "pill") setPhase("focused"); }}
+                  />
+                  <button
+                    type="button"
+                    aria-label={transcribing ? "Transcribing" : sendEnabled ? "Send message" : "Voice input"}
+                    className="size-7 flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                    style={{
+                      borderRadius: 9999,
+                      backgroundColor: "#632E9A",
+                      color: "#FFFFFF",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = ACCENT_INK)}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#632E9A")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (transcribing) return;
+                      if (sendEnabled) { if (inputText.trim()) handleSend(); }
+                      else { setPhase("focused"); handleMicClick(); }
+                    }}
+                  >
+                    {transcribing
+                      ? <Loader2 className="size-3.5 animate-spin" strokeWidth={1.75} />
+                      : sendEnabled
+                        ? <ArrowUp className="size-3.5" strokeWidth={2.5} />
+                        : <Mic className="size-3.5" strokeWidth={2} />}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </>
   );
@@ -1446,68 +1643,6 @@ function HistoryView({ onBack, onNew, onOpen }: { onBack: () => void; onNew: () 
             {c.unread && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: ACCENT }} />}
           </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-/* Walking Buddy launcher — a little robot that patrols the bottom; click to open the chat */
-function WalkingBuddyLauncher({ onOpen }: { onOpen: () => void }) {
-  const [hovered, setHovered] = useState(false);
-  const walkerRef = useRef<HTMLDivElement>(null);
-  const facerRef = useRef<HTMLDivElement>(null);
-  const pausedRef = useRef(false);
-  useEffect(() => { pausedRef.current = hovered; }, [hovered]);
-
-  useEffect(() => {
-    let raf = 0; let last = 0; let x = 0; let dir = 1; let started = false;
-    const SPEED = 34; // px per second
-    const tick = (ts: number) => {
-      const el = walkerRef.current; const facer = facerRef.current; const frame = el?.parentElement;
-      if (el && facer && frame) {
-        const pw = frame.clientWidth;
-        // patrol only the bottom-right launcher area (x = container's left edge)
-        const right = pw - 110;
-        const left = pw - 330;
-        if (!started) { x = right; dir = -1; started = true; }
-        el.style.visibility = "visible";
-        const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0; last = ts;
-        if (!pausedRef.current) {
-          x += dir * SPEED * dt;
-          if (x <= left) { x = left; dir = 1; }
-          else if (x >= right) { x = right; dir = -1; }
-        }
-        el.style.transform = `translateX(${x}px)`;
-        facer.style.transform = `scaleX(${dir > 0 ? 1 : -1})`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  return (
-    <div ref={walkerRef} style={{ position: "absolute", bottom: 12, left: 0, width: 54, height: 112, zIndex: 30, visibility: "hidden" }}>
-      <style>{`
-        @keyframes wb-bubble2 { from { opacity: 0; transform: translate(-50%, 6px) scale(0.92); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
-      `}</style>
-
-      {/* hover speech bubble — sibling of the flip wrapper so text never mirrors */}
-      {hovered && (
-        <div className="rounded-[12px] border bg-white px-3 py-1.5 text-[12px] font-medium"
-          style={{ position: "absolute", bottom: "calc(100% + 2px)", left: "50%", whiteSpace: "nowrap", borderColor: LINE, color: INK, boxShadow: "0 6px 18px -6px rgba(0,0,0,0.2)", animation: "wb-bubble2 200ms cubic-bezier(0.22,1,0.36,1) both" }}>
-          Hi! Chat with me 🤖
-        </div>
-      )}
-
-      {/* facing-flip wrapper — the clickable character (scaleX set from JS) */}
-      <div ref={facerRef}
-        style={{ position: "relative", width: "100%", height: "100%", transformOrigin: "center", cursor: "pointer" }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={onOpen}>
-        <img src="/robo.gif" alt="Chat assistant" draggable={false}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom center", display: "block", pointerEvents: "none" }} />
       </div>
     </div>
   );
