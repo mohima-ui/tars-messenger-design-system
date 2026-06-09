@@ -1204,7 +1204,7 @@ export default function V2MobilePage() {
   const finalizeClose = () => { setOpen(false); setClosing(false); setStarter(null); };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-[#E8E8EC] py-10">
+    <div className="flex min-h-[100dvh] w-full items-start justify-center bg-[#E8E8EC] sm:items-center sm:py-10">
       <style>{`
         @property --lg-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
         @keyframes liquid-edge-orbit { to { --lg-angle: 360deg; } }
@@ -1316,8 +1316,8 @@ export default function V2MobilePage() {
         .opt-chip:hover::before { opacity: 1; }
       `}</style>
 
-      {/* phone screen */}
-      <div className="relative" style={{ width: 390, height: 844 }}>
+      {/* phone screen — full-bleed on mobile, fixed mockup on larger screens */}
+      <div className="relative h-[100dvh] w-full sm:h-[844px] sm:w-[390px]">
         <div className="absolute overflow-hidden bg-white" style={{ inset: 0, boxShadow: "0 30px 80px -20px rgba(0,0,0,0.45)" }}>
           {/* host page (Global Payments mobile site) */}
           <img
