@@ -34,8 +34,8 @@ function splitNodeIntoWords(node: ReactNode, counter: { current: number }, keyPr
       if (/^\s+$/.test(tok)) return tok;
       const idx = counter.current++;
       return (
-        <span key={`${keyPrefix}-w-${idx}-${i}`} className="inline-block will-change-transform"
-          style={{ animation: `word-in 320ms cubic-bezier(0.2,0.6,0.2,1) ${baseDelay + idx * WORD_STEP_MS}ms both` }}>
+        <span key={`${keyPrefix}-w-${idx}-${i}`} className="inline-block"
+          style={{ animation: `word-in 320ms cubic-bezier(0.2,0.6,0.2,1) ${baseDelay + idx * WORD_STEP_MS}ms backwards` }}>
           {tok}
         </span>
       );
@@ -52,8 +52,8 @@ function splitNodeIntoWords(node: ReactNode, counter: { current: number }, keyPr
     if (element.props.children === undefined) {
       const idx = counter.current++;
       return (
-        <span key={`${keyPrefix}-el-${idx}`} className="inline-block will-change-transform"
-          style={{ animation: `word-in 320ms cubic-bezier(0.2,0.6,0.2,1) ${baseDelay + idx * WORD_STEP_MS}ms both` }}>
+        <span key={`${keyPrefix}-el-${idx}`} className="inline-block"
+          style={{ animation: `word-in 320ms cubic-bezier(0.2,0.6,0.2,1) ${baseDelay + idx * WORD_STEP_MS}ms backwards` }}>
           {element}
         </span>
       );
@@ -853,7 +853,7 @@ function GlassChat({ onClose, initialPicked = null, closing = false, onClosed }:
                   <div className="w-fit max-w-[88%] rounded-[12px] rounded-tl-[6px] px-3.5 py-2 text-[14px] leading-relaxed" style={AI_BUBBLE_STYLE}>
                     {words.map((word, i) => (
                       <span key={i} className="inline-block"
-                        style={animated ? { animation: "word-in 320ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: `${i * 42}ms` } : undefined}>
+                        style={animated ? { animation: "word-in 320ms cubic-bezier(0.2,0.6,0.2,1) backwards", animationDelay: `${i * 42}ms` } : undefined}>
                         {word}&nbsp;
                       </span>
                     ))}
