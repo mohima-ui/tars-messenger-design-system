@@ -1123,7 +1123,7 @@ function CornerPillVariant() {
                       <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                         AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                       </p>
-                      <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m1" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                      <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m1" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                         {isRichAnswer ? richTokens : (animated ? <Words>{STARTER_RESPONSES[selectedStarter]}</Words> : STARTER_RESPONSES[selectedStarter])}
                       </div>
                       {conversationTurn === 1 && (
@@ -1160,7 +1160,7 @@ function CornerPillVariant() {
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                           AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                         </p>
-                        <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m2" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m2" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                           <Words>{MSG_PLANS_INTRO}</Words>
                         </div>
                         {/* plan cards — horizontal scroll */}
@@ -1210,7 +1210,7 @@ function CornerPillVariant() {
                           ))}
                         </div>
                         {/* follow-up question — appears after the intro streams */}
-                        <div className="mt-2 w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK, animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: `${streamMs(MSG_PLANS_INTRO) + PLANS.length * 90 + 200}ms` }}>
+                        <div className="mt-2 w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK, animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: `${streamMs(MSG_PLANS_INTRO) + PLANS.length * 90 + 200}ms` }}>
                           <Words delay={streamMs(MSG_PLANS_INTRO) + PLANS.length * 90 + 200}>{PLANS_FOLLOWUP}</Words>
                         </div>
                         {actionsRow(2, PLANS_FOLLOWUP, "mt-2.5")}
@@ -1232,7 +1232,7 @@ function CornerPillVariant() {
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                           AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                         </p>
-                        <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m3" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m3" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                           <Words>Great pick! Want me to email you the setup link?</Words>
                         </div>
                         {conversationTurn === 3 && (
@@ -1272,7 +1272,7 @@ function CornerPillVariant() {
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                           AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                         </p>
-                        <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                           <Words>Sure! What&apos;s your email?</Words>
                         </div>
                       </div>
@@ -1293,7 +1293,7 @@ function CornerPillVariant() {
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                           AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                         </p>
-                        <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m5" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m5" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                           <ReasoningToolsStrip
                             reasoning={[
                               <>Validated <span className="font-medium">{email}</span> as a deliverable address</>,

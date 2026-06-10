@@ -30,7 +30,7 @@ function Bubble({
       )}
       <div className="flex justify-start">
         <div
-          className="max-w-[88%] rounded-tl-[12px] rounded-tr-[12px] rounded-br-[12px] rounded-bl-[6px] border px-[14px] py-[10px] text-[12px] leading-[1.55]"
+          className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
           style={{ backgroundColor: AI_BG, borderColor: LINE, color: INK }}
         >
           {children}
@@ -145,8 +145,8 @@ function CitationDemo() {
 
 const ANATOMY = [
   { label: "Identity label (optional)", token: "Tars • AI Agent · 11/16 medium muted" },
-  { label: "Bubble container", token: "max-w-[88%] · rounded 12/12/12/6 · border-line" },
-  { label: "Content", token: "12/18 regular ink · words stream in 38ms stagger" },
+  { label: "Bubble container", token: "max-w-[90%] · rounded 12/12/12/4 · border-line" },
+  { label: "Content", token: "14px regular ink · words stream in 38ms stagger" },
   { label: "Inline citation chip", token: "h-4 · rounded-[4px] · numeric label" },
   { label: "Action toolbar (on click)", token: "Sound · Like · Dislike · Copy" },
 ];
@@ -155,11 +155,11 @@ const SPECS = [
   { prop: "Background", value: "#F9F3EA", note: "n-50 · --bg-paper" },
   { prop: "Border", value: "1px #E0DAD3", note: "--border-line" },
   { prop: "Text", value: "#333333", note: "--text-ink" },
-  { prop: "Font", value: "12 / 18 · 400", note: "Body S · Relaxed · Regular" },
+  { prop: "Font", value: "14 · leading-relaxed · 400", note: "Body · 1.625 · Regular" },
   { prop: "Emphasis", value: "600", note: "Semibold for emphasized words" },
-  { prop: "Padding", value: "px-[14px] py-[10px]", note: "Tighter horizontal" },
-  { prop: "Max width", value: "88%", note: "Of the message column" },
-  { prop: "Radius", value: "12 · 12 · 12 · 6 (bl)", note: "Sharp corner anchors to speaker" },
+  { prop: "Padding", value: "px-3.5 py-2", note: "14px × 8px" },
+  { prop: "Max width", value: "90%", note: "Of the message column" },
+  { prop: "Radius", value: "12 · 12 · 12 · 4 (bl)", note: "Sharp corner anchors to speaker" },
   { prop: "Alignment", value: "justify-start", note: "Left-aligned" },
   { prop: "Animation", value: "word-by-word 38ms", note: "On first reveal only" },
 ];
