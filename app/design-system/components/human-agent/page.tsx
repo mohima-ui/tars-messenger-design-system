@@ -36,16 +36,18 @@ const AGENTS = [
 function HumanBubble({
   name,
   initial,
-  text,
+  text = "",
   timestamp = "2:14 PM",
+  typing = false,
   withLabel = true,
   withToolbar = false,
   animate = false,
 }: {
   name: string;
   initial: string;
-  text: string;
+  text?: string;
   timestamp?: string;
+  typing?: boolean;
   withLabel?: boolean;
   withToolbar?: boolean;
   animate?: boolean;
@@ -61,7 +63,7 @@ function HumanBubble({
             {initial}
           </div>
           <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-            {name} <span className="text-[#A8A096]">· {timestamp}</span>
+            {name} <span className="text-[#A8A096]">{typing ? "is typing…" : `· ${timestamp}`}</span>
           </p>
         </div>
       )}
@@ -70,7 +72,21 @@ function HumanBubble({
           className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
           style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
         >
-          {animate ? <Words text={text} /> : text}
+          {typing ? (
+            <span className="flex items-center gap-1 py-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="block size-1.5 rounded-full"
+                  style={{ backgroundColor: "#8A8378", animation: `typing-dot 1.2s ease-in-out ${i * 150}ms infinite` }}
+                />
+              ))}
+            </span>
+          ) : animate ? (
+            <Words text={text} />
+          ) : (
+            text
+          )}
         </div>
       </div>
       {withToolbar && (
@@ -99,6 +115,7 @@ const ANATOMY = [
   { label: "Bubble", token: "Identical to AI Message — paper bg, line border, rounded 12/12/12/4" },
   { label: "Content", token: "14px regular ink — streams word-by-word like AI" },
   { label: "Action toolbar (on hover)", token: "Sound · Like · Dislike · Copy — same as AI Message" },
+  { label: "Typing indicator", token: "Avatar + name + 'is typing…' · 3-dot bubble (typing-dot)" },
 ];
 
 const SPECS = [
@@ -204,12 +221,11 @@ export default function HumanAgentPage() {
                 />
               </div>
               <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Word reveal</p>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Typing</p>
                 <HumanBubble
                   name={AGENTS[2].name}
                   initial={AGENTS[2].initial}
-                  text="Sure — your refund was approved and is on its way."
-                  animate
+                  typing
                 />
               </div>
             </div>
