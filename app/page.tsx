@@ -1106,8 +1106,8 @@ function CornerPillVariant() {
                 {introChoice !== null && (
                   <>
                 <div className="flex justify-end">
-                  <div className="rounded-[10px] rounded-br-[3px] border px-3.5 py-2 text-[14px] leading-relaxed"
-                    style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: "#4A1F77", maxWidth: 260 }}>
+                  <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                    style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
                     {chosenLabel || COMPOSER_STARTERS[selectedStarter]}
                   </div>
                 </div>
@@ -1151,8 +1151,8 @@ function CornerPillVariant() {
                 {conversationTurn >= 2 && (
                   <>
                     <div className="flex justify-end">
-                      <div className="rounded-[10px] rounded-br-[3px] border px-3.5 py-2 text-[14px] leading-relaxed"
-                        style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: "#4A1F77", maxWidth: 260 }}>Compare plans</div>
+                      <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                        style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>Compare plans</div>
                     </div>
                     {panelPhase === "thinking" && <ThinkingEvents step={thinkingStep} />}
                     {panelPhase === "done" && (
@@ -1221,8 +1221,8 @@ function CornerPillVariant() {
                 {conversationTurn >= 3 && (
                   <>
                     <div className="flex justify-end">
-                      <div className="rounded-[10px] rounded-br-[3px] border px-3.5 py-2 text-[14px] leading-relaxed"
-                        style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: "#4A1F77", maxWidth: 260 }}>
+                      <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                        style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
                         {selectedPlan}
                       </div>
                     </div>
@@ -1261,8 +1261,8 @@ function CornerPillVariant() {
                 {conversationTurn >= 4 && (
                   <>
                     <div className="flex justify-end">
-                      <div className="rounded-[10px] rounded-br-[3px] border px-3.5 py-2 text-[14px] leading-relaxed"
-                        style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: "#4A1F77", maxWidth: 260 }}>
+                      <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                        style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
                         Email me the link
                       </div>
                     </div>
@@ -1282,8 +1282,8 @@ function CornerPillVariant() {
                 {conversationTurn === 5 && (
                   <>
                     <div className="flex justify-end">
-                      <div className="rounded-[10px] rounded-br-[3px] border px-3.5 py-2 text-[14px] leading-relaxed"
-                        style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: "#4A1F77", maxWidth: 260 }}>
+                      <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                        style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
                         {email}
                       </div>
                     </div>
