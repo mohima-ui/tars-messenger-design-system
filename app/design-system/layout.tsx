@@ -119,7 +119,7 @@ export default function DesignSystemLayout({
   const [query, setQuery] = useState("");
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFA]">
+    <div className="flex min-h-screen bg-white">
       {/* sidebar */}
       <aside className="sticky top-0 flex h-screen w-[264px] shrink-0 flex-col border-r border-[#E3E3E3] bg-white">
         {/* brand */}
@@ -133,7 +133,7 @@ export default function DesignSystemLayout({
 
         {/* search */}
         <div className="px-3 pb-3">
-          <div className="flex items-center gap-2 rounded-[8px] border border-[#E0DAD3] bg-white px-2.5 py-1.5">
+          <div className="flex items-center gap-2 rounded-[8px] border border-[#E5E5E5] bg-white px-2.5 py-1.5">
             <Search className="size-3.5 text-[#979797]" strokeWidth={2} />
             <input
               value={query}

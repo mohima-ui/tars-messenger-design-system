@@ -236,7 +236,7 @@ function AccentRow({ tenant }: { tenant: typeof ACCENTS[number] }) {
     { label: "accent-border", hex: tenant.border, role: "Soft border · ring" },
   ];
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] border border-[#E0DAD3] bg-[#FFFDFA] p-4">
+    <div className="flex flex-col gap-3 rounded-[14px] border border-[#E5E5E5] bg-[#FFFDFA] p-4">
       <p className="text-[13px] font-semibold text-[#333333]">{tenant.tenant}</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {items.map((i) => (
@@ -269,7 +269,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-20 border-t border-[#E0DAD3] pt-12 first:border-t-0 first:pt-0">
+    <section id={id} className="scroll-mt-20 border-t border-[#E5E5E5] pt-12 first:border-t-0 first:pt-0">
       <div className="mb-6">
         <h2 className="text-[20px] font-semibold tracking-tight text-[#333333]">
           {title}
@@ -287,7 +287,7 @@ function Section({
 
 export default function DesignSystemPage() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-white">
       <main className="mx-auto max-w-[1080px] px-8 py-12">
         <div className="mb-16 max-w-[640px]">
           <p className="text-[12px] font-medium tracking-wider text-[#6E6E6E] uppercase">
@@ -322,7 +322,7 @@ export default function DesignSystemPage() {
                   {FAMILIES.map((f) => (
                     <div
                       key={f.name}
-                      className="flex flex-col gap-3 rounded-[12px] border border-[#E0DAD3] bg-white p-4"
+                      className="flex flex-col gap-3 rounded-[12px] border border-[#E5E5E5] bg-white p-4"
                     >
                       <div className="flex items-baseline justify-between">
                         <p className="text-[13px] font-semibold text-[#333333]">
@@ -351,7 +351,7 @@ export default function DesignSystemPage() {
                 <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
                   Type scale
                 </p>
-                <div className="flex flex-col divide-y divide-[#E0DAD3] overflow-hidden rounded-[12px] border border-[#E0DAD3] bg-white">
+                <div className="flex flex-col divide-y divide-[#E5E5E5] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white">
                   {TYPE_SCALE.map((t) => (
                     <div
                       key={t.name}
@@ -385,7 +385,7 @@ export default function DesignSystemPage() {
                 <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
                   Font weight
                 </p>
-                <div className="rounded-[12px] border border-[#E0DAD3] bg-white p-4">
+                <div className="rounded-[12px] border border-[#E5E5E5] bg-white p-4">
                   <div className="flex flex-col gap-2.5">
                     {WEIGHTS.map((w) => (
                       <div key={w.name} className="flex items-baseline gap-4">
@@ -413,7 +413,7 @@ export default function DesignSystemPage() {
                   {LINE_HEIGHTS.map((l) => (
                     <div
                       key={l.name}
-                      className="flex flex-col gap-2 rounded-[12px] border border-[#E0DAD3] bg-white p-4"
+                      className="flex flex-col gap-2 rounded-[12px] border border-[#E5E5E5] bg-white p-4"
                     >
                       <div className="flex items-baseline justify-between">
                         <span className="text-[12px] font-semibold text-[#333333]">
@@ -440,7 +440,7 @@ export default function DesignSystemPage() {
                 <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
                   Letter spacing
                 </p>
-                <div className="flex flex-col divide-y divide-[#E0DAD3] overflow-hidden rounded-[12px] border border-[#E0DAD3] bg-white">
+                <div className="flex flex-col divide-y divide-[#E5E5E5] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white">
                   {LETTER_SPACINGS.map((s) => (
                     <div
                       key={s.name}
@@ -547,7 +547,7 @@ export default function DesignSystemPage() {
                   {SEMANTIC.map((s) => (
                     <div
                       key={s.name}
-                      className="flex flex-col gap-2 rounded-[12px] border border-[#E0DAD3] bg-white p-4"
+                      className="flex flex-col gap-2 rounded-[12px] border border-[#E5E5E5] bg-white p-4"
                     >
                       <p className="text-[12px] font-semibold text-[#333333]">
                         {s.name}
@@ -598,12 +598,12 @@ export default function DesignSystemPage() {
                   {ROLE_GROUPS.map((group) => (
                     <div
                       key={group.name}
-                      className="rounded-[12px] border border-[#E0DAD3] bg-white"
+                      className="rounded-[12px] border border-[#E5E5E5] bg-white"
                     >
-                      <p className="border-b border-[#E0DAD3] px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#333333] uppercase">
+                      <p className="border-b border-[#E5E5E5] px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#333333] uppercase">
                         {group.name}
                       </p>
-                      <div className="divide-y divide-[#E0DAD3]">
+                      <div className="divide-y divide-[#E5E5E5]">
                         {group.tokens.map((t) => (
                           <div
                             key={t.token}
@@ -642,8 +642,8 @@ export default function DesignSystemPage() {
           >
             <div className="flex flex-col gap-6">
               {/* Scale */}
-              <div className="rounded-[12px] border border-[#E0DAD3] bg-white">
-                <div className="flex flex-col divide-y divide-[#E0DAD3]">
+              <div className="rounded-[12px] border border-[#E5E5E5] bg-white">
+                <div className="flex flex-col divide-y divide-[#E5E5E5]">
                   {SPACING.map((s) => (
                     <div
                       key={s.name}
@@ -676,7 +676,7 @@ export default function DesignSystemPage() {
                 </p>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {/* Within an AI message group */}
-                  <div className="flex flex-col gap-3 rounded-[12px] border border-[#E0DAD3] bg-white p-4">
+                  <div className="flex flex-col gap-3 rounded-[12px] border border-[#E5E5E5] bg-white p-4">
                     <div>
                       <p className="text-[12px] font-semibold text-[#333333]">
                         Inside a single AI message
@@ -693,7 +693,7 @@ export default function DesignSystemPage() {
                         (6px) between each other.
                       </p>
                     </div>
-                    <div className="flex flex-col gap-1 rounded-[8px] border border-[#E0DAD3] bg-[#FFFDFA] p-3">
+                    <div className="flex flex-col gap-1 rounded-[8px] border border-[#E5E5E5] bg-[#FFFDFA] p-3">
                       <p className="text-[10px] font-medium text-[#6E6E6E]">
                         Tars • AI Agent
                       </p>
@@ -712,7 +712,7 @@ export default function DesignSystemPage() {
                   </div>
 
                   {/* Between messages in history */}
-                  <div className="flex flex-col gap-3 rounded-[12px] border border-[#E0DAD3] bg-white p-4">
+                  <div className="flex flex-col gap-3 rounded-[12px] border border-[#E5E5E5] bg-white p-4">
                     <div>
                       <p className="text-[12px] font-semibold text-[#333333]">
                         Between history messages
@@ -725,7 +725,7 @@ export default function DesignSystemPage() {
                         (12px) apart in the scroll list.
                       </p>
                     </div>
-                    <div className="flex flex-col gap-3 rounded-[8px] border border-[#E0DAD3] bg-[#FFFDFA] p-3">
+                    <div className="flex flex-col gap-3 rounded-[8px] border border-[#E5E5E5] bg-[#FFFDFA] p-3">
                       <div className="w-fit max-w-full rounded-tl-[10px] rounded-tr-[10px] rounded-br-[10px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-3 py-1.5 text-[11px] text-[#333333]">
                         I hear you — give me one moment.
                       </div>
@@ -751,10 +751,10 @@ export default function DesignSystemPage() {
               {RADII.map((r) => (
                 <div
                   key={r.name}
-                  className="flex flex-col gap-2 rounded-[12px] border border-[#E0DAD3] bg-white p-3"
+                  className="flex flex-col gap-2 rounded-[12px] border border-[#E5E5E5] bg-white p-3"
                 >
                   <div
-                    className="h-16 border border-[#E0DAD3] bg-[#F9F3EA]"
+                    className="h-16 border border-[#E5E5E5] bg-[#F9F3EA]"
                     style={{ borderRadius: `${r.px}px` }}
                   />
                   <div className="flex items-baseline justify-between">
@@ -780,7 +780,7 @@ export default function DesignSystemPage() {
               {SHADOWS.map((s) => (
                 <div
                   key={s.name}
-                  className="flex flex-col gap-3 rounded-[12px] border border-[#E0DAD3] bg-white p-4"
+                  className="flex flex-col gap-3 rounded-[12px] border border-[#E5E5E5] bg-white p-4"
                 >
                   <div className="flex items-baseline justify-between">
                     <span className="text-[11px] font-semibold text-[#333333]">
@@ -829,7 +829,7 @@ export default function DesignSystemPage() {
                   <Wrap
                     key={c.slug}
                     {...props}
-                    className={`flex flex-col gap-1 rounded-[12px] border border-[#E0DAD3] bg-white p-4 transition-colors ${
+                    className={`flex flex-col gap-1 rounded-[12px] border border-[#E5E5E5] bg-white p-4 transition-colors ${
                       ready ? "hover:bg-[#FFFDFA]" : ""
                     }`}
                   >
@@ -857,7 +857,7 @@ export default function DesignSystemPage() {
           </Section>
         </div>
 
-        <footer className="mt-20 border-t border-[#E0DAD3] pt-8 pb-12">
+        <footer className="mt-20 border-t border-[#E5E5E5] pt-8 pb-12">
           <p className="text-[11px] text-[#979797]">
             Tars Messenger Design System · v0.1 · Foundation
           </p>

@@ -10,6 +10,7 @@ import {
 
 /* ─── design tokens ─────────────────────────────────────── */
 const LINE = "#E0DAD3";
+const CHROME = "#E5E5E5";
 const PAPER = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
@@ -2713,7 +2714,7 @@ export default function LauncherVariantsPage() {
       {/* page header */}
       <header
         className="sticky top-0 z-20 border-b backdrop-blur"
-        style={{ borderColor: LINE, backgroundColor: "rgba(255,253,250,0.92)" }}
+        style={{ borderColor: CHROME, backgroundColor: "rgba(255,253,250,0.92)" }}
       >
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-8 py-4">
           <div className="flex items-baseline gap-3">
@@ -2726,7 +2727,7 @@ export default function LauncherVariantsPage() {
             >
               ← Launcher
             </a>
-            <span style={{ color: "#D9D5CC" }}>/</span>
+            <span style={{ color: "#D4D4D4" }}>/</span>
             <span className="text-[12px] font-semibold" style={{ color: INK }}>
               Entry-Point Variants
             </span>
@@ -2761,7 +2762,7 @@ export default function LauncherVariantsPage() {
         {/* variant tabs */}
         <div
           className="flex items-center gap-1 rounded-[12px] border p-1 mb-8"
-          style={{ borderColor: LINE, backgroundColor: "white" }}
+          style={{ borderColor: CHROME, backgroundColor: "white" }}
         >
           {VARIANTS.map((v) => (
             <button
@@ -2806,7 +2807,7 @@ export default function LauncherVariantsPage() {
         <div className="mt-6 grid grid-cols-2 gap-4">
           <div
             className="rounded-[12px] border bg-white p-5"
-            style={{ borderColor: LINE }}
+            style={{ borderColor: CHROME }}
           >
             <p className="text-[11px] font-semibold tracking-wider uppercase mb-3" style={{ color: MUTED }}>
               What to click
@@ -2827,7 +2828,7 @@ export default function LauncherVariantsPage() {
           </div>
           <div
             className="rounded-[12px] border bg-white p-5"
-            style={{ borderColor: LINE }}
+            style={{ borderColor: CHROME }}
           >
             <p className="text-[11px] font-semibold tracking-wider uppercase mb-3" style={{ color: MUTED }}>
               Guidance
@@ -2841,7 +2842,7 @@ export default function LauncherVariantsPage() {
 
       <footer
         className="mt-12 border-t py-8 mx-auto max-w-[1080px] px-8 flex items-center justify-between text-[12px]"
-        style={{ borderColor: LINE, color: "#979797" }}
+        style={{ borderColor: CHROME, color: "#979797" }}
       >
         <a href="/design-system/components/launcher" className="transition-colors hover:text-[#333333]">
           ← Launcher

@@ -1,16 +1,17 @@
 import { ChevronLeft, MoreVertical, X } from "lucide-react";
 
 const LINE = "#E0DAD3";
+const CHROME = "#E5E5E5";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
 
-function HeaderPreview() {
+function HeaderPreview({ subtitle = true }: { subtitle?: boolean }) {
   return (
     <div
       className="w-[400px] overflow-hidden rounded-[20px] border bg-[#FFFDFA]"
       style={{ borderColor: "#D9D5CC" }}
     >
-      <header className="flex w-full items-center gap-1 border-b border-[#EBE3D4] px-4 py-3.5">
+      <header className="flex h-16 w-full items-center gap-1 px-4">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <button
             className="flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333] active:bg-[#F0EBE0]"
@@ -19,20 +20,22 @@ function HeaderPreview() {
             <ChevronLeft className="size-5" strokeWidth={1.5} />
           </button>
           <img
-            src="/global-payments-avatar.png"
-            alt="Global Payments"
-            className="ml-1 size-9 shrink-0 rounded-full object-cover"
+            src="/tars-logomark.png"
+            alt="Tars"
+            className="ml-0.5 size-9 shrink-0 rounded-[10px] object-cover"
           />
-          <div className="ml-1 flex min-w-0 flex-col">
-            <p className="truncate text-[14px] leading-5 font-semibold text-[#333]">
-              Global Payments
+          <div className="ml-1.5 min-w-0">
+            <p className="truncate text-[16px] leading-tight font-semibold text-[#333333]">
+              Tars
             </p>
-            <p className="truncate text-[10px] leading-4 font-medium text-[#979797]">
-              Virtual Assistant
-            </p>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-[12px] leading-tight text-[#6E6E6E]">
+                Virtual Assistant
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             className="flex size-7 items-center justify-center rounded-[6px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333] active:bg-[#F0EBE0]"
             aria-label="More options"
@@ -53,20 +56,22 @@ function HeaderPreview() {
 
 const ANATOMY = [
   { label: "Back / history button", token: "Icon button · size-7 · rounded-[6px]" },
-  { label: "Avatar", token: "size-9 · rounded-full · object-cover" },
-  { label: "Identity stack", token: "Title (14/20 semibold ink) + Subtitle (10/16 medium muted)" },
+  { label: "Avatar", token: "size-9 · rounded-[10px] · object-cover" },
+  { label: "Identity stack", token: "Title (16 semibold ink) + optional Subtitle (12 muted)" },
   { label: "More options", token: "Icon button · size-7 · rounded-[6px]" },
   { label: "Close", token: "Icon button · size-7 · rounded-[6px]" },
 ];
 
 const SPECS = [
-  { prop: "Container padding", value: "px-4 py-3.5", note: "16px × 14px" },
-  { prop: "Container border", value: "border-b · #EBE3D4", note: "1px hairline below header" },
-  { prop: "Title", value: "14 / 20 · 600 · #333333", note: "Body size, semibold, ink" },
-  { prop: "Subtitle", value: "10 / 16 · 500 · #979797", note: "Caption, medium, muted" },
-  { prop: "Identity gap", value: "gap-1", note: "4px between back · avatar · stack" },
-  { prop: "Right cluster gap", value: "gap-1", note: "4px between More · Close" },
-  { prop: "Avatar size", value: "size-9", note: "36px round" },
+  { prop: "Header height", value: "h-16", note: "64px tall" },
+  { prop: "Side padding", value: "px-4", note: "16px left / right" },
+  { prop: "Container border", value: "border-b · #E0DAD3", note: "1px hairline below header (LINE)" },
+  { prop: "Title", value: "16 · 600 · #333333", note: "Agent name, semibold, ink" },
+  { prop: "Subtitle", value: "12 · 500 · #6E6E6E", note: "Caption, medium, muted" },
+  { prop: "Back → avatar gap", value: "gap-1 + ml-0.5", note: "6px (4px row gap + 2px)" },
+  { prop: "Avatar → title gap", value: "ml-1.5", note: "6px" },
+  { prop: "Right cluster gap", value: "gap-0.5", note: "2px between More · Close" },
+  { prop: "Avatar size", value: "size-9 · r-10", note: "36px rounded-square" },
   { prop: "Icon button size", value: "size-7", note: "28px hit area" },
   { prop: "Icon stroke width", value: "1.5", note: "Lucide default" },
 ];
@@ -91,7 +96,7 @@ const STATES = [
 ];
 
 const DOS = [
-  "Use a circular avatar — image or single-letter fallback in --accent.",
+  "Use a rounded-square avatar (r-10) — image or single-letter fallback in --accent.",
   "Keep the title to one line; truncate with ellipsis if it overflows.",
   "Use the back chevron only when a deeper view exists (history, settings).",
 ];
@@ -115,8 +120,8 @@ function StateRow({ name, desc }: { name: string; desc: string }) {
 
 export default function HeaderComponentPage() {
   return (
-    <div className="min-h-screen bg-[#FFFDFA]">
-      <header className="sticky top-0 z-10 border-b border-[#E0DAD3] bg-[#FFFDFA]/90 backdrop-blur">
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-8 py-4">
           <div className="flex items-baseline gap-3">
             <a
@@ -125,11 +130,11 @@ export default function HeaderComponentPage() {
             >
               ← Foundation
             </a>
-            <span className="text-[#D9D5CC]">/</span>
+            <span className="text-[#D4D4D4]">/</span>
             <span className="text-[12px] font-medium text-[#333333]">
               Components
             </span>
-            <span className="text-[#D9D5CC]">/</span>
+            <span className="text-[#D4D4D4]">/</span>
             <span className="text-[12px] font-semibold text-[#333333]">
               Header
             </span>
@@ -158,11 +163,29 @@ export default function HeaderComponentPage() {
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
               Preview
             </p>
-            <div
-              className="flex justify-center rounded-[14px] border bg-[#FAF6EE] p-8"
-              style={{ borderColor: LINE }}
-            >
-              <HeaderPreview />
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="mb-2 text-[11px] font-medium text-[#979797]">
+                  Default · name + subtitle
+                </p>
+                <div
+                  className="flex justify-center rounded-[14px] border bg-white p-8"
+                  style={{ borderColor: CHROME }}
+                >
+                  <HeaderPreview />
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-[11px] font-medium text-[#979797]">
+                  Name only · no subtitle
+                </p>
+                <div
+                  className="flex justify-center rounded-[14px] border bg-white p-8"
+                  style={{ borderColor: CHROME }}
+                >
+                  <HeaderPreview subtitle={false} />
+                </div>
+              </div>
             </div>
           </section>
 
@@ -173,7 +196,7 @@ export default function HeaderComponentPage() {
             </p>
             <div
               className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white"
-              style={{ borderColor: LINE }}
+              style={{ borderColor: CHROME }}
             >
               {ANATOMY.map((a, i) => (
                 <div key={a.label} className="flex items-baseline gap-4 px-4 py-3">
@@ -196,7 +219,7 @@ export default function HeaderComponentPage() {
             </p>
             <div
               className="rounded-[12px] border bg-white px-4 py-2 divide-y"
-              style={{ borderColor: LINE }}
+              style={{ borderColor: CHROME }}
             >
               {STATES.map((s) => (
                 <StateRow key={s.name} name={s.name} desc={s.desc} />
@@ -211,7 +234,7 @@ export default function HeaderComponentPage() {
             </p>
             <div
               className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white"
-              style={{ borderColor: LINE }}
+              style={{ borderColor: CHROME }}
             >
               {SPECS.map((s) => (
                 <div key={s.prop} className="flex items-baseline gap-4 px-4 py-3">
@@ -235,7 +258,7 @@ export default function HeaderComponentPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div
                 className="rounded-[12px] border bg-white p-4"
-                style={{ borderColor: LINE }}
+                style={{ borderColor: CHROME }}
               >
                 <div className="mb-3 flex items-center gap-2">
                   <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#E8F5EC] text-[11px] font-bold text-[#0F7A38]">
@@ -253,7 +276,7 @@ export default function HeaderComponentPage() {
               </div>
               <div
                 className="rounded-[12px] border bg-white p-4"
-                style={{ borderColor: LINE }}
+                style={{ borderColor: CHROME }}
               >
                 <div className="mb-3 flex items-center gap-2">
                   <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#FEE2E2] text-[11px] font-bold text-[#991B1B]">
@@ -275,7 +298,7 @@ export default function HeaderComponentPage() {
           </section>
         </div>
 
-        <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: LINE }}>
+        <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
           <a
             href="/design-system"
             className="transition-colors hover:text-[#333333]"

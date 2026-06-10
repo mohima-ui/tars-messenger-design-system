@@ -1,6 +1,7 @@
 import { ArrowRight, Users } from "lucide-react";
 
 const LINE = "#E0DAD3";
+const CHROME = "#E5E5E5";
 const PAPER = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
@@ -161,16 +162,16 @@ const DONTS = [
 
 export default function HandoffPage() {
   return (
-    <div className="min-h-screen bg-[#FFFDFA]">
-      <header className="sticky top-0 z-10 border-b border-[#E0DAD3] bg-[#FFFDFA]/90 backdrop-blur">
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-8 py-4">
           <div className="flex items-baseline gap-3">
             <a href="/design-system" className="text-[12px] text-[#6E6E6E] transition-colors hover:text-[#333333]">
               ← Foundation
             </a>
-            <span className="text-[#D9D5CC]">/</span>
+            <span className="text-[#D4D4D4]">/</span>
             <span className="text-[12px] font-medium text-[#333333]">Components</span>
-            <span className="text-[#D9D5CC]">/</span>
+            <span className="text-[#D4D4D4]">/</span>
             <span className="text-[12px] font-semibold text-[#333333]">Human Handoff</span>
           </div>
         </div>
@@ -195,8 +196,8 @@ export default function HandoffPage() {
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
               Connecting state
             </p>
-            <div className="rounded-[14px] border bg-[#FAF6EE] p-6" style={{ borderColor: LINE }}>
-              <div className="rounded-[10px] border bg-white p-4" style={{ borderColor: LINE }}>
+            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
+              <div className="rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <ConnectingCard
                   fromInitial="T"
                   fromColor="#120BF4"
@@ -213,8 +214,8 @@ export default function HandoffPage() {
           {/* In context */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">In context — full flow</p>
-            <div className="rounded-[14px] border bg-[#FAF6EE] p-6" style={{ borderColor: LINE }}>
-              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: LINE }}>
+            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 {/* AI message before */}
                 <div className="flex flex-col gap-1">
                   <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
@@ -282,8 +283,8 @@ export default function HandoffPage() {
           {/* Variant: solo seam (no context chip) */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Variant — seam only</p>
-            <div className="rounded-[14px] border bg-[#FAF6EE] p-6" style={{ borderColor: LINE }}>
-              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: LINE }}>
+            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <HandoffBanner
                   name="Marcus"
                   initial="M"
@@ -297,7 +298,7 @@ export default function HandoffPage() {
           {/* Flow */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Flow</p>
-            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
               {FLOW.map((f) => (
                 <div key={f.step} className="flex items-baseline gap-4 px-4 py-3">
                   <span className="w-6 font-mono text-[11px] font-semibold text-[#0A06A0]">{f.step}</span>
@@ -311,7 +312,7 @@ export default function HandoffPage() {
           {/* Anatomy */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Anatomy</p>
-            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
               {ANATOMY.map((a, i) => (
                 <div key={a.label} className="flex items-baseline gap-4 px-4 py-3">
                   <span className="w-6 font-mono text-[11px] text-[#979797]">{String(i + 1).padStart(2, "0")}</span>
@@ -325,7 +326,7 @@ export default function HandoffPage() {
           {/* States */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">States</p>
-            <div className="divide-y rounded-[12px] border bg-white px-4 py-2" style={{ borderColor: LINE }}>
+            <div className="divide-y rounded-[12px] border bg-white px-4 py-2" style={{ borderColor: CHROME }}>
               {STATES.map((s) => (
                 <div key={s.name} className="flex items-baseline gap-4 py-2.5">
                   <span className="w-40 shrink-0 text-[12px] font-semibold text-[#333333]">{s.name}</span>
@@ -338,7 +339,7 @@ export default function HandoffPage() {
           {/* Specs */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Specs</p>
-            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
               {SPECS.map((s) => (
                 <div key={s.prop} className="flex items-baseline gap-4 px-4 py-3">
                   <span className="w-48 shrink-0 text-[12px] font-semibold text-[#333333]">{s.prop}</span>
@@ -353,7 +354,7 @@ export default function HandoffPage() {
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Guidance</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: LINE }}>
+              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <div className="mb-3 flex items-center gap-2">
                   <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#E8F5EC] text-[11px] font-bold text-[#0F7A38]">✓</span>
                   <p className="text-[12px] font-semibold text-[#333333]">Do</p>
@@ -364,7 +365,7 @@ export default function HandoffPage() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: LINE }}>
+              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <div className="mb-3 flex items-center gap-2">
                   <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#FEE2E2] text-[11px] font-bold text-[#991B1B]">✕</span>
                   <p className="text-[12px] font-semibold text-[#333333]">Don&apos;t</p>
@@ -379,7 +380,7 @@ export default function HandoffPage() {
           </section>
         </div>
 
-        <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: LINE }}>
+        <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
           <a href="/design-system/components/human-agent" className="transition-colors hover:text-[#333333]">← Human Agent</a>
           <span>Next: CSAT →</span>
         </footer>
