@@ -312,7 +312,7 @@ function ReasoningToolsStrip({ reasoning, tools }: { reasoning: ReactNode[]; too
             return (
               <div key={t.name} className="rounded-[8px] border" style={{ borderColor: "#E4E4E7" }}>
                 <button type="button" onClick={() => toggleTool(t.name)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left bg-white rounded-[8px]">
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left bg-white ${isOpen ? "rounded-t-[8px]" : "rounded-[8px]"}`}>
                   <p className="text-[11px]" style={{ color: MUTED }}>
                     Called{" "}
                     <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px align-baseline font-mono text-[10px] tracking-tight"

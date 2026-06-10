@@ -202,7 +202,7 @@ function ReasoningToolsStrip({ reasoning, tools }: { reasoning: string[]; tools:
                 <button
                   type="button"
                   onClick={() => toggleTool(t.name)}
-                  className="flex w-full items-center justify-between gap-2 rounded-[8px] bg-white px-3 py-2 text-left"
+                  className={`flex w-full items-center justify-between gap-2 bg-white px-3 py-2 text-left ${isOpen ? "rounded-t-[8px]" : "rounded-[8px]"}`}
                 >
                   <p className="text-[11px]" style={{ color: MUTED }}>
                     Called{" "}
