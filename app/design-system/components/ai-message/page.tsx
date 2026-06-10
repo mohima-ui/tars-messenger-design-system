@@ -262,6 +262,16 @@ function ReasoningDemo() {
               args: '{ "topic": "refunds" }',
               result: '{ "window": "3–5 business days" }',
             },
+            {
+              name: "get_order",
+              args: '{ "order_id": "#30815" }',
+              result: '{ "status": "refunded", "amount": 49 }',
+            },
+            {
+              name: "estimate_settlement",
+              args: '{ "method": "card" }',
+              result: '{ "extra_days": "1–2" }',
+            },
           ]}
         />
         Refunds are processed within 3–5 business days.
