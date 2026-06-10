@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
+import { Check, ChevronRight, Copy, Database, ExternalLink, Sparkles, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
 import { useState } from "react";
 
 const LINE = "#E0DAD3";
@@ -11,6 +11,7 @@ const MUTED = "#6E6E6E";
 const ACCENT_SOFT = "#E0E5FA";
 const ACCENT_INK = "#0A06A0";
 const ACCENT_BORDER = "#A5B0EE";
+const ACCENT = "#3730C9";
 
 function Bubble({
   children,
@@ -25,7 +26,7 @@ function Bubble({
     <div className="flex flex-col gap-1">
       {withLabel && (
         <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-          Tars <span className="text-[#A8A096]">• AI Agent</span>
+          Tars <span className="text-[#A8A096]">· AI Agent · 2:14 PM</span>
         </p>
       )}
       <div className="flex justify-start">
@@ -56,88 +57,217 @@ function Bubble({
   );
 }
 
-function Citation({
-  n,
-  source,
-  open,
-  onToggle,
-}: {
-  n: number;
-  source: { title: string; url: string };
-  open: boolean;
-  onToggle: () => void;
-}) {
+function Citation({ n, source }: { n: number; source: { title: string; description: string; url: string } }) {
   return (
-    <span className="relative inline-block">
+    <span className="group/cite relative inline-block align-baseline">
       <button
         type="button"
-        onClick={onToggle}
-        className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] border px-1 text-[10px] font-semibold transition-colors"
-        style={{
-          backgroundColor: open ? ACCENT_SOFT : "#FFFFFF",
-          borderColor: open ? ACCENT_BORDER : LINE,
-          color: open ? ACCENT_INK : MUTED,
-        }}
+        className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full border border-[#E0DAD3] bg-[#E0DAD3] text-[10px] font-semibold text-[#333333] transition-colors group-hover/cite:border-[#C5A8E0] group-hover/cite:bg-[#F0E7FA] group-hover/cite:text-[#4A1F77]"
         aria-label={`Citation ${n}: ${source.title}`}
       >
         {n}
       </button>
-      {open && (
+      {/* pt-2 is a transparent bridge so moving from the chip to the card keeps hover; pointer-events enabled on hover so the link is clickable */}
+      <span className="pointer-events-none absolute top-full left-0 z-10 block w-max max-w-[260px] pt-2 opacity-0 transition-opacity duration-150 group-hover/cite:pointer-events-auto group-hover/cite:opacity-100">
         <span
-          className="absolute top-full left-0 z-10 mt-1 inline-flex w-[220px] flex-col gap-0.5 rounded-[8px] border bg-white p-2.5 text-left"
+          className="flex flex-col gap-0.5 rounded-[8px] border bg-white p-2.5 text-left"
           style={{
             borderColor: LINE,
-            boxShadow:
-              "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+            boxShadow: "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
           }}
         >
-          <span
-            className="font-mono text-[9px] font-semibold tracking-wider uppercase"
-            style={{ color: MUTED }}
-          >
+          <span className="font-mono text-[9px] font-semibold tracking-wider uppercase" style={{ color: MUTED }}>
             Source {n}
           </span>
           <span className="text-[12px] font-medium" style={{ color: INK }}>
             {source.title}
           </span>
-          <span
-            className="truncate font-mono text-[10px]"
-            style={{ color: ACCENT_INK }}
-          >
-            {source.url}
+          <span className="line-clamp-2 text-[11px] leading-[1.45]" style={{ color: MUTED }}>
+            {source.description}
           </span>
+          <a
+            href={`https://${source.url}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-flex max-w-full items-center gap-1 font-mono text-[10px] underline"
+            style={{ color: "#4A1F77" }}
+          >
+            <span className="truncate">{source.url}</span>
+            <ExternalLink className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+          </a>
         </span>
-      )}
+      </span>
     </span>
   );
 }
 
 function CitationDemo() {
-  const [open, setOpen] = useState<number | null>(null);
   return (
     <div className="flex flex-col gap-2">
-      <Bubble>
+      <Bubble withLabel>
         Refunds are processed within 3–5 business days
         <Citation
           n={1}
-          source={{ title: "Refund policy — terms.pdf", url: "acme.co/legal" }}
-          open={open === 1}
-          onToggle={() => setOpen(open === 1 ? null : 1)}
+          source={{
+            title: "Refund policy — terms.pdf",
+            description: "How refunds are issued and the standard 3–5 business day processing window.",
+            url: "acme.co/legal",
+          }}
         />{" "}
         and may take a further 1–2 days to appear on your statement
         <Citation
           n={2}
           source={{
             title: "Bank settlement timelines",
+            description: "Why funds can take 1–2 extra days to post to your statement after processing.",
             url: "acme.co/help/timing",
           }}
-          open={open === 2}
-          onToggle={() => setOpen(open === 2 ? null : 2)}
         />
         .
       </Bubble>
       <p className="ml-1 text-[10px] text-[#979797]">
-        Tap a citation chip to expand the source.
+        Hover a citation chip to reveal the source.
+      </p>
+    </div>
+  );
+}
+
+type ToolEntry = { name: string; args: string; result: string };
+
+function ReasoningToolsStrip({ reasoning, tools }: { reasoning: string[]; tools: ToolEntry[] }) {
+  const [expanded, setExpanded] = useState<"reasoning" | "tools" | null>(null);
+  const [openTools, setOpenTools] = useState<Set<string>>(new Set());
+  const openReasoning = expanded === "reasoning";
+  const openToolsPanel = expanded === "tools";
+  const toggle = (w: "reasoning" | "tools") => setExpanded((p) => (p === w ? null : w));
+  const toggleTool = (n: string) =>
+    setOpenTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+
+  const link = (Icon: typeof Sparkles, label: string, open: boolean, onToggle: () => void) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+      style={{ color: open ? ACCENT : MUTED }}
+    >
+      <Icon className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+      {label}
+      <ChevronRight
+        className="size-2.5 transition-transform"
+        strokeWidth={2}
+        style={{ transform: open ? "rotate(90deg)" : "rotate(0)" }}
+      />
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="flex items-center gap-4">
+        {link(Sparkles, "Reasoning", openReasoning, () => toggle("reasoning"))}
+        {link(Database, "Tools used", openToolsPanel, () => toggle("tools"))}
+      </div>
+
+      {openReasoning && (
+        <div className="mt-2 flex flex-col" style={{ animation: "fade-in 200ms ease-out both" }}>
+          {reasoning.map((s, i, arr) => (
+            <div key={i} className="flex flex-col">
+              <div className="flex items-start gap-2">
+                <span
+                  className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border"
+                  style={{ backgroundColor: ACCENT_SOFT, borderColor: ACCENT_BORDER, color: ACCENT_INK }}
+                >
+                  <Check className="size-2" strokeWidth={2.5} />
+                </span>
+                <span className="text-[11px] leading-[1.5]" style={{ color: MUTED }}>{s}</span>
+              </div>
+              {i < arr.length - 1 && (
+                <span className="ml-[7px] h-4 w-px" style={{ backgroundColor: ACCENT_BORDER }} aria-hidden />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {openToolsPanel && (
+        <div className="mt-2 flex flex-col gap-1.5" style={{ animation: "fade-in 200ms ease-out both" }}>
+          {tools.map((t) => {
+            const isOpen = openTools.has(t.name);
+            return (
+              <div key={t.name} className="rounded-[8px] border" style={{ borderColor: CHROME }}>
+                <button
+                  type="button"
+                  onClick={() => toggleTool(t.name)}
+                  className="flex w-full items-center justify-between gap-2 rounded-[8px] bg-white px-3 py-2 text-left"
+                >
+                  <p className="text-[11px]" style={{ color: MUTED }}>
+                    Called{" "}
+                    <code
+                      className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px align-baseline font-mono text-[10px] tracking-tight"
+                      style={{ backgroundColor: ACCENT_SOFT, color: ACCENT_INK }}
+                    >
+                      {t.name}
+                    </code>
+                  </p>
+                  <ChevronRight
+                    className="size-3 shrink-0 transition-transform"
+                    strokeWidth={2}
+                    style={{ color: MUTED, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }}
+                    aria-hidden
+                  />
+                </button>
+                {isOpen && (
+                  <div
+                    className="flex flex-col gap-1.5 rounded-b-[8px] border-t bg-white px-3 py-2"
+                    style={{ borderColor: CHROME, animation: "fade-in 180ms ease-out both" }}
+                  >
+                    <div>
+                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Arguments</span>
+                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.args}</pre>
+                    </div>
+                    <div>
+                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Result</span>
+                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.result}</pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-1.5 mb-1.5 h-px" style={{ backgroundColor: LINE }} />
+    </div>
+  );
+}
+
+function ReasoningDemo() {
+  return (
+    <div className="flex flex-col gap-2">
+      <Bubble withLabel>
+        <ReasoningToolsStrip
+          reasoning={[
+            "Read the customer's question",
+            "Checked the refund policy",
+            "Drafted the response",
+          ]}
+          tools={[
+            {
+              name: "lookup_policy",
+              args: '{ "topic": "refunds" }',
+              result: '{ "window": "3–5 business days" }',
+            },
+          ]}
+        />
+        Refunds are processed within 3–5 business days.
+      </Bubble>
+      <p className="ml-1 text-[10px] text-[#979797]">
+        Tap “Reasoning” or “Tools used” to expand the trace.
       </p>
     </div>
   );
@@ -249,33 +379,33 @@ export default function AiMessagePage() {
               className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-2"
               style={{ borderColor: CHROME }}
             >
-              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
-                  Default
-                </p>
-                <Bubble>I hear you — give me one moment to look into that.</Bubble>
-              </div>
-              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
-                  With label (first of group)
+                  Default · label + timestamp
                 </p>
                 <Bubble withLabel>
                   Hey there — looking to learn more?
                 </Bubble>
               </div>
-              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
-                  Selected (click → toolbar)
+                  Hover · action buttons below
                 </p>
                 <Bubble withLabel withToolbar>
                   Refunds usually land in 3–5 business days.
                 </Bubble>
               </div>
-              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
-                  With inline citations
+                  With citations
                 </p>
                 <CitationDemo />
+              </div>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
+                  With reasoning &amp; tools
+                </p>
+                <ReasoningDemo />
               </div>
             </div>
           </section>

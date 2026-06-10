@@ -398,8 +398,7 @@ function CitationSource({ n, source }: { n: number; source: { title: string; des
     <span className="group/cite relative inline-block align-baseline" onMouseEnter={recalc} onFocus={recalc}>
       <span
         ref={chipRef}
-        className="ml-0.5 inline-flex size-4 cursor-pointer items-center justify-center rounded-full align-middle text-[10px] font-semibold transition-colors group-hover/cite:!bg-[#F0E7FA] group-hover/cite:!text-[#4A1F77]"
-        style={{ backgroundColor: "#E0DAD3", color: "#1a1a1a" }}
+        className="ml-0.5 inline-flex size-4 cursor-pointer items-center justify-center rounded-full border border-[#E0DAD3] bg-[#E0DAD3] align-middle text-[10px] font-semibold text-[#333333] transition-colors group-hover/cite:border-[#C5A8E0] group-hover/cite:bg-[#F0E7FA] group-hover/cite:text-[#4A1F77]"
       >
         {n}
       </span>
@@ -409,10 +408,11 @@ function CitationSource({ n, source }: { n: number; source: { title: string; des
       >
         <span className="block rounded-[10px] border bg-white p-3"
           style={{ borderColor: LINE, boxShadow: "0 4px 14px -3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)" }}>
-          <span className="block text-[12px] font-semibold leading-[1.35]" style={{ color: INK }}>{source.title}</span>
-          <span className="mt-1 block text-[11px] leading-[1.45]" style={{ color: MUTED }}>{source.description}</span>
+          <span className="block font-mono text-[9px] font-semibold tracking-wider uppercase" style={{ color: MUTED }}>Source {n}</span>
+          <span className="mt-1 block text-[12px] font-semibold leading-[1.35]" style={{ color: INK }}>{source.title}</span>
+          <span className="mt-1 block line-clamp-2 text-[11px] leading-[1.45]" style={{ color: MUTED }}>{source.description}</span>
           <a href={`https://${source.url}`} target="_blank" rel="noopener noreferrer"
-            className="mt-1.5 inline-flex max-w-full items-center gap-1 font-mono text-[11px] hover:underline"
+            className="mt-1.5 inline-flex max-w-full items-center gap-1 font-mono text-[11px] underline"
             style={{ color: ACCENT_INK }}>
             <span className="truncate">{source.url}</span>
             <ExternalLink className="size-3 shrink-0" strokeWidth={2} aria-hidden />
