@@ -18,7 +18,7 @@ function ChatbotShell() {
           <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
             <ChevronLeft className="size-5" strokeWidth={1.5} />
           </span>
-          <img src="/tars-logomark.png" alt="" className="ml-1 size-9 shrink-0 rounded-[10px] object-cover" />
+          <img src="/tars-logomark.png" alt="" className="ml-0.5 size-[38px] shrink-0 rounded-[10px] object-cover" />
           <div className="ml-1.5 min-w-0">
             <p className="truncate text-[16px] font-semibold leading-tight" style={{ color: INK }}>Tars</p>
             <p className="mt-0.5 truncate text-[12px] leading-tight" style={{ color: MUTED }}>Virtual Assistant</p>
@@ -56,7 +56,7 @@ function ChatbotShell() {
 }
 
 const ANATOMY = [
-  { label: "Header", token: "h-16 · back/history · avatar · agent name + caption · menu — border-bottom" },
+  { label: "Header", token: "h-[68px] · back/history · avatar · agent name + caption · menu — border-bottom" },
   { label: "Message area", token: "flex-1 scrollable canvas — empty in the bare shell" },
   { label: "Composer", token: "Docked input — attach · field · mic, on paper surface" },
 ];
@@ -64,7 +64,7 @@ const ANATOMY = [
 const SPECS = [
   { prop: "Panel", value: "400 × 680 · r-28", note: "--bg-surface #FEFCF8" },
   { prop: "Header height", value: "68px", note: "border-line bottom" },
-  { prop: "Avatar", value: "36px · r-10", note: "Tenant agent avatar" },
+  { prop: "Avatar", value: "38px · r-10", note: "Tenant agent avatar" },
   { prop: "Composer field", value: "r-16 · paper", note: "--bg-paper #F9F3EA · 1px border-line" },
   { prop: "Placeholder", value: "14px #979797", note: "“Ask me anything...”" },
 ];

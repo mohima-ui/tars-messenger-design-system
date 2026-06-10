@@ -1025,7 +1025,7 @@ function CornerPillVariant() {
                 }}>
                 <HistoryView onBack={() => setView("chat")} onNew={resetConversation} onOpen={() => setView("chat")} />
               </div>
-              <div className="flex w-full items-center gap-1 px-4 h-16 border-b shrink-0" style={{ borderColor: LINE }}>
+              <div className="flex w-full items-center gap-1 px-4 h-[68px] border-b shrink-0" style={{ borderColor: LINE }}>
                 <div className="flex min-w-0 flex-1 items-center gap-1">
                   <button
                     type="button"
@@ -1039,14 +1039,13 @@ function CornerPillVariant() {
                   >
                     <ChevronLeft className="size-5" strokeWidth={1.5} />
                   </button>
-                  <div className="ml-1 size-7 shrink-0 overflow-hidden rounded-[8px]">
-                    <img src="/tars-avatar.png" alt="" className="size-full scale-105 object-cover" />
-                  </div>
-                  <div className="ml-1.5 flex min-w-0 items-center">
-                    <p className="truncate text-[16px] font-semibold" style={{ color: "#333" }}>Tars Agent</p>
+                  <img src="/tars-logomark.png" alt="" className="ml-0.5 size-[38px] shrink-0 rounded-[10px] object-cover" />
+                  <div className="ml-1.5 min-w-0">
+                    <p className="truncate text-[16px] font-semibold leading-tight" style={{ color: INK }}>Tars</p>
+                    <p className="mt-0.5 truncate text-[12px] leading-tight" style={{ color: MUTED }}>Virtual Assistant</p>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-0.5">
                   <div ref={menuRef} className="relative">
                     <button
                       className="tooltip-host tooltip-below flex size-7 items-center justify-center rounded-[6px] transition-colors"
