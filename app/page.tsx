@@ -177,13 +177,6 @@ const STARTER_OPTIONS = [
   ["See a demo", "Compare plans", "What can it do?"],
 ];
 
-// opening AI greeting options (chat starts here) → mapped to a starter response path
-const INTRO_OPTIONS = [
-  { label: "Get a product demo", starter: 0 },
-  { label: "Need support", starter: 2 },
-  { label: "Pricing plans", starter: 1 },
-];
-
 const PLANS_FOLLOWUP = "What scale are you working at?";
 const PLANS = [
   {
@@ -496,8 +489,9 @@ function CornerPillVariant() {
   const [selectedStarter, setSelectedStarter] = useState(0);
   const [introChoice, setIntroChoice] = useState<number | null>(null);
   const [chosenLabel, setChosenLabel] = useState("");
-  // when a launcher starter is picked, seed the chat to open straight on that starter
+  // when a launcher starter is picked (or text typed in focused), seed the chat to open straight on it
   const [pendingStarter, setPendingStarter] = useState<number | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [panelPhase, setPanelPhase] = useState<"thinking" | "done">("thinking");
   const [thinkingStep, setThinkingStep] = useState(0);
   const [hoveredTurn, setHoveredTurn] = useState<null | 0 | 1 | 2 | 3 | 4 | 5>(null);
@@ -626,12 +620,17 @@ function CornerPillVariant() {
 
   const resetConversation = () => {
     setView("chat");
-    // if a launcher starter was picked, open straight on it; otherwise show the intro options
+    // open the chat straight on whatever the user picked (starter) or typed in the focused state
     if (pendingStarter !== null) {
       setSelectedStarter(pendingStarter);
       setChosenLabel(COMPOSER_STARTERS[pendingStarter]);
       setIntroChoice(pendingStarter);
       setPendingStarter(null);
+    } else if (pendingMessage !== null) {
+      setSelectedStarter(0);
+      setChosenLabel(pendingMessage);
+      setIntroChoice(0);
+      setPendingMessage(null);
     } else {
       setIntroChoice(null);
       setChosenLabel("");
@@ -713,6 +712,16 @@ function CornerPillVariant() {
 
   const handleSend = () => {
     const val = inputText.trim();
+    // typed a message in the focused launcher → open the chat started on that message
+    if (phase === "focused") {
+      if (val) {
+        setPendingStarter(null);
+        setPendingMessage(val);
+        setInputText("");
+        setTimeout(() => setPhase("chatting"), 120);
+      }
+      return;
+    }
     if (awaitingEmail && val) {
       setEmail(val);
       setConversationTurn(5);
@@ -735,18 +744,6 @@ function CornerPillVariant() {
     setSelectedStarter(idx);
     setPendingStarter(idx);
     setTimeout(() => { setPhase("chatting"); setPressedIdx(null); }, 120);
-  };
-
-  // pick one of the opening greeting options → becomes the first user turn, AI responds
-  const chooseIntro = (i: number) => {
-    const opt = INTRO_OPTIONS[i];
-    setChosenLabel(opt.label);
-    setSelectedStarter(opt.starter);
-    setPanelPhase("thinking");
-    setThinkingStep(0);
-    setConversationTurn(1);
-    setHoveredTurn(null);
-    setIntroChoice(i);
   };
 
   // ── action buttons: TTS / react / copy ──
@@ -1107,29 +1104,6 @@ function CornerPillVariant() {
                 </div>
               </div>
               <div ref={scrollRef} className="flex flex-1 flex-col gap-3 px-4 py-4 overflow-y-auto scrollbar-subtle">
-                {/* opening AI greeting — always the starting point */}
-                <div onMouseEnter={() => setHoveredTurn(0)} onMouseLeave={() => setHoveredTurn(null)}>
-                  <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
-                    AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
-                  </p>
-                  <div className="w-fit max-w-[88%] rounded-[10px] rounded-bl-[3px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m0" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
-                    <Words>Hi there! I am Tars AI Agent.<br />What can I help you with?</Words>
-                  </div>
-                  {introChoice === null && (
-                    <div className="flex flex-wrap gap-2 px-1 mt-3">
-                      {INTRO_OPTIONS.map((opt, i) => (
-                        <button key={opt.label} className="rounded-full border px-3.5 py-1.5 text-[14px]"
-                          style={{ borderColor: "#E0DAD3", color: INK, backgroundColor: "#F9F3EA", transition: "background-color 150ms ease, border-color 150ms ease, color 150ms ease", animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: `${120 + i * 70}ms` }}
-                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
-                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                          onClick={() => chooseIntro(i)}>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {actionsRow(0, "Hi there! I am Tars AI Agent. What can I help you with?", "mt-2.5")}
-                </div>
                 {introChoice !== null && (
                   <>
                 <div className="flex justify-end">
@@ -1567,6 +1541,7 @@ function CornerPillVariant() {
                     value={inputText}
                     onChange={e => setInputText(e.target.value)}
                     onFocus={() => { if (phase === "pill") setPhase("focused"); }}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (sendEnabled && inputText.trim()) handleSend(); } }}
                   />
                   <button
                     type="button"
