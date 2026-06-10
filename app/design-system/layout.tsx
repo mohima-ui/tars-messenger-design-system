@@ -26,7 +26,7 @@ const NAV: NavGroup[] = [
       { label: "Header", href: "/design-system/components/header" },
       { label: "AI Message", href: "/design-system/components/ai-message" },
       { label: "User Message", href: "/design-system/components/user-message" },
-      { label: "Human Agent", href: "/design-system/components/human-agent" },
+      { label: "Human Agent Message", href: "/design-system/components/human-agent" },
       { label: "Human Handoff", href: "/design-system/components/handoff" },
       { label: "Suggested Replies", href: "/design-system/components/suggested-replies" },
       { label: "CSAT", href: "/design-system/components/csat" },

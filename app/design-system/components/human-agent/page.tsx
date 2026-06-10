@@ -1,31 +1,54 @@
+import { Copy, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
+import { Fragment } from "react";
+
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
 const PAPER = "#F9F3EA";
 const INK = "#333333";
-const MUTED = "#6E6E6E";
-const ACCENT = "#120BF4";
-const ACCENT_INK = "#0A06A0";
+const ACCENT = "#632E9A"; // tenant accent — drives the agent avatar (single-accent theming)
+
+/* word-by-word reveal — CSS only (word-in keyframe from globals); 'backwards' fill keeps text crisp after */
+function Words({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <>
+      {words.map((w, i) => (
+        <Fragment key={i}>
+          <span
+            className="inline-block"
+            style={{ animation: "word-in 320ms cubic-bezier(0.2,0.6,0.2,1) backwards", animationDelay: `${i * 42}ms` }}
+          >
+            {w}
+          </span>
+          {i < words.length - 1 ? " " : ""}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 const AGENTS = [
-  { name: "Priya", initial: "P", role: "Support Specialist", color: "#A1593E" },
-  { name: "Marcus", initial: "M", role: "Account Manager", color: "#3D5B3D" },
-  { name: "Sarah", initial: "S", role: "Billing", color: "#0284C7" },
+  { name: "Priya", initial: "P" },
+  { name: "Marcus", initial: "M" },
+  { name: "Sarah", initial: "S" },
 ];
 
 function HumanBubble({
   name,
   initial,
-  role,
-  avatarColor,
   text,
+  timestamp = "2:14 PM",
   withLabel = true,
+  withToolbar = false,
+  animate = false,
 }: {
   name: string;
   initial: string;
-  role?: string;
-  avatarColor: string;
-  text: React.ReactNode;
+  text: string;
+  timestamp?: string;
   withLabel?: boolean;
+  withToolbar?: boolean;
+  animate?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -33,64 +56,81 @@ function HumanBubble({
         <div className="ml-1 flex items-center gap-1.5">
           <div
             className="flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white"
-            style={{ backgroundColor: avatarColor }}
+            style={{ backgroundColor: ACCENT }}
           >
             {initial}
           </div>
           <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-            {name}{" "}
-            {role && (
-              <span className="text-[#A8A096]">• {role}</span>
-            )}
+            {name} <span className="text-[#A8A096]">· {timestamp}</span>
           </p>
         </div>
       )}
       <div className="flex justify-start">
         <div
-          className="max-w-[88%] rounded-tl-[12px] rounded-tr-[12px] rounded-br-[12px] rounded-bl-[6px] border px-[14px] py-[10px] text-[12px] leading-[1.55]"
+          className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
           style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
         >
-          {text}
+          {animate ? <Words text={text} /> : text}
         </div>
       </div>
+      {withToolbar && (
+        <div className="ml-1 flex items-center gap-0.5">
+          <button className="flex size-6 items-center justify-center rounded-[4px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333]">
+            <Volume2 className="size-3.5" strokeWidth={1.5} />
+          </button>
+          <button className="flex size-6 items-center justify-center rounded-[4px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333]">
+            <ThumbsUp className="size-3" strokeWidth={1.5} />
+          </button>
+          <button className="flex size-6 items-center justify-center rounded-[4px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333]">
+            <ThumbsDown className="size-3" strokeWidth={1.5} />
+          </button>
+          <button className="flex size-6 items-center justify-center rounded-[4px] text-[#6E6E6E] transition-colors hover:bg-[#F0EBE0] hover:text-[#333333]">
+            <Copy className="size-3" strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 const ANATOMY = [
-  { label: "Identity row", token: "Avatar (size-4 round) + name + role · 11/16 medium muted" },
-  { label: "Avatar", token: "size-4 circle · single letter · per-agent color" },
-  { label: "Bubble", token: "Identical to AI Message — paper bg, line border, asymmetric corners" },
-  { label: "Content", token: "12/18 regular ink — no streaming animation for humans" },
+  { label: "Identity row", token: "Avatar (size-4 round) + name + timestamp · 11/16 medium muted" },
+  { label: "Avatar", token: "size-4 circle · single letter · tenant accent" },
+  { label: "Bubble", token: "Identical to AI Message — paper bg, line border, rounded 12/12/12/4" },
+  { label: "Content", token: "14px regular ink — streams word-by-word like AI" },
+  { label: "Action toolbar (on hover)", token: "Sound · Like · Dislike · Copy — same as AI Message" },
 ];
 
 const SPECS = [
   { prop: "Avatar size", value: "size-4", note: "16px circle (smaller than header's 36px avatar)" },
   { prop: "Avatar font", value: "8px · 600", note: "Single uppercase initial" },
-  { prop: "Avatar bg", value: "per-agent", note: "Hand-picked or hashed from name" },
+  { prop: "Avatar bg", value: "ACCENT #632E9A", note: "Tenant accent — single-accent theming" },
   { prop: "Label", value: "11 / 16 · 500", note: "Same as AI Agent label" },
-  { prop: "Role separator", value: "•", note: "Followed by softer muted #A8A096" },
+  { prop: "Timestamp", value: "· 2:14 PM", note: "After the name, softer muted #A8A096" },
   { prop: "Bubble bg", value: "#F9F3EA", note: "--bg-paper — same as AI" },
-  { prop: "Bubble border", value: "1px #E0DAD3", note: "--border-line" },
-  { prop: "Text", value: "#333333", note: "--text-ink" },
-  { prop: "Animation", value: "bubble-in 240ms", note: "No word streaming — humans don't stream" },
+  { prop: "Bubble border", value: "1px #E0DAD3", note: "--border-line (outside)" },
+  { prop: "Bubble radius", value: "12 · 12 · 12 · 4 (bl)", note: "Same as AI Message" },
+  { prop: "Bubble padding", value: "px-3.5 py-2", note: "14px × 8px — same as AI" },
+  { prop: "Text", value: "14 · leading-relaxed · #333333", note: "--text-ink, Body" },
+  { prop: "Max width", value: "90%", note: "Of the message column" },
+  { prop: "Animation", value: "word-in · 38ms/word", note: "Streams word-by-word like AI Message" },
 ];
 
 const DIFFERENCES = [
   {
     aspect: "Identity",
     ai: "Tars • AI Agent (text only)",
-    human: "Avatar + Name + Role",
+    human: "Avatar + Name + timestamp",
   },
   {
     aspect: "Word reveal",
     ai: "Streams 38ms per word",
-    human: "Appears whole (typing indicator → message)",
+    human: "Same — streams 38ms per word",
   },
   {
-    aspect: "Toolbar on click",
+    aspect: "Action toolbar",
     ai: "Sound · Like · Dislike · Copy",
-    human: "Only Copy (no AI feedback signals)",
+    human: "Same — Sound · Like · Dislike · Copy",
   },
   {
     aspect: "Citations",
@@ -100,15 +140,15 @@ const DIFFERENCES = [
 ];
 
 const DOS = [
-  "Use a stable per-agent avatar color so a returning agent feels familiar.",
-  "Show the role next to the name for context ('Priya · Support Specialist').",
-  "Skip the word-streaming animation — humans type, they don't stream.",
+  "Use the tenant accent for the avatar — one knob recolors every agent.",
+  "Show the timestamp next to the name so handoff timing is clear.",
+  "Keep the same bubble, word-reveal and toolbar as AI — only the identity changes.",
 ];
 
 const DONTS = [
-  "Don't show the AI feedback toolbar (Sound, Like, Dislike) — those are for AI replies.",
   "Don't reuse the Tars avatar — the agent's identity should be theirs alone.",
   "Don't drop the role on long names; truncate the name with ellipsis instead.",
+  "Don't change the bubble shape — it must match AI Message exactly.",
 ];
 
 export default function HumanAgentPage() {
@@ -136,28 +176,42 @@ export default function HumanAgentPage() {
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-[#555]">
             Same bubble shape as the AI, but identity changes — the avatar gets a face, the
-            name gets weight, the role gets context. Words don&apos;t stream; humans type, they
-            don&apos;t generate.
+            name gets weight, a timestamp marks when. Same bubble, word-reveal and
+            toolbar as the AI — only the identity changes.
           </p>
         </div>
 
         <div className="flex flex-col gap-12">
-          {/* Previews per agent */}
+          {/* Previews — states */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Previews</p>
             <div className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-3" style={{ borderColor: CHROME }}>
-              {AGENTS.map((a) => (
-                <div key={a.name} className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                  <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">{a.name}</p>
-                  <HumanBubble
-                    name={a.name}
-                    initial={a.initial}
-                    role={a.role}
-                    avatarColor={a.color}
-                    text="Hi! I'm taking over from Tars — let's get this sorted."
-                  />
-                </div>
-              ))}
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Default</p>
+                <HumanBubble
+                  name={AGENTS[0].name}
+                  initial={AGENTS[0].initial}
+                  text="Hi! I'm taking over from Tars — let's get this sorted."
+                />
+              </div>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Hover · action buttons</p>
+                <HumanBubble
+                  name={AGENTS[1].name}
+                  initial={AGENTS[1].initial}
+                  text="I've pulled up your account — give me one second."
+                  withToolbar
+                />
+              </div>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Word reveal</p>
+                <HumanBubble
+                  name={AGENTS[2].name}
+                  initial={AGENTS[2].initial}
+                  text="Sure — your refund was approved and is on its way."
+                  animate
+                />
+              </div>
             </div>
           </section>
 

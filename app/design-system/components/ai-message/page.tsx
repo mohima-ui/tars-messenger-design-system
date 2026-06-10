@@ -8,10 +8,10 @@ const CHROME = "#E5E5E5";
 const AI_BG = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
-const ACCENT_SOFT = "#E0E5FA";
-const ACCENT_INK = "#0A06A0";
-const ACCENT_BORDER = "#A5B0EE";
-const ACCENT = "#3730C9";
+const ACCENT_SOFT = "#F0E7FA";
+const ACCENT_INK = "#4A1F77";
+const ACCENT_BORDER = "#C5A8E0";
+const ACCENT = "#632E9A";
 
 function Bubble({
   children,
@@ -26,7 +26,7 @@ function Bubble({
     <div className="flex flex-col gap-1">
       {withLabel && (
         <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-          Tars <span className="text-[#A8A096]">· AI Agent · 2:14 PM</span>
+          AI Agent <span className="text-[#A8A096]">· 2:14 PM</span>
         </p>
       )}
       <div className="flex justify-start">
@@ -284,7 +284,7 @@ function ReasoningDemo() {
 }
 
 const ANATOMY = [
-  { label: "Identity label (optional)", token: "Tars • AI Agent · 11/16 medium muted" },
+  { label: "Identity label (optional)", token: "AI Agent · timestamp · 11/16 medium muted" },
   { label: "Bubble container", token: "max-w-[90%] · rounded 12/12/12/4 · border-line" },
   { label: "Content", token: "14px regular ink · words stream in 38ms stagger" },
   { label: "Inline citation chip", token: "h-4 · rounded-[4px] · numeric label" },
