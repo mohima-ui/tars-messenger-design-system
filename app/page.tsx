@@ -496,6 +496,8 @@ function CornerPillVariant() {
   const [selectedStarter, setSelectedStarter] = useState(0);
   const [introChoice, setIntroChoice] = useState<number | null>(null);
   const [chosenLabel, setChosenLabel] = useState("");
+  // when a launcher starter is picked, seed the chat to open straight on that starter
+  const [pendingStarter, setPendingStarter] = useState<number | null>(null);
   const [panelPhase, setPanelPhase] = useState<"thinking" | "done">("thinking");
   const [thinkingStep, setThinkingStep] = useState(0);
   const [hoveredTurn, setHoveredTurn] = useState<null | 0 | 1 | 2 | 3 | 4 | 5>(null);
@@ -624,8 +626,16 @@ function CornerPillVariant() {
 
   const resetConversation = () => {
     setView("chat");
-    setIntroChoice(null);
-    setChosenLabel("");
+    // if a launcher starter was picked, open straight on it; otherwise show the intro options
+    if (pendingStarter !== null) {
+      setSelectedStarter(pendingStarter);
+      setChosenLabel(COMPOSER_STARTERS[pendingStarter]);
+      setIntroChoice(pendingStarter);
+      setPendingStarter(null);
+    } else {
+      setIntroChoice(null);
+      setChosenLabel("");
+    }
     setPanelPhase("thinking");
     setThinkingStep(0);
     setConversationTurn(1);
@@ -723,6 +733,7 @@ function CornerPillVariant() {
   const handleStarterClick = (idx: number) => {
     setPressedIdx(idx);
     setSelectedStarter(idx);
+    setPendingStarter(idx);
     setTimeout(() => { setPhase("chatting"); setPressedIdx(null); }, 120);
   };
 
