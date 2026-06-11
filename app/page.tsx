@@ -1494,7 +1494,7 @@ function CornerPillVariant() {
                       )}
                       {attachments.includes("pdf") && (
                         <div className="relative flex items-center gap-2 rounded-[8px] border bg-white py-2 pr-7 pl-2" style={{ borderColor: "var(--ds-border-line)" }}>
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[6px]" style={{ backgroundColor: "#E8F0FE", color: "#2563EB" }}>
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[6px]" style={{ backgroundColor: "#2563EB", color: "#FFFFFF" }}>
                             <FileText className="size-4" strokeWidth={1.75} />
                           </span>
                           <span className="flex flex-col">
