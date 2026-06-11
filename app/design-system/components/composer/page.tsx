@@ -88,7 +88,7 @@ function LiveComposer() {
             type="button"
             aria-label="Send message"
             onClick={() => setText("")}
-            className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:bg-[#4A1F77] ${
+            className={`flex size-7 shrink-0 items-center justify-center rounded-full bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:bg-[#4A1F77] ${
               multiline ? "order-3" : ""
             }`}
           >
@@ -98,7 +98,7 @@ function LiveComposer() {
           <button
             type="button"
             aria-label="Voice input"
-            className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)] ${
+            className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)] ${
               multiline ? "order-3" : ""
             }`}
           >
@@ -116,7 +116,7 @@ function RestComposer() {
     <Box>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Plus className="size-4" strokeWidth={1.5} /></span>
       <span className="flex-1 py-[5px] text-[14px] leading-[1.5]" style={{ color: "#555" }}>Ask me anything...</span>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Mic className="size-4" strokeWidth={1.5} /></span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full" style={{ color: MUTED }}><Mic className="size-4" strokeWidth={1.5} /></span>
     </Box>
   );
 }
@@ -126,7 +126,7 @@ function TypingComposer() {
     <Box focused>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Plus className="size-4" strokeWidth={1.5} /></span>
       <span className="flex-1 py-[5px] text-[14px] leading-[1.5]" style={{ color: INK }}>What scale are you working at?</span>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
     </Box>
   );
 }
@@ -140,7 +140,7 @@ function RecordingComposer() {
           <span key={i} className="block w-px origin-center rounded-full" style={{ height: `${Math.round(h * 18)}px`, backgroundColor: ACCENT, animation: `wave-bar 1.6s ease-in-out ${i * 45}ms infinite` }} />
         ))}
       </div>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] text-white" style={{ backgroundColor: SEND }}><Square className="size-3" strokeWidth={0} fill="currentColor" /></span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: SEND }}><Square className="size-3" strokeWidth={0} fill="currentColor" /></span>
     </Box>
   );
 }
@@ -150,7 +150,7 @@ function TranscribingComposer() {
     <Box>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED, opacity: 0.4 }}><Plus className="size-4" strokeWidth={1.5} /></span>
       <span className="flex-1 py-[5px] text-[14px] leading-[1.5]" style={{ color: "#555" }}>Transcribing…</span>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Loader2 className="size-4 animate-spin" strokeWidth={1.75} /></span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full" style={{ color: MUTED }}><Loader2 className="size-4 animate-spin" strokeWidth={1.75} /></span>
     </Box>
   );
 }
@@ -162,7 +162,7 @@ function MultilineComposer() {
         Can you walk me through how the analytics dashboard handles multiple agents and shared workspaces?
       </p>
       <span className="order-2 mr-auto flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Plus className="size-4" strokeWidth={1.5} /></span>
-      <span className="order-3 flex size-7 shrink-0 items-center justify-center rounded-[6px] text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
+      <span className="order-3 flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
     </div>
   );
 }
@@ -201,7 +201,7 @@ function AttachedComposer() {
         <div className="flex w-full items-end gap-2">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}><Plus className="size-4" strokeWidth={1.5} /></span>
           <span className="flex-1 py-[5px] text-[14px] leading-[1.5]" style={{ color: INK }}>Here are the files —</span>
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: SEND }}><ArrowUp className="size-4" strokeWidth={2} /></span>
         </div>
       </div>
     </div>
@@ -212,7 +212,7 @@ const ANATOMY = [
   { label: "Container", token: "rounded-[12px] · 1px --border-line · --bg-paper · items-end" },
   { label: "Attach button", token: "size-7 · rounded-[6px] · Plus · muted, subtle bg on hover" },
   { label: "Text field", token: "textarea · 14/1.5 · auto-grows to max-h 140px · placeholder #555" },
-  { label: "Send / Mic", token: "size-7 · Mic at rest → ArrowUp (accent fill) when text present" },
+  { label: "Send / Mic", token: "size-7 · rounded-full · Mic at rest → ArrowUp (accent fill) when text present" },
   { label: "Focus ring", token: "border --accent + 4px accent/15 ring on focus-within" },
 ];
 
@@ -223,7 +223,7 @@ const SPECS = [
   { prop: "Border (hover)", value: "1px #D8CFC0", note: "--border-hover" },
   { prop: "Border (focus)", value: "1px #632E9A + ring", note: "4px rgba(99,46,154,0.15)" },
   { prop: "Padding", value: "px-3 py-2", note: "py-1.5 when multi-line" },
-  { prop: "Icon button", value: "size-7 · rounded-[6px]", note: "28px hit target" },
+  { prop: "Icon button", value: "size-7", note: "28px hit target · attach rounded-[6px], send/mic rounded-full" },
   { prop: "Send fill", value: "#632E9A → #542584", note: "--accent, darkens on hover" },
   { prop: "Text", value: "14 / 1.5 · #333333", note: "Placeholder #555" },
   { prop: "Max height", value: "140px", note: "Then scrolls internally" },

@@ -1555,12 +1555,12 @@ function CornerPillVariant() {
                   {/* right — stop / spinner / send / mic */}
                   {recording ? (
                     <button type="button" aria-label="Stop recording" onClick={handleStopRecording}
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:scale-95 ${composerMultiline ? "order-3" : ""}`}>
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-full bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:scale-95 ${composerMultiline ? "order-3" : ""}`}>
                       <Square className="size-3" strokeWidth={0} fill="currentColor" />
                     </button>
                   ) : transcribing ? (
                     <button type="button" disabled aria-label="Transcribing"
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--ds-text-secondary)] ${composerMultiline ? "order-3" : ""}`}>
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--ds-text-secondary)] ${composerMultiline ? "order-3" : ""}`}>
                       <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                     </button>
                   ) : inputText.trim() || attachments.length > 0 ? (
@@ -1569,7 +1569,7 @@ function CornerPillVariant() {
                       aria-label="Send message"
                       data-tooltip="Send"
                       onClick={handleSend}
-                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:bg-[#4A1F77] ${
+                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-full bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:bg-[#4A1F77] ${
                         composerMultiline ? "order-3" : ""
                       }`}
                     >
@@ -1581,7 +1581,7 @@ function CornerPillVariant() {
                       aria-label="Voice input"
                       data-tooltip="Voice"
                       onClick={handleMicClick}
-                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)] active:bg-[var(--ds-bg-subtle)] ${
+                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)] active:bg-[var(--ds-bg-subtle)] ${
                         composerMultiline ? "order-3" : ""
                       }`}
                     >
