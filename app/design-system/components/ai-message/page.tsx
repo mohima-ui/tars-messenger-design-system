@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronRight, Copy, Database, ExternalLink, Sparkles, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronRight, Copy, Database, ExternalLink, Loader2, Sparkles, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -132,153 +132,184 @@ function CitationDemo() {
   );
 }
 
-type ToolEntry = { name: string; args: string; result: string };
+/* Reasoning streams live while the AI thinks, then collapses to a chip above the answer. */
+const REASONING_STEPS = [
+  {
+    title: "Retrieving plan details",
+    body: "Querying the knowledge base for “week 7 plan” to find the most relevant material.",
+  },
+  {
+    title: "Extracting the tasks",
+    body: "Pulled the Week 7 plan — pinpointing the specific tasks and milestones.",
+  },
+  {
+    title: "Checking dependencies",
+    body: "Cross-referencing prerequisites carried over from weeks 5–6.",
+  },
+  {
+    title: "Drafting the summary",
+    body: "Composing a concise answer around the key milestones.",
+  },
+];
+const TOOL_CALL = {
+  name: "knowledge_retrieval",
+  ms: 64,
+  args: '{ "query": "week 7 plan", "top_k": 5 }',
+  result: '{ "documents": 12, "matched": "System Design — Week 7" }',
+};
 
-function ReasoningToolsStrip({ reasoning, tools }: { reasoning: string[]; tools: ToolEntry[] }) {
-  const [expanded, setExpanded] = useState<"reasoning" | "tools" | null>(null);
-  const [openTools, setOpenTools] = useState<Set<string>>(new Set());
-  const openReasoning = expanded === "reasoning";
-  const openToolsPanel = expanded === "tools";
-  const toggle = (w: "reasoning" | "tools") => setExpanded((p) => (p === w ? null : w));
-  const toggleTool = (n: string) =>
-    setOpenTools((prev) => {
-      const next = new Set(prev);
-      if (next.has(n)) next.delete(n);
-      else next.add(n);
-      return next;
-    });
+function ThinkingTrace() {
+  const [phase, setPhase] = useState<"thinking" | "done">("thinking");
+  const [done, setDone] = useState(0); // completed (checked) reasoning steps
+  const [toolDone, setToolDone] = useState(false);
+  const [expanded, setExpanded] = useState(false); // re-open after done
+  const [openTool, setOpenTool] = useState(false);
 
-  const link = (Icon: typeof Sparkles, label: string, open: boolean, onToggle: () => void) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
-      style={{ color: open ? ACCENT : MUTED }}
-    >
-      <Icon className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
-      {label}
-      <ChevronRight
-        className="size-2.5 transition-transform"
-        strokeWidth={2}
-        style={{ transform: open ? "rotate(90deg)" : "rotate(0)" }}
-      />
-    </button>
-  );
+  // check off reasoning steps one by one, then run the tool, then reveal the answer
+  useEffect(() => {
+    if (phase !== "thinking") return;
+    if (done < REASONING_STEPS.length) {
+      const t = setTimeout(() => setDone((d) => d + 1), 900);
+      return () => clearTimeout(t);
+    }
+    const t1 = setTimeout(() => setToolDone(true), 800);
+    const t2 = setTimeout(() => setPhase("done"), 1500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [phase, done]);
 
-  return (
-    <div>
-      <div className="flex items-center gap-4">
-        {link(Sparkles, "Reasoning", openReasoning, () => toggle("reasoning"))}
-        {link(Database, "Tools used", openToolsPanel, () => toggle("tools"))}
-      </div>
+  const replay = () => {
+    setExpanded(false);
+    setOpenTool(false);
+    setToolDone(false);
+    setDone(0);
+    setPhase("thinking");
+  };
 
-      {openReasoning && (
-        <div className="mt-2 flex flex-col" style={{ animation: "fade-in 200ms ease-out both" }}>
-          {reasoning.map((s, i, arr) => (
-            <div key={i} className="flex flex-col">
-              <div className="flex items-start gap-2">
-                <span
-                  className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border"
-                  style={{ backgroundColor: ACCENT_SOFT, borderColor: ACCENT_BORDER, color: ACCENT_INK }}
-                >
-                  <Check className="size-2" strokeWidth={2.5} />
-                </span>
-                <span className="text-[11px] leading-[1.5]" style={{ color: MUTED }}>{s}</span>
-              </div>
-              {i < arr.length - 1 && (
-                <span className="ml-[7px] h-4 w-px" style={{ backgroundColor: ACCENT_BORDER }} aria-hidden />
-              )}
-            </div>
-          ))}
+  const toolRow = (
+    <div className="rounded-[8px] border" style={{ borderColor: CHROME }}>
+      <button
+        type="button"
+        onClick={() => setOpenTool((o) => !o)}
+        className={`flex w-full items-center gap-2 bg-white px-3 py-2 text-left ${openTool ? "rounded-t-[8px]" : "rounded-[8px]"}`}
+      >
+        <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+        <code className="font-mono text-[10px]" style={{ color: ACCENT_INK }}>{TOOL_CALL.name}</code>
+        <span className="ml-auto text-[10px]" style={{ color: MUTED }}>{TOOL_CALL.ms}ms · success</span>
+        <ChevronRight className="size-3 shrink-0 transition-transform" strokeWidth={2} style={{ color: MUTED, transform: openTool ? "rotate(90deg)" : "rotate(0)" }} aria-hidden />
+      </button>
+      {openTool && (
+        <div className="flex flex-col gap-1.5 rounded-b-[8px] border-t bg-white px-3 py-2" style={{ borderColor: CHROME, animation: "fade-in 180ms ease-out both" }}>
+          <div>
+            <span className="text-[10px]" style={{ color: "#A8A096" }}>Input</span>
+            <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{TOOL_CALL.args}</pre>
+          </div>
+          <div>
+            <span className="text-[10px]" style={{ color: "#A8A096" }}>Output</span>
+            <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{TOOL_CALL.result}</pre>
+          </div>
         </div>
       )}
-
-      {openToolsPanel && (
-        <div className="mt-2 flex flex-col gap-1.5" style={{ animation: "fade-in 200ms ease-out both" }}>
-          {tools.map((t) => {
-            const isOpen = openTools.has(t.name);
-            return (
-              <div key={t.name} className="rounded-[8px] border" style={{ borderColor: CHROME }}>
-                <button
-                  type="button"
-                  onClick={() => toggleTool(t.name)}
-                  className={`flex w-full items-center justify-between gap-2 bg-white px-3 py-2 text-left ${isOpen ? "rounded-t-[8px]" : "rounded-[8px]"}`}
-                >
-                  <p className="text-[11px]" style={{ color: MUTED }}>
-                    Called{" "}
-                    <code
-                      className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px align-baseline font-mono text-[10px] tracking-tight"
-                      style={{ backgroundColor: ACCENT_SOFT, color: ACCENT_INK }}
-                    >
-                      {t.name}
-                    </code>
-                  </p>
-                  <ChevronRight
-                    className="size-3 shrink-0 transition-transform"
-                    strokeWidth={2}
-                    style={{ color: MUTED, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }}
-                    aria-hidden
-                  />
-                </button>
-                {isOpen && (
-                  <div
-                    className="flex flex-col gap-1.5 rounded-b-[8px] border-t bg-white px-3 py-2"
-                    style={{ borderColor: CHROME, animation: "fade-in 180ms ease-out both" }}
-                  >
-                    <div>
-                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Arguments</span>
-                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.args}</pre>
-                    </div>
-                    <div>
-                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Result</span>
-                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.result}</pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="mt-1.5 mb-1.5 h-px" style={{ backgroundColor: LINE }} />
     </div>
   );
-}
 
-function ReasoningDemo() {
   return (
-    <div className="flex flex-col gap-2">
-      <Bubble withLabel>
-        <ReasoningToolsStrip
-          reasoning={[
-            "Read the customer's question",
-            "Checked the refund policy",
-            "Drafted the response",
-          ]}
-          tools={[
-            {
-              name: "lookup_policy",
-              args: '{ "topic": "refunds" }',
-              result: '{ "window": "3–5 business days" }',
-            },
-            {
-              name: "get_order",
-              args: '{ "order_id": "#30815" }',
-              result: '{ "status": "refunded", "amount": 49 }',
-            },
-            {
-              name: "estimate_settlement",
-              args: '{ "method": "card" }',
-              result: '{ "extra_days": "1–2" }',
-            },
-          ]}
-        />
-        Refunds are processed within 3–5 business days.
-      </Bubble>
-      <p className="ml-1 text-[10px] text-[#979797]">
-        Tap “Reasoning” or “Tools used” to expand the trace.
+    <div className="flex flex-col gap-1.5">
+      <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+        AI Agent <span className="text-[#A8A096]">· 2:14 PM</span>
       </p>
+
+      {phase === "thinking" ? (
+        /* ── live thinking panel (open while reasoning) ── */
+        <div className="rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="size-3.5 shrink-0 animate-[spin_2.4s_linear_infinite]" strokeWidth={1.75} style={{ color: ACCENT }} />
+            <span className="text-[12px] font-medium" style={{ color: INK }}>AI is thinking</span>
+          </div>
+          <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
+          <div className="mt-1.5 flex flex-col">
+            {REASONING_STEPS.map((r, i) => {
+              if (i > done) return null; // not reached yet
+              const completed = i < done; // checked off
+              const connector = i < done && i < REASONING_STEPS.length - 1; // line to the next check
+              return (
+                <div key={i} className="flex gap-2" style={{ animation: "fade-in 260ms ease-out both" }}>
+                  <div className="flex shrink-0 flex-col items-center">
+                    <span
+                      className="flex size-4 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: completed ? ACCENT_SOFT : "transparent" }}
+                    >
+                      {completed ? (
+                        <Check className="size-2.5" strokeWidth={2.5} style={{ color: ACCENT_INK }} />
+                      ) : (
+                        <Loader2 className="size-3 animate-spin" strokeWidth={2} style={{ color: ACCENT }} />
+                      )}
+                    </span>
+                    {connector && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: ACCENT_BORDER, minHeight: 12 }} />}
+                  </div>
+                  <div className="min-w-0 pb-2">
+                    <p className="text-[12px] font-semibold leading-[1.5]" style={{ color: completed ? INK : MUTED }}>{r.title}</p>
+                    <p className="text-[12px] italic leading-[1.5]" style={{ color: "#A8A096" }}>{r.body}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {done >= REASONING_STEPS.length && (
+            <div className="mt-2.5 flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: CHROME, animation: "fade-in 220ms ease-out both" }}>
+              <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+              <span className="font-mono text-[11px]" style={{ color: INK }}>{TOOL_CALL.name}</span>
+              <span className="ml-auto text-[11px]" style={{ color: MUTED }}>{toolDone ? `${TOOL_CALL.ms}ms · success` : "running…"}</span>
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: toolDone ? "#22A06B" : ACCENT }} />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── collapsed: chip above the answer bubble ── */
+        <div className="flex flex-col gap-1.5" style={{ animation: "fade-in 240ms ease-out both" }}>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:brightness-[0.98]"
+            style={{ borderColor: LINE, backgroundColor: "#F7F2EA", color: MUTED }}
+          >
+            <Sparkles className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+            Thought for 5s · 1 tool
+            <ChevronRight className="size-3 transition-transform" strokeWidth={2} style={{ transform: expanded ? "rotate(90deg)" : "rotate(0)" }} />
+          </button>
+
+          {expanded && (
+            <div className="rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3", animation: "fade-in 200ms ease-out both" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
+              <div className="mt-1.5 flex flex-col">
+                {REASONING_STEPS.map((r, i) => (
+                  <div key={i} className="flex gap-2">
+                    <div className="flex shrink-0 flex-col items-center">
+                      <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: ACCENT_SOFT, color: ACCENT_INK }}>
+                        <Check className="size-2" strokeWidth={2.5} />
+                      </span>
+                      {i < REASONING_STEPS.length - 1 && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: ACCENT_BORDER, minHeight: 10 }} />}
+                    </div>
+                    <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>
+                      <span className="font-semibold" style={{ color: INK }}>{r.title}.</span> {r.body}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2.5">{toolRow}</div>
+            </div>
+          )}
+
+          <div className="flex justify-start">
+            <div className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: AI_BG, borderColor: LINE, color: INK }}>
+              For Week 7, the focus is <span className="font-semibold">System Design Mastery</span> — here are the key tasks and milestones to work through.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button type="button" onClick={replay} className="ml-1 w-fit text-[10px] text-[#979797] underline-offset-2 hover:underline">
+        ↻ Replay
+      </button>
     </div>
   );
 }
@@ -289,6 +320,7 @@ const ANATOMY = [
   { label: "Content", token: "14px regular ink · words stream in 38ms stagger" },
   { label: "Inline citation chip", token: "h-4 · rounded-[4px] · numeric label" },
   { label: "Action toolbar (on click)", token: "Sound · Like · Dislike · Copy" },
+  { label: "Reasoning trace", token: "Live panel while thinking → collapses to a chip ('Thought for Ns · N tools') above the bubble" },
 ];
 
 const SPECS = [
@@ -415,7 +447,7 @@ export default function AiMessagePage() {
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">
                   With reasoning &amp; tools
                 </p>
-                <ReasoningDemo />
+                <ThinkingTrace />
               </div>
             </div>
           </section>
