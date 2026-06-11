@@ -252,98 +252,121 @@ function AiThinking() {
   );
 }
 
-/* ── Reasoning / Tools-used disclosure strip (adapted from the home page) ── */
+/* ── Reasoning + tools, collapsed to a chip above the message (matches the DS) ── */
 type ToolEntry = { name: string; args: string; result: string };
 
-function ReasoningToolsStrip({ reasoning, tools }: { reasoning: ReactNode[]; tools: ToolEntry[] }) {
-  const [expanded, setExpanded] = useState<"reasoning" | "tools" | null>(null);
+function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: ReactNode[]; tools: ToolEntry[]; onInteract?: () => void }) {
+  const [expanded, setExpanded] = useState(false);
   const [openTools, setOpenTools] = useState<Set<string>>(new Set());
-  const openReasoning = expanded === "reasoning";
-  const openToolsPanel = expanded === "tools";
-  const toggle = (w: "reasoning" | "tools") => setExpanded(p => (p === w ? null : w));
-  const toggleTool = (n: string) =>
+  const toggleTool = (n: string) => {
+    onInteract?.();
     setOpenTools(prev => {
       const next = new Set(prev);
       if (next.has(n)) next.delete(n); else next.add(n);
       return next;
     });
-
-  const link = (Icon: typeof Sparkles, label: string, open: boolean, onToggle: () => void) => (
-    <button type="button" onClick={onToggle}
-      className="inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
-      style={{ color: open ? ACCENT : MUTED }}>
-      <Icon className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
-      {label}
-      <ChevronRight className="size-2.5 transition-transform" strokeWidth={2}
-        style={{ transform: open ? "rotate(90deg)" : "rotate(0)" }} />
-    </button>
-  );
+  };
 
   return (
-    <div onClick={e => e.stopPropagation()}>
-      <div className="flex items-center gap-4">
-        {link(Sparkles, "Reasoning", openReasoning, () => toggle("reasoning"))}
-        {link(Database, "Tools used", openToolsPanel, () => toggle("tools"))}
+    <div className="ml-1 flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
+      <button type="button" onClick={() => { onInteract?.(); setExpanded(e => !e); }}
+        className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-[filter] hover:brightness-[0.98]"
+        style={{ borderColor: LINE, backgroundColor: "#F7F2EA", color: MUTED }}>
+        <Sparkles className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+        Thought · {tools.length} {tools.length === 1 ? "tool" : "tools"}
+        <ChevronRight className="size-3 transition-transform" strokeWidth={2}
+          style={{ transform: expanded ? "rotate(90deg)" : "rotate(0)" }} />
+      </button>
+
+      {expanded && (
+        <div className="rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3", animation: "fade-in 200ms ease-out both" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
+          <div className="mt-1.5 flex flex-col">
+            {reasoning.map((s, i, arr) => (
+              <div key={i} className="flex gap-2">
+                <div className="flex shrink-0 flex-col items-center">
+                  <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>
+                    <Check className="size-2" strokeWidth={2.5} />
+                  </span>
+                  {i < arr.length - 1 && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: "#C5A8E0", minHeight: 10 }} />}
+                </div>
+                <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>{s}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2.5 flex flex-col gap-1.5">
+            {tools.map(t => {
+              const isOpen = openTools.has(t.name);
+              return (
+                <div key={t.name} className="rounded-[8px] border" style={{ borderColor: "#E4E4E7" }}>
+                  <button type="button" onClick={() => toggleTool(t.name)}
+                    className={`flex w-full items-center gap-2 bg-white px-3 py-2 text-left ${isOpen ? "rounded-t-[8px]" : "rounded-[8px]"}`}>
+                    <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+                    <code className="font-mono text-[10px]" style={{ color: ACCENT_INK }}>{t.name}</code>
+                    <span className="ml-auto text-[10px]" style={{ color: MUTED }}>success</span>
+                    <ChevronRight className="size-3 shrink-0 transition-transform" strokeWidth={2}
+                      style={{ color: MUTED, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }} aria-hidden />
+                  </button>
+                  {isOpen && (
+                    <div className="flex flex-col gap-1.5 rounded-b-[8px] border-t bg-white px-3 py-2" style={{ borderColor: "#E4E4E7", animation: "fade-in 180ms ease-out both" }}>
+                      <div>
+                        <span className="text-[10px]" style={{ color: "#A8A096" }}>Input</span>
+                        <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.args}</pre>
+                      </div>
+                      <div>
+                        <span className="text-[10px]" style={{ color: "#A8A096" }}>Output</span>
+                        <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]" style={{ color: ACCENT_INK }}>{t.result}</pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── live reasoning panel shown while the AI is thinking (checks off step-by-step) ── */
+function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: ReactNode[]; toolName: string; step: number }) {
+  const total = reasoning.length;
+  return (
+    <div className="ml-1 rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="size-3.5 shrink-0 animate-[spin_2.4s_linear_infinite]" strokeWidth={1.75} style={{ color: ACCENT }} />
+        <span className="text-[12px] font-medium" style={{ color: INK }}>AI is thinking</span>
       </div>
-
-      {openReasoning && (
-        <div className="mt-2 flex flex-col" style={{ animation: "fade-in 200ms ease-out both" }}>
-          {reasoning.map((s, i, arr) => (
-            <div key={i} className="flex flex-col">
-              <div className="flex items-start gap-2">
-                <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border"
-                  style={{ backgroundColor: "#F0E7FA", borderColor: "#C5A8E0", color: ACCENT_INK }}>
-                  <Check className="size-2" strokeWidth={2.5} />
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
+      <div className="mt-1.5 flex flex-col">
+        {reasoning.map((r, i) => {
+          if (i > step) return null;
+          const completed = i < step;
+          const connector = i < step && i < total - 1;
+          return (
+            <div key={i} className="flex gap-2" style={{ animation: "fade-in 260ms ease-out both" }}>
+              <div className="flex shrink-0 flex-col items-center">
+                <span className="flex size-3.5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: completed ? "#F0E7FA" : "transparent" }}>
+                  {completed
+                    ? <Check className="size-2" strokeWidth={2.5} style={{ color: ACCENT_INK }} />
+                    : <Loader2 className="size-3 animate-spin" strokeWidth={2} style={{ color: ACCENT }} />}
                 </span>
-                <span className="text-[11px] leading-[1.5]" style={{ color: MUTED }}>{s}</span>
+                {connector && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: "#C5A8E0", minHeight: 10 }} />}
               </div>
-              {i < arr.length - 1 && (
-                <span className="ml-[7px] h-4 w-px" style={{ backgroundColor: "#C5A8E0" }} aria-hidden />
-              )}
+              <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>{r}</span>
             </div>
-          ))}
+          );
+        })}
+      </div>
+      {step >= total && (
+        <div className="mt-1 flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: "#E4E4E7", animation: "fade-in 220ms ease-out both" }}>
+          <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+          <code className="font-mono text-[11px]" style={{ color: INK }}>{toolName}</code>
+          <span className="ml-auto text-[11px]" style={{ color: MUTED }}>running…</span>
+          <span className="size-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>
       )}
-
-      {openToolsPanel && (
-        <div className="mt-2 flex flex-col gap-1.5" style={{ animation: "fade-in 200ms ease-out both" }}>
-          {tools.map(t => {
-            const isOpen = openTools.has(t.name);
-            return (
-              <div key={t.name} className="rounded-[8px] border" style={{ borderColor: "#E4E4E7" }}>
-                <button type="button" onClick={() => toggleTool(t.name)}
-                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left bg-white ${isOpen ? "rounded-t-[8px]" : "rounded-[8px]"}`}>
-                  <p className="text-[11px]" style={{ color: MUTED }}>
-                    Called{" "}
-                    <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px align-baseline font-mono text-[10px] tracking-tight"
-                      style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>{t.name}</code>
-                  </p>
-                  <ChevronRight className="size-3 shrink-0 transition-transform" strokeWidth={2}
-                    style={{ color: MUTED, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }} aria-hidden />
-                </button>
-                {isOpen && (
-                  <div className="flex flex-col gap-1.5 border-t px-3 py-2 bg-white rounded-b-[8px]"
-                    style={{ borderColor: "#E4E4E7", animation: "fade-in 180ms ease-out both" }}>
-                    <div>
-                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Arguments</span>
-                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]"
-                        style={{ color: ACCENT_INK }}>{t.args}</pre>
-                    </div>
-                    <div>
-                      <span className="text-[10px]" style={{ color: "#A8A096" }}>Result</span>
-                      <pre className="mt-0.5 overflow-x-auto rounded-[4px] px-2 py-1 font-mono text-[10px] leading-[1.5]"
-                        style={{ color: ACCENT_INK }}>{t.result}</pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* separator between the strip and the message text below */}
-      <div className="mt-1.5 mb-1.5 h-px" style={{ backgroundColor: LINE }} />
     </div>
   );
 }
@@ -422,6 +445,16 @@ function CitationSource({ n, source }: { n: number; source: { title: string; des
     </span>
   );
 }
+
+const PLANS_REASONING = [
+  "Read your usage signals to gauge the right tier",
+  "Retrieved the current plan catalog and pricing",
+  "Compared Starter, Growth and Enterprise for your scale",
+];
+const PLANS_TOOLS = [
+  { name: "get_plans", args: '{ "catalog": "current" }', result: '{ "plans": 3, "currency": "USD" }' },
+  { name: "knowledge_retrieval", args: '{ "query": "pricing & plans overview" }', result: '{ "documents": 8, "top": "tars.com/pricing" }' },
+];
 
 const MSG_PLANS_INTRO = (
   <>Great — here&apos;s a quick look at our plans. Each one scales with your usage, so you only pay for what you actually need<CitationSource n={3} source={CITATION_SOURCES[2]} />. Most teams start on Growth for the full API access and priority support, then move up as volume grows. If you&apos;re still weighing an agent against a basic chatbot<CitationSource n={1} source={CITATION_SOURCES[0]} />, the short version is that agents take real actions and hand off cleanly to a human<CitationSource n={2} source={CITATION_SOURCES[1]} />. Take a look below and pick whichever fits best.</>
@@ -580,13 +613,20 @@ function CornerPillVariant() {
     setPillMultiline(h > 40); // one line ≈ 32px; >40 means it wrapped
   }, [inputText, phase]);
 
-  // keep the chat pinned to the latest message
+  // keep the chat pinned to the latest message (suppressed briefly on user interactions
+  // like expanding the thought chip, so the view doesn't jump to the bottom)
   const scrollRef = useRef<HTMLDivElement>(null);
+  const suppressScrollRef = useRef(false);
+  const pauseAutoScroll = () => {
+    suppressScrollRef.current = true;
+    window.setTimeout(() => { suppressScrollRef.current = false; }, 450);
+  };
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
     const mo = new MutationObserver(() => {
+      if (suppressScrollRef.current) return;
       el.scrollTop = el.scrollHeight;
     });
     mo.observe(el, { childList: true, subtree: true, characterData: true });
@@ -686,7 +726,7 @@ function CornerPillVariant() {
 
   useEffect(() => {
     if (conversationTurn !== 5 || turn5Phase !== "thinking") return;
-    if (turn5Step >= SEND_EVENTS.length) { setTurn5Phase("done"); return; }
+    if (turn5Step >= SEND_EVENTS.length + 1) { setTurn5Phase("done"); return; } // +1 beat for the tool running
     const t = setTimeout(() => setTurn5Step(s => s + 1), 900);
     return () => clearTimeout(t);
   }, [conversationTurn, turn5Phase, turn5Step]);
@@ -1154,13 +1194,14 @@ function CornerPillVariant() {
                       <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
                         style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>Compare plans</div>
                     </div>
-                    {panelPhase === "thinking" && <ThinkingEvents step={thinkingStep} />}
+                    {panelPhase === "thinking" && <ThinkingReasoning reasoning={PLANS_REASONING} toolName="knowledge_retrieval" step={thinkingStep} />}
                     {panelPhase === "done" && (
                       <div onMouseEnter={() => setHoveredTurn(2)} onMouseLeave={() => setHoveredTurn(null)}>
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
                           AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                         </p>
-                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m2" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                        <ReasoningChip reasoning={PLANS_REASONING} tools={PLANS_TOOLS} onInteract={pauseAutoScroll} />
+                        <div className="mt-1.5 w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m2" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                           <Words>{MSG_PLANS_INTRO}</Words>
                         </div>
                         {/* plan cards — horizontal scroll */}
@@ -1287,47 +1328,38 @@ function CornerPillVariant() {
                         {email}
                       </div>
                     </div>
-                    {turn5Phase === "thinking" && <ThinkingEvents step={turn5Step} events={SEND_EVENTS} />}
-                    {turn5Phase === "done" && (
-                      <div onMouseEnter={() => setHoveredTurn(5)} onMouseLeave={() => setHoveredTurn(null)}>
-                        <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
-                          AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
-                        </p>
-                        <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m5" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
-                          <ReasoningToolsStrip
-                            reasoning={[
-                              <>Validated <span className="font-medium">{email}</span> as a deliverable address</>,
-                              <>
-                                Called{" "}
-                                <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px font-mono text-[10px] tracking-tight"
-                                  style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>send_SetupEmail</code>{" "}
-                                to deliver the {selectedPlan} trial link
-                              </>,
-                              <>Scheduled a reminder in case the trial isn&apos;t activated within 24h</>,
-                            ]}
-                            tools={[
-                              {
-                                name: "validate_Email",
-                                args: `{ "email": "${email}" }`,
-                                result: `{ "valid": true, "deliverable": true }`,
-                              },
-                              {
-                                name: "send_SetupEmail",
-                                args: `{ "to": "${email}", "plan": "${selectedPlan}", "template": "trial_setup" }`,
-                                result: `{ "message_id": "msg_7c2f9a", "status": "sent" }`,
-                              },
-                              {
-                                name: "schedule_Reminder",
-                                args: `{ "to": "${email}", "after_hours": 24, "condition": "not_activated" }`,
-                                result: `{ "scheduled": true, "job_id": "job_4471" }`,
-                              },
-                            ]}
-                          />
-                          <Words>Done! I&apos;ve sent the setup link to <span className="font-semibold">{email}</span>. Check your inbox 🎉</Words>
+                    {(() => {
+                      const reasoning5 = [
+                        <>Validated <span className="font-medium">{email}</span> as a deliverable address</>,
+                        <>
+                          Called{" "}
+                          <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px font-mono text-[10px] tracking-tight"
+                            style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>send_SetupEmail</code>{" "}
+                          to deliver the {selectedPlan} trial link
+                        </>,
+                        <>Scheduled a reminder in case the trial isn&apos;t activated within 24h</>,
+                      ];
+                      const tools5 = [
+                        { name: "validate_Email", args: `{ "email": "${email}" }`, result: `{ "valid": true, "deliverable": true }` },
+                        { name: "send_SetupEmail", args: `{ "to": "${email}", "plan": "${selectedPlan}", "template": "trial_setup" }`, result: `{ "message_id": "msg_7c2f9a", "status": "sent" }` },
+                        { name: "schedule_Reminder", args: `{ "to": "${email}", "after_hours": 24, "condition": "not_activated" }`, result: `{ "scheduled": true, "job_id": "job_4471" }` },
+                      ];
+                      if (turn5Phase === "thinking") {
+                        return <ThinkingReasoning reasoning={reasoning5} toolName="send_SetupEmail" step={turn5Step} />;
+                      }
+                      return (
+                        <div onMouseEnter={() => setHoveredTurn(5)} onMouseLeave={() => setHoveredTurn(null)}>
+                          <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                            AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                          </p>
+                          <ReasoningChip reasoning={reasoning5} tools={tools5} onInteract={pauseAutoScroll} />
+                          <div className="mt-1.5 w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m5" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                            <Words>Done! I&apos;ve sent the setup link to <span className="font-semibold">{email}</span>. Check your inbox 🎉</Words>
+                          </div>
+                          {actionsRow(5, `Done! I've sent the setup link to ${email}. Check your inbox 🎉`, "mt-1")}
                         </div>
-                        {actionsRow(5, `Done! I've sent the setup link to ${email}. Check your inbox 🎉`, "mt-1")}
-                      </div>
-                    )}
+                      );
+                    })()}
                   </>
                 )}
                   </>
