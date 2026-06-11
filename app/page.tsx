@@ -599,7 +599,7 @@ function CornerPillVariant() {
   const closeChat = () => {
     setMenuOpen(false);
     setClosing(true);
-    window.setTimeout(() => { setPhase("pill"); setClosing(false); }, 400);
+    window.setTimeout(() => { setPhase("pill"); setClosing(false); setView("chat"); }, 400);
   };
   // voice → text (STT) like v2
   const [recording, setRecording] = useState(false);
@@ -1116,7 +1116,7 @@ function CornerPillVariant() {
                   pointerEvents: view === "history" ? "auto" : "none",
                   transition: "transform 320ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease",
                 }}>
-                <HistoryView onNew={resetConversation} onOpen={() => setView("chat")} />
+                <HistoryView onNew={resetConversation} onOpen={() => setView("chat")} onClose={closeChat} />
               </div>
               <div className="flex w-full items-center gap-1 px-4 h-16 border-b shrink-0" style={{ borderColor: LINE }}>
                 <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -1745,22 +1745,31 @@ const HELP_LINKS = [
   { label: "Community", href: "https://discord.com/invite/2tGHGm8kt7" },
 ];
 
-function HistoryView({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }) {
+function HistoryView({ onNew, onOpen, onClose }: { onNew: () => void; onOpen: () => void; onClose: () => void }) {
   const [tab, setTab] = useState<"messages" | "help">("messages");
   return (
     <div className="flex h-full flex-col" style={{ backgroundColor: "#FEFCF8" }}>
       <header className="flex items-center justify-between border-b px-5 h-16 shrink-0" style={{ borderColor: LINE }}>
         <p className="text-[18px] leading-6 font-semibold" style={{ color: INK }}>{tab === "help" ? "Help" : "History"}</p>
-        {tab === "messages" && (
-          <button type="button" onClick={onNew}
-            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors"
-            style={{ borderColor: LINE, backgroundColor: "#F9F3EA", color: INK }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0EBE0"; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; }}>
-            <Plus className="size-3" strokeWidth={2.25} />
-            New
+        <div className="flex items-center gap-2">
+          {tab === "messages" && (
+            <button type="button" onClick={onNew}
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+              style={{ borderColor: LINE, backgroundColor: "#F9F3EA", color: INK }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0EBE0"; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; }}>
+              <Plus className="size-3" strokeWidth={2.25} />
+              New
+            </button>
+          )}
+          <button type="button" onClick={onClose} aria-label="Close" data-tooltip="Close"
+            className="tooltip-host tooltip-below tooltip-right flex size-7 shrink-0 items-center justify-center rounded-[6px] transition-colors"
+            style={{ color: MUTED }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = SUBTLE; e.currentTarget.style.color = INK; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = MUTED; }}>
+            <X className="size-5" strokeWidth={1.5} />
           </button>
-        )}
+        </div>
       </header>
 
       {tab === "messages" ? (

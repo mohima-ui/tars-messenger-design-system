@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, HelpCircle, Search, ChevronRight } from "lucide-react";
+import { Plus, MessageSquare, HelpCircle, Search, ChevronRight, X } from "lucide-react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -59,7 +59,10 @@ function HistoryPreview() {
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">
           History
         </p>
-        <NewChatCta />
+        <div className="flex items-center gap-2">
+          <NewChatCta />
+          <CloseBtn />
+        </div>
       </header>
       <div className="flex-1 overflow-y-auto px-2 py-1.5">
         {GROUPS.map((g) => (
@@ -109,6 +112,7 @@ function HelpState() {
     >
       <header className="flex items-center justify-between border-b border-[#EBE3D4] px-5 py-4">
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">Help</p>
+        <CloseBtn />
       </header>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
         {/* search */}
@@ -163,6 +167,14 @@ function NewChatCta() {
   );
 }
 
+function CloseBtn() {
+  return (
+    <button type="button" aria-label="Close" className="flex size-7 shrink-0 items-center justify-center rounded-[6px] transition-colors hover:bg-[#F0EBE0]" style={{ color: MUTED }}>
+      <X className="size-5" strokeWidth={1.5} />
+    </button>
+  );
+}
+
 function EmptyState() {
   return (
     <div
@@ -177,7 +189,10 @@ function EmptyState() {
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">
           History
         </p>
-        <NewChatCta />
+        <div className="flex items-center gap-2">
+          <NewChatCta />
+          <CloseBtn />
+        </div>
       </header>
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
         <p className="text-[13px] font-semibold text-[#333333]">No conversations yet</p>
