@@ -92,6 +92,11 @@
   from { opacity: 0; transform: translateY(3px); filter: blur(1.5px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
+/* connecting handoff — dashes march along the channel from agent to human */
+@keyframes dash-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -7; }
+}
 
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(6px); }

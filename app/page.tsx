@@ -24,6 +24,8 @@ import {
   Loader2,
   Square,
   ArrowDown,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
@@ -172,8 +174,8 @@ const SEND_EVENTS = [
 ];
 
 const STARTER_OPTIONS = [
-  ["Pick a time", "Compare plans", "Talk to sales"],
-  ["Compare plans", "Start free trial", "Talk to sales"],
+  ["Pick a time", "Compare plans", "Talk to an agent"],
+  ["Compare plans", "Start free trial", "Talk to an agent"],
   ["See a demo", "Compare plans", "What can it do?"],
 ];
 
@@ -371,6 +373,42 @@ function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: ReactNode
   );
 }
 
+/* ── human handoff: connecting → joined, morphs in one dashed box ──
+   connecting: T + P stacked. joined: T slides out, P glides to center. */
+function HandoffCard({ name, joined, timeLabel }: { name: string; joined: boolean; timeLabel: string }) {
+  const EASE = "cubic-bezier(0.2,0.6,0.2,1)";
+  return (
+    <div className="ml-1 flex w-full flex-col items-center gap-1.5 rounded-[12px] border border-dashed px-4 py-3" style={{ borderColor: LINE, animation: "fade-in 240ms ease-out both" }}>
+      <div className="relative flex h-7 w-full items-center justify-center">
+        {/* T — user, slides out & fades when the agent joins */}
+        <span className="absolute flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold"
+          style={{ borderColor: LINE, color: INK, left: "50%", transform: joined ? "translate(calc(-50% - 18px)) scale(0.6)" : "translate(calc(-50% - 9px))", opacity: joined ? 0 : 1, transition: `transform 520ms ${EASE}, opacity 360ms ease-out` }}>T</span>
+        {/* P — agent, glides from the stack to dead center */}
+        <span className="absolute" style={{ left: "50%", transform: joined ? "translate(-50%)" : "translate(calc(-50% + 9px))", transition: `transform 520ms ${EASE}` }}>
+          <span className="flex size-7 items-center justify-center rounded-full text-[11px] font-semibold" style={{ backgroundColor: LINE, color: INK, boxShadow: "0 0 0 2px #FFFFFF" }}>{name.charAt(0)}</span>
+          <span className="absolute right-0 bottom-0 block size-1.5" aria-hidden>
+            <span className="absolute -inset-0.5 rounded-full animate-ping" style={{ backgroundColor: "#16A34A", opacity: 0.8 }} />
+            <span className="relative block size-1.5 rounded-full" style={{ backgroundColor: "#16A34A", boxShadow: "0 0 0 1.5px #FFFFFF" }} />
+          </span>
+        </span>
+      </div>
+      <div key={joined ? "joined" : "connecting"} className="flex flex-col items-center gap-0.5" style={{ animation: "fade-in 360ms ease-out both" }}>
+        {joined ? (
+          <>
+            <p className="text-[12px] font-normal leading-tight" style={{ color: INK }}><span className="font-semibold">{name}</span> joined</p>
+            <p className="text-[10px] leading-tight" style={{ color: MUTED }}>Support specialist · {timeLabel}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[12px] font-normal leading-tight" style={{ color: INK }}>Connecting you with <span className="font-semibold">{name}</span></p>
+            <p className="text-[10px] leading-tight" style={{ color: MUTED }}>You&apos;re #1 in queue · typically &lt;1 min</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 /* ── inline citation chip + hover source card (adapted from the home page) ── */
 const CITATION_SOURCES = [
@@ -530,6 +568,7 @@ function CornerPillVariant() {
   const [hoveredTurn, setHoveredTurn] = useState<null | 0 | 1 | 2 | 3 | 4 | 5>(null);
   const [conversationTurn, setConversationTurn] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [handoffPhase, setHandoffPhase] = useState<"none" | "connecting" | "joined" | "replied">("none");
   const [turn3Phase, setTurn3Phase] = useState<"thinking" | "done">("thinking");
   const [turn3Step, setTurn3Step] = useState(0);
   const [turn4Phase, setTurn4Phase] = useState<"thinking" | "done">("thinking");
@@ -584,6 +623,8 @@ function CornerPillVariant() {
 
   // auto-growing composer that reflows to multi-line as you type (like the home page)
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  // demo: files staged in the composer before send (image thumbnail + file chip)
+  const [attachments, setAttachments] = useState<string[]>([]);
   const composerMultiline = useMemo(() => {
     if (!inputText) return false;
     const lines = inputText.split("\n");
@@ -680,6 +721,7 @@ function CornerPillVariant() {
     setConversationTurn(1);
     setHoveredTurn(null);
     setSelectedPlan(null);
+    setHandoffPhase("none");
     setTurn3Phase("thinking");
     setTurn3Step(0);
     setTurn4Phase("thinking");
@@ -691,6 +733,7 @@ function CornerPillVariant() {
     setCopiedTurn(null);
     setSpeakingTurn(null);
     setInputText("");
+    setAttachments([]);
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   };
 
@@ -752,6 +795,7 @@ function CornerPillVariant() {
 
   const handleSend = () => {
     const val = inputText.trim();
+    setAttachments([]);
     // typed a message in the focused launcher → open the chat started on that message
     if (phase === "focused") {
       if (val) {
@@ -777,6 +821,12 @@ function CornerPillVariant() {
     setPanelPhase("thinking");
     setThinkingStep(0);
     setHoveredTurn(null);
+  };
+
+  const handleTalkToHuman = () => {
+    setHandoffPhase("connecting");
+    window.setTimeout(() => setHandoffPhase("joined"), 5000);
+    window.setTimeout(() => setHandoffPhase("replied"), 6800);
   };
 
   const handleStarterClick = (idx: number) => {
@@ -1178,7 +1228,7 @@ function CornerPillVariant() {
                               }}
                               onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
                               onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                              onClick={opt === "Compare plans" ? handleComparePlans : undefined}>
+                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : undefined}>
                               {opt}
                             </button>
                           ))}
@@ -1278,7 +1328,7 @@ function CornerPillVariant() {
                         </div>
                         {conversationTurn === 3 && (
                           <div className="flex flex-wrap gap-2 px-1 mt-3">
-                            {["Email me the link", "Talk to sales"].map((opt, i) => (
+                            {["Email me the link", "Talk to an agent"].map((opt, i) => (
                               <button key={opt} className="rounded-full border px-3.5 py-1.5 text-[14px]"
                                 style={{
                                   borderColor: "#E0DAD3", color: INK, backgroundColor: "#F9F3EA",
@@ -1288,7 +1338,7 @@ function CornerPillVariant() {
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
                                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                                onClick={opt === "Email me the link" ? handleEmailLink : undefined}>
+                                onClick={opt === "Email me the link" ? handleEmailLink : opt === "Talk to an agent" ? handleTalkToHuman : undefined}>
                                 {opt}
                               </button>
                             ))}
@@ -1362,6 +1412,47 @@ function CornerPillVariant() {
                     })()}
                   </>
                 )}
+                {handoffPhase !== "none" && (
+                  <>
+                    <div className="flex justify-end">
+                      <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                        style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>Talk to an agent</div>
+                    </div>
+
+                    {/* handoff card — connecting morphs into joined in one dashed box */}
+                    <HandoffCard name="Priya" joined={handoffPhase !== "connecting"} timeLabel={timeLabel} />
+
+                    {/* Priya: typing → message */}
+                    {handoffPhase === "joined" && (
+                      <div className="flex flex-col gap-1">
+                        <div className="ml-1 flex items-center gap-1.5">
+                          <div className="flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white" style={{ backgroundColor: ACCENT }}>P</div>
+                          <p className="text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>Priya <span style={{ color: "#A8A096" }}>is typing…</span></p>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="flex w-fit items-center gap-1 rounded-[12px] rounded-bl-[4px] border px-3.5 py-2.5" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3" }}>
+                            {[0, 1, 2].map(i => (
+                              <span key={i} className="block size-1.5 rounded-full" style={{ backgroundColor: "#8A8378", animation: `typing-dot 1.2s ease-in-out ${i * 150}ms infinite` }} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {handoffPhase === "replied" && (
+                      <div className="flex flex-col gap-1">
+                        <div className="ml-1 flex items-center gap-1.5">
+                          <div className="flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white" style={{ backgroundColor: ACCENT }}>P</div>
+                          <p className="text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>Priya <span style={{ color: "#A8A096" }}>· {timeLabel}</span></p>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                            Hi! I&apos;ve got everything Tars shared — let me check on that for you now.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
                   </>
                 )}
               </div>
@@ -1386,19 +1477,46 @@ function CornerPillVariant() {
                     to send
                   </div>
                 )}
-                <div
-                  className={`flex w-full rounded-[12px] border border-[var(--ds-border-line)] bg-[var(--ds-bg-paper)] transition-all duration-200 hover:border-[var(--ds-border-hover)] focus-within:!border-[#632E9A] focus-within:!ring-4 focus-within:!ring-[#632E9A]/15 ${
-                    composerMultiline
-                      ? "flex-wrap items-end gap-x-1.5 gap-y-1 px-3 py-1.5"
-                      : "items-end gap-2 px-3 py-2"
-                  }`}
-                >
+                <div className="flex w-full flex-col gap-2 rounded-[12px] border border-[var(--ds-border-line)] bg-[var(--ds-bg-paper)] px-3 py-2 transition-all duration-200 hover:border-[var(--ds-border-hover)] focus-within:!border-[#632E9A] focus-within:!ring-4 focus-within:!ring-[#632E9A]/15">
+                  {/* staged files — tray above the input row */}
+                  {attachments.length > 0 && !recording && (
+                    <div className="flex flex-wrap gap-2 px-1 pt-1" style={{ animation: "fade-in 180ms ease-out both" }}>
+                      {attachments.includes("image") && (
+                        <div className="relative size-14 shrink-0 overflow-hidden rounded-[8px] border" style={{ borderColor: "var(--ds-border-line)" }}>
+                          <div className="flex size-full items-center justify-center" style={{ backgroundColor: "#FFFFFF" }}>
+                            <ImageIcon className="size-5" strokeWidth={1.75} style={{ color: "var(--ds-text-secondary)" }} />
+                          </div>
+                          <button type="button" aria-label="Remove image" onClick={() => setAttachments(a => a.filter(x => x !== "image"))}
+                            className="absolute top-0.5 right-0.5 flex size-4 items-center justify-center rounded-full bg-black/55 text-white">
+                            <X className="size-2.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      )}
+                      {attachments.includes("pdf") && (
+                        <div className="relative flex items-center gap-2 rounded-[8px] border bg-white py-2 pr-7 pl-2" style={{ borderColor: "var(--ds-border-line)" }}>
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[6px]" style={{ backgroundColor: "#E8F0FE", color: "#2563EB" }}>
+                            <FileText className="size-4" strokeWidth={1.75} />
+                          </span>
+                          <span className="flex flex-col">
+                            <span className="max-w-[120px] truncate text-[12px] font-medium" style={{ color: INK }}>Q3-report.pdf</span>
+                            <span className="text-[10px]" style={{ color: MUTED }}>240 KB</span>
+                          </span>
+                          <button type="button" aria-label="Remove file" onClick={() => setAttachments(a => a.filter(x => x !== "pdf"))}
+                            className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full" style={{ color: MUTED }}>
+                            <X className="size-3" strokeWidth={2} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* input row */}
+                  <div className={`flex w-full ${composerMultiline ? "flex-wrap items-end gap-x-1.5 gap-y-1" : "items-end gap-2"}`}>
                   {/* left — attachment, becomes cancel (X) while recording */}
                   <button
                     type="button"
                     aria-label={recording ? "Cancel recording" : "Add attachment"}
                     data-tooltip={recording ? "Cancel" : "Attach"}
-                    onClick={recording ? handleCancelRecording : undefined}
+                    onClick={recording ? handleCancelRecording : () => setAttachments(a => a.length ? [] : ["image", "pdf"])}
                     disabled={transcribing}
                     className={`tooltip-host tooltip-left flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)] active:bg-[var(--ds-bg-subtle)] disabled:opacity-40 ${
                       composerMultiline ? "order-2 mr-auto" : ""
@@ -1437,7 +1555,7 @@ function CornerPillVariant() {
                   {/* right — stop / spinner / send / mic */}
                   {recording ? (
                     <button type="button" aria-label="Stop recording" onClick={handleStopRecording}
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#8456C9] text-white transition-colors hover:bg-[#744AB5] active:scale-95 ${composerMultiline ? "order-3" : ""}`}>
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:scale-95 ${composerMultiline ? "order-3" : ""}`}>
                       <Square className="size-3" strokeWidth={0} fill="currentColor" />
                     </button>
                   ) : transcribing ? (
@@ -1445,13 +1563,13 @@ function CornerPillVariant() {
                       className={`flex size-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--ds-text-secondary)] ${composerMultiline ? "order-3" : ""}`}>
                       <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                     </button>
-                  ) : inputText.trim() ? (
+                  ) : inputText.trim() || attachments.length > 0 ? (
                     <button
                       type="button"
                       aria-label="Send message"
                       data-tooltip="Send"
                       onClick={handleSend}
-                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#8456C9] text-white transition-colors hover:bg-[#744AB5] active:bg-[#6A3FA0] ${
+                      className={`tooltip-host tooltip-right flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[#632E9A] text-white transition-colors hover:bg-[#542584] active:bg-[#4A1F77] ${
                         composerMultiline ? "order-3" : ""
                       }`}
                     >
@@ -1470,6 +1588,7 @@ function CornerPillVariant() {
                       <Mic className="size-4" strokeWidth={1.5} />
                     </button>
                   )}
+                  </div>
                 </div>
               </div>
             </div>

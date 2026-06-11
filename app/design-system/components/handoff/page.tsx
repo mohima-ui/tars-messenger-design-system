@@ -1,163 +1,130 @@
-import { ArrowRight, Users } from "lucide-react";
-
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
 const PAPER = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
-const ACCENT_INK = "#0A06A0";
+const ACCENT = "#632E9A";
 
-function HandoffBanner({
-  name,
-  initial,
-  role,
-  avatarColor,
-  context,
-}: {
-  name: string;
-  initial: string;
-  role: string;
-  avatarColor: string;
-  context?: string;
-}) {
+/* Presence dot — small green status with a pulsing ring */
+function PresenceDot() {
   return (
-    <div className="flex w-full items-center gap-3 py-1">
-      <div className="h-px flex-1" style={{ backgroundColor: LINE }} />
-      <div className="flex items-center gap-2 rounded-full border bg-white px-3 py-1.5" style={{ borderColor: LINE }}>
-        <div
-          className="flex size-5 items-center justify-center rounded-full text-[9px] font-semibold text-white"
-          style={{ backgroundColor: avatarColor }}
-        >
-          {initial}
-        </div>
-        <p className="text-[11px] leading-4 text-[#333333]">
-          <span className="font-semibold">{name}</span>{" "}
-          <span className="text-[#6E6E6E]">· {role}</span>
-        </p>
-      </div>
-      <div className="h-px flex-1" style={{ backgroundColor: LINE }} />
-    </div>
+    <span className="absolute right-0 bottom-0 block size-1.5" aria-hidden>
+      <span className="absolute -inset-0.5 rounded-full animate-ping" style={{ backgroundColor: "#16A34A", opacity: 0.8 }} />
+      <span className="relative block size-1.5 rounded-full" style={{ backgroundColor: "#16A34A", boxShadow: "0 0 0 1.5px #FFFFFF" }} />
+    </span>
   );
 }
 
-function ConnectingCard({
-  fromInitial,
-  fromColor,
-  toInitial,
-  toColor,
-  toName,
+/* Handoff card — one dashed box, two states.
+   connecting: user (T) + agent (P) avatars stacked, queue + ETA.
+   connected:  T drops away, P sits centered, copy becomes "<Name> joined". */
+function HandoffCard({
+  joined,
+  name,
   queue,
   eta,
+  role,
+  time,
 }: {
-  fromInitial: string;
-  fromColor: string;
-  toInitial: string;
-  toColor: string;
-  toName: string;
+  joined: boolean;
+  name: string;
   queue: number;
   eta: string;
+  role: string;
+  time: string;
 }) {
   return (
     <div
-      className="flex flex-col items-center gap-3 rounded-[14px] border bg-white px-4 py-5"
+      className="flex w-full flex-col items-center gap-1.5 rounded-[12px] border border-dashed px-4 py-3"
       style={{ borderColor: LINE }}
     >
-      <div className="flex items-center gap-2">
-        <div
-          className="flex size-9 items-center justify-center rounded-full text-[13px] font-semibold text-white"
-          style={{ backgroundColor: fromColor }}
-          aria-label="From"
-        >
-          {fromInitial}
-        </div>
-        <ArrowRight className="size-3.5 text-[#6E6E6E]" strokeWidth={2} />
-        <div className="relative">
-          <div
-            className="flex size-9 items-center justify-center rounded-full text-[13px] font-semibold text-white"
-            style={{ backgroundColor: toColor }}
-            aria-label={`To ${toName}`}
-          >
-            {toInitial}
-          </div>
+      <div className="flex h-7 items-center justify-center">
+        {!joined && (
           <span
-            className="absolute -right-0.5 -bottom-0.5 size-2 rounded-full border-2 border-white"
-            style={{ backgroundColor: "#16A34A" }}
-            aria-hidden
-          />
-        </div>
+            className="flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold"
+            style={{ borderColor: LINE, color: INK }}
+          >
+            T
+          </span>
+        )}
+        <span className={`relative ${joined ? "" : "-ml-2.5"}`}>
+          <span
+            className="flex size-7 items-center justify-center rounded-full text-[11px] font-semibold"
+            style={{ backgroundColor: LINE, color: INK, boxShadow: "0 0 0 2px #FFFFFF" }}
+          >
+            {name.charAt(0)}
+          </span>
+          <PresenceDot />
+        </span>
       </div>
-      <div className="flex flex-col items-center gap-1">
-        <p className="text-[13px] font-semibold text-[#333333]">
-          Connecting you with {toName}
-        </p>
-        <p className="text-[11px] text-[#6E6E6E]">
-          You&apos;re #{queue} in queue · typically {eta}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ContextChip() {
-  return (
-    <div className="flex items-start gap-2 rounded-[10px] border bg-white p-3" style={{ borderColor: LINE }}>
-      <Users className="size-3.5 shrink-0 text-[#6E6E6E]" strokeWidth={1.75} />
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[11px] font-semibold text-[#333333]">Context passed</p>
-        <p className="text-[11px] leading-relaxed text-[#6E6E6E]">
-          The full conversation is shared with Priya — including the user&apos;s order
-          ID, the refund question, and Tars&apos; first attempt.
-        </p>
+      <div className="flex flex-col items-center gap-0.5">
+        {joined ? (
+          <>
+            <p className="text-[12px] leading-tight" style={{ color: INK }}>
+              <span className="font-semibold">{name}</span> joined
+            </p>
+            <p className="text-[10px] leading-tight" style={{ color: MUTED }}>
+              {role} · {time}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-[12px] leading-tight" style={{ color: INK }}>
+              Connecting you with <span className="font-semibold">{name}</span>
+            </p>
+            <p className="text-[10px] leading-tight" style={{ color: MUTED }}>
+              You&apos;re #{queue} in queue · typically {eta}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 const ANATOMY = [
-  { label: "Hairline rule", token: "1px --border-line · flex-1 each side" },
-  { label: "Identity pill", token: "rounded-full · white bg · line border · px-3 py-1.5" },
-  { label: "Avatar", token: "size-5 circle · per-agent color · single initial" },
-  { label: "Name + role text", token: "11/16 · semibold name · muted role separator" },
+  { label: "Container", token: "rounded-[12px] · dashed 1px --border-line · transparent · px-4 py-3" },
+  { label: "Avatars", token: "size-7 · user stroke-only, agent filled --border-line · stacked" },
+  { label: "Presence dot", token: "size-1.5 · #16A34A · animate-ping ring" },
+  { label: "Title", token: "12px · 'Connecting you with' regular, name semibold" },
+  { label: "Subtitle", token: "10px --text-secondary · queue/ETA → role · timestamp" },
 ];
 
 const SPECS = [
-  { prop: "Container width", value: "Full message column", note: "Spans full chat width" },
-  { prop: "Pill bg", value: "#FFFFFF", note: "--bg-surface (lifts off paper)" },
-  { prop: "Pill border", value: "1px #E0DAD3", note: "--border-line" },
-  { prop: "Avatar size", value: "size-5", note: "20px — slightly larger than human-agent message label" },
-  { prop: "Text", value: "11 / 16 · 500", note: "Name in semibold, role in muted" },
-  { prop: "Rule", value: "1px line", note: "Equal-length lines on each side of the pill" },
-  { prop: "Vertical padding", value: "py-1", note: "4px above and below the rule row" },
-  { prop: "Animation", value: "fade-in 300ms ease-out", note: "Soft entrance; no slide" },
+  { prop: "Container width", value: "Full message column", note: "Content centered" },
+  { prop: "Container fill", value: "none", note: "Transparent — dashed stroke only" },
+  { prop: "Container border", value: "1px dashed #E0DAD3", note: "--border-line" },
+  { prop: "Avatar size", value: "size-7", note: "28px" },
+  { prop: "User avatar", value: "stroke #E0DAD3", note: "Outlined, no fill" },
+  { prop: "Agent avatar", value: "fill #E0DAD3", note: "Solid, 2px white ring for the stack gap" },
+  { prop: "Presence dot", value: "#16A34A · size-1.5", note: "animate-ping pulse" },
+  { prop: "Morph", value: "transform 520ms", note: "cubic-bezier(0.2,0.6,0.2,1) — T out, P to center" },
+  { prop: "Title / subtitle", value: "12 / 10", note: "Name semibold; subtitle muted" },
 ];
 
 const STATES = [
-  { name: "Connecting", desc: "Two-avatar card (T → P) with queue position and ETA. Visible while the human picks up." },
-  { name: "Joined", desc: "Connecting card replaced by the identity-pill seam once the human accepts." },
-  { name: "Joined + context chip", desc: "Below the seam, a small chip confirms what context was shared with the human." },
-  { name: "Left / returned to AI", desc: "Mirror: 'Tars has rejoined the conversation' — same pill, Tars avatar." },
+  { name: "Connecting", desc: "Dashed box with user (T) and agent (P) avatars stacked, queue position and ETA. Shows while the human picks up." },
+  { name: "Connected", desc: "Same box morphs — T slides out and fades, P glides to center, copy switches to '<Name> joined' with role and timestamp." },
 ];
 
 const FLOW = [
-  { step: "1", title: "Trigger", desc: "User asks for human, or AI confidence falls below threshold." },
-  { step: "2", title: "Brief notice", desc: "AI replies: 'Let me connect you with a teammate…'" },
-  { step: "3", title: "Connecting card", desc: "T → P avatars, 'Connecting you with Priya', queue position and ETA." },
-  { step: "4", title: "Handoff seam", desc: "Once the human picks up, the connecting card collapses into the identity-pill divider." },
-  { step: "5", title: "Context chip (optional)", desc: "A small inline confirmation of what was passed to the human." },
-  { step: "6", title: "Human typing", desc: "Typing indicator switches to the human's avatar." },
-  { step: "7", title: "Human reply", desc: "First human-agent message appears (no streaming)." },
+  { step: "1", title: "Trigger", desc: "User taps 'Talk to an agent', or AI confidence falls below threshold." },
+  { step: "2", title: "Connecting card", desc: "Dashed box: T + P avatars stacked, 'Connecting you with Priya', queue position and ETA." },
+  { step: "3", title: "Agent joins", desc: "Same box morphs — T slides out, P glides to center, copy becomes '<Name> joined · role · time'." },
+  { step: "4", title: "Human typing", desc: "Typing indicator with the human's avatar." },
+  { step: "5", title: "Human reply", desc: "First human-agent message appears (no streaming)." },
 ];
 
 const DOS = [
   "Pass full context to the human — no 're-ask the user' patterns.",
-  "Keep the seam visually quiet — it's a transition, not a celebration.",
+  "Keep the card visually quiet — it's a transition, not a celebration.",
   "Use a 'returning to AI' mirror if/when the human hands back.",
 ];
 
 const DONTS = [
   "Don't show toasts or modals for handoff — keep it inline.",
-  "Don't bury the seam under a long delay — fire it within 1s of trigger.",
-  "Don't make the user repeat themselves after the seam.",
+  "Don't bury the card under a long delay — fire it within ~1s of trigger.",
+  "Don't make the user repeat themselves after the agent joins.",
 ];
 
 export default function HandoffPage() {
@@ -185,8 +152,9 @@ export default function HandoffPage() {
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-[#555]">
             The seam. The AI hands the conversation off — context intact, no repeats, no
-            interruption. A hairline rule with an identity pill marks the transition; the
-            scroll position holds, the history stays visible.
+            interruption. A single dashed card carries the moment: it shows who&apos;s
+            connecting, then morphs in place to confirm the agent has joined. The scroll
+            position holds, the history stays visible.
           </p>
         </div>
 
@@ -197,16 +165,20 @@ export default function HandoffPage() {
               Connecting state
             </p>
             <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
-              <div className="rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                <ConnectingCard
-                  fromInitial="T"
-                  fromColor="#120BF4"
-                  toInitial="P"
-                  toColor="#A1593E"
-                  toName="Priya"
-                  queue={1}
-                  eta="<1 min"
-                />
+              <div className="mx-auto max-w-[360px]">
+                <HandoffCard joined={false} name="Priya" queue={1} eta="<1 min" role="Support specialist" time="2:56 PM" />
+              </div>
+            </div>
+          </section>
+
+          {/* Connected state */}
+          <section>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
+              Connected state
+            </p>
+            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
+              <div className="mx-auto max-w-[360px]">
+                <HandoffCard joined={true} name="Priya" queue={1} eta="<1 min" role="Support specialist" time="2:56 PM" />
               </div>
             </div>
           </section>
@@ -214,83 +186,46 @@ export default function HandoffPage() {
           {/* In context */}
           <section>
             <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">In context — full flow</p>
-            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
-              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                {/* AI message before */}
-                <div className="flex flex-col gap-1">
-                  <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-                    Tars <span className="text-[#A8A096]">• AI Agent</span>
-                  </p>
-                  <div className="flex justify-start">
-                    <div
-                      className="max-w-[88%] rounded-tl-[12px] rounded-tr-[12px] rounded-br-[12px] rounded-bl-[6px] border px-[14px] py-[10px] text-[12px] leading-[1.55]"
-                      style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
-                    >
-                      Let me connect you with a teammate who can dig into your account…
-                    </div>
-                  </div>
-                </div>
-
-                {/* Connecting card (queue) */}
-                <ConnectingCard
-                  fromInitial="T"
-                  fromColor="#120BF4"
-                  toInitial="P"
-                  toColor="#A1593E"
-                  toName="Priya"
-                  queue={1}
-                  eta="<1 min"
-                />
-
-                {/* Handoff seam */}
-                <HandoffBanner
-                  name="Priya"
-                  initial="P"
-                  role="Support Specialist"
-                  avatarColor="#A1593E"
-                />
-
-                {/* Context chip */}
-                <ContextChip />
-
-                {/* Human message after */}
-                <div className="flex flex-col gap-1">
-                  <div className="ml-1 flex items-center gap-1.5">
-                    <div
-                      className="flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white"
-                      style={{ backgroundColor: "#A1593E" }}
-                    >
-                      P
-                    </div>
-                    <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">
-                      Priya <span className="text-[#A8A096]">• Support Specialist</span>
-                    </p>
-                  </div>
-                  <div className="flex justify-start">
-                    <div
-                      className="max-w-[88%] rounded-tl-[12px] rounded-tr-[12px] rounded-br-[12px] rounded-bl-[6px] border px-[14px] py-[10px] text-[12px] leading-[1.55]"
-                      style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
-                    >
-                      Hi! I&apos;ve got everything Tars shared — let me check on
-                      that refund for you now.
-                    </div>
+            <div className="mx-auto flex w-full max-w-[360px] flex-col gap-3 rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
+              {/* AI message before */}
+              <div className="flex flex-col gap-1">
+                <p className="ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">· 2:56 PM</span>
+                </p>
+                <div className="flex justify-start">
+                  <div
+                    className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
+                    style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
+                  >
+                    Let me connect you with a teammate who can dig into your account…
                   </div>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Variant: solo seam (no context chip) */}
-          <section>
-            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Variant — seam only</p>
-            <div className="rounded-[14px] border bg-white p-6" style={{ borderColor: CHROME }}>
-              <div className="flex flex-col gap-3 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
-                <HandoffBanner
-                  name="Marcus"
-                  initial="M"
-                  role="Account Manager"
-                  avatarColor="#3D5B3D"
-                />
+              {/* Connected card */}
+              <HandoffCard joined={true} name="Priya" queue={1} eta="<1 min" role="Support specialist" time="2:56 PM" />
+
+              {/* Human message after */}
+              <div className="flex flex-col gap-1">
+                <div className="ml-1 flex items-center gap-1.5">
+                  <div
+                    className="flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    P
+                  </div>
+                  <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                    Priya <span className="text-[#A8A096]">· 2:56 PM</span>
+                  </p>
+                </div>
+                <div className="flex justify-start">
+                  <div
+                    className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
+                    style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
+                  >
+                    Hi! I&apos;ve got everything Tars shared — let me check on that for you now.
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -301,7 +236,7 @@ export default function HandoffPage() {
             <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
               {FLOW.map((f) => (
                 <div key={f.step} className="flex items-baseline gap-4 px-4 py-3">
-                  <span className="w-6 font-mono text-[11px] font-semibold text-[#0A06A0]">{f.step}</span>
+                  <span className="w-6 font-mono text-[11px] font-semibold text-[#4A1F77]">{f.step}</span>
                   <span className="w-40 shrink-0 text-[12px] font-semibold text-[#333333]">{f.title}</span>
                   <p className="text-[11px] leading-relaxed text-[#6E6E6E]">{f.desc}</p>
                 </div>

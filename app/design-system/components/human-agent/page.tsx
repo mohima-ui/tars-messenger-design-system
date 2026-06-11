@@ -309,7 +309,7 @@ export default function HumanAgentPage() {
         </div>
 
         <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
-          <a href="/design-system/components/suggested-replies" className="transition-colors hover:text-[#333333]">← Suggested Replies</a>
+          <a href="/design-system/components/user-message" className="transition-colors hover:text-[#333333]">← User Message</a>
           <a href="/design-system/components/handoff" className="transition-colors hover:text-[#333333]">Human Handoff →</a>
         </footer>
       </main>
