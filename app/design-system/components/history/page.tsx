@@ -55,7 +55,7 @@ function HistoryPreview() {
           "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
       }}
     >
-      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-4 py-4">
+      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-5 py-4">
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">
           History
         </p>
@@ -107,7 +107,7 @@ function HelpState() {
       className="flex h-[680px] w-[400px] flex-col overflow-hidden rounded-[20px] border bg-[#FFFDFA]"
       style={{ borderColor: "#D9D5CC", boxShadow: "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)" }}
     >
-      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-4 py-4">
+      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-5 py-4">
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">Help</p>
       </header>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
@@ -173,7 +173,7 @@ function EmptyState() {
           "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
       }}
     >
-      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-4 py-4">
+      <header className="flex items-center justify-between border-b border-[#EBE3D4] px-5 py-4">
         <p className="text-[18px] leading-6 font-semibold text-[#333333]">
           History
         </p>

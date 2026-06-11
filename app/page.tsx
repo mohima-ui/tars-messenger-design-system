@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
   MessageSquare,
   HelpCircle,
+  Search,
 } from "lucide-react";
 
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
@@ -1115,7 +1116,7 @@ function CornerPillVariant() {
                   pointerEvents: view === "history" ? "auto" : "none",
                   transition: "transform 320ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease",
                 }}>
-                <HistoryView onBack={() => setView("chat")} onNew={resetConversation} onOpen={() => setView("chat")} />
+                <HistoryView onNew={resetConversation} onOpen={() => setView("chat")} />
               </div>
               <div className="flex w-full items-center gap-1 px-4 h-16 border-b shrink-0" style={{ borderColor: LINE }}>
                 <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -1737,69 +1738,96 @@ const HISTORY_CHATS = [
   { id: "4", title: "alex.kim@gmail.com", preview: "Tars: Good morning. I'm here whenever you need a hand.", time: "Mar 8", initial: "A", selected: false, group: "Earlier" },
 ];
 const HISTORY_GROUPS = ["Today", "Yesterday", "Earlier"];
+const HELP_LINKS = [
+  { label: "Getting started guide", href: "https://docs.hellotars.com/" },
+  { label: "Schedule a demo", href: "https://hellotars.com/demo" },
+  { label: "AI agent templates", href: "https://hellotars.com/ai-agents" },
+  { label: "Community", href: "https://discord.com/invite/2tGHGm8kt7" },
+];
 
-function HistoryView({ onBack, onNew, onOpen }: { onBack: () => void; onNew: () => void; onOpen: () => void }) {
+function HistoryView({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }) {
+  const [tab, setTab] = useState<"messages" | "help">("messages");
   return (
     <div className="flex h-full flex-col" style={{ backgroundColor: "#FEFCF8" }}>
-      <header className="flex items-center justify-between border-b px-4 h-16 shrink-0" style={{ borderColor: LINE }}>
-        <div className="flex items-center gap-2">
-          <button onClick={onBack} aria-label="Back to chat" data-tooltip="Back"
-            className="tooltip-host tooltip-below tooltip-left flex size-7 shrink-0 items-center justify-center rounded-[6px] transition-colors"
-            style={{ color: MUTED }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = SUBTLE; e.currentTarget.style.color = INK; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = MUTED; }}>
-            <ChevronLeft className="size-5" strokeWidth={1.5} />
+      <header className="flex items-center justify-between border-b px-5 h-16 shrink-0" style={{ borderColor: LINE }}>
+        <p className="text-[18px] leading-6 font-semibold" style={{ color: INK }}>{tab === "help" ? "Help" : "History"}</p>
+        {tab === "messages" && (
+          <button type="button" onClick={onNew}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            style={{ borderColor: LINE, backgroundColor: "#F9F3EA", color: INK }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0EBE0"; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; }}>
+            <Plus className="size-3" strokeWidth={2.25} />
+            New
           </button>
-          <p className="text-[18px] leading-6 font-semibold" style={{ color: INK }}>History</p>
-        </div>
-        <button type="button" onClick={onNew}
-          className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors"
-          style={{ borderColor: LINE, backgroundColor: "#FEFCF8", color: INK }}
-          onMouseEnter={e => { e.currentTarget.style.backgroundColor = SUBTLE; }}
-          onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#FEFCF8"; }}>
-          <Plus className="size-3" strokeWidth={2.25} />
-          New
-        </button>
+        )}
       </header>
-      <div className="scrollbar-subtle flex-1 overflow-y-auto px-2 py-1.5">
-        {HISTORY_GROUPS.map((g) => {
-          const rows = HISTORY_CHATS.filter((c) => c.group === g);
-          if (!rows.length) return null;
-          return (
-            <div key={g} className="mb-1">
-              <p className="px-2.5 pt-2.5 pb-1 text-[10px] font-semibold tracking-wider uppercase" style={{ color: "#A8A096" }}>{g}</p>
-              {rows.map((c) => (
-                <button key={c.id} type="button" onClick={onOpen}
-                  className="flex w-full items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-left transition-colors"
-                  style={{ backgroundColor: c.selected ? "#F9F3EA" : "transparent" }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = c.selected ? "#F9F3EA" : "transparent"; }}>
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold"
-                    style={{ borderColor: LINE, backgroundColor: "#E0DAD3", color: INK }}>
-                    {c.initial}
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="truncate text-[13px] font-medium" style={{ color: INK }}>{c.title}</p>
-                      <span className="shrink-0 text-[10px] font-medium" style={{ color: "#A8A096" }}>{c.time}</span>
+
+      {tab === "messages" ? (
+        <div className="scrollbar-subtle flex-1 overflow-y-auto px-2 py-1.5">
+          {HISTORY_GROUPS.map((g) => {
+            const rows = HISTORY_CHATS.filter((c) => c.group === g);
+            if (!rows.length) return null;
+            return (
+              <div key={g} className="mb-1">
+                <p className="px-2.5 pt-2.5 pb-1 text-[10px] font-semibold tracking-wider uppercase" style={{ color: "#A8A096" }}>{g}</p>
+                {rows.map((c) => (
+                  <button key={c.id} type="button" onClick={onOpen}
+                    className="flex w-full items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-left transition-colors"
+                    style={{ backgroundColor: c.selected ? "#F9F3EA" : "transparent" }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = c.selected ? "#F9F3EA" : "transparent"; }}>
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold"
+                      style={{ borderColor: LINE, backgroundColor: "#E0DAD3", color: INK }}>
+                      {c.initial}
                     </div>
-                    <p className="truncate text-[12px]" style={{ color: MUTED }}>{c.preview}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="truncate text-[13px] font-medium" style={{ color: INK }}>{c.title}</p>
+                        <span className="shrink-0 text-[10px] font-medium" style={{ color: "#A8A096" }}>{c.time}</span>
+                      </div>
+                      <p className="truncate text-[12px]" style={{ color: MUTED }}>{c.preview}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="scrollbar-subtle flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+          <div className="flex items-center gap-2 rounded-[10px] border px-3 py-2.5" style={{ borderColor: LINE, backgroundColor: "#FFFFFF" }}>
+            <Search className="size-4 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
+            <span className="text-[13px]" style={{ color: "#A8A096" }}>Search for help</span>
+          </div>
+          <div className="aspect-video w-full overflow-hidden rounded-[12px] border" style={{ borderColor: LINE }}>
+            <iframe className="size-full" src="https://www.youtube.com/embed/yLPNYoRxhtE" title="Getting started with Tars"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          </div>
+          <div className="flex flex-col gap-1">
+            {HELP_LINKS.map(({ label, href }) => (
+              <a key={label} href={href} target="_blank" rel="noopener noreferrer"
+                className="flex w-full items-center gap-3 rounded-[12px] px-2.5 py-2.5 text-left transition-colors hover:bg-[#F9F3EA]">
+                <span className="flex-1 truncate text-[13px] font-medium" style={{ color: INK }}>{label}</span>
+                <ChevronRight className="size-4 shrink-0" strokeWidth={2} style={{ color: "#A8A096" }} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* bottom nav — Messages · Help */}
+      <div className="flex shrink-0 items-center justify-around border-t px-2 py-2" style={{ borderColor: LINE }}>
+        {[{ label: "Messages", Icon: MessageSquare, key: "messages" as const }, { label: "Help", Icon: HelpCircle, key: "help" as const }].map(({ label, Icon, key }) => {
+          const active = tab === key;
+          return (
+            <button key={key} type="button" onClick={() => setTab(key)}
+              className="flex flex-1 flex-col items-center gap-1 rounded-[8px] py-1 transition-colors">
+              <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} style={{ color: active ? ACCENT : "#A8A096" }} />
+              <span className="text-[10px]" style={{ color: active ? ACCENT : "#A8A096", fontWeight: active ? 600 : 500 }}>{label}</span>
+            </button>
           );
         })}
-      </div>
-      {/* bottom nav — Home · Messages · Help */}
-      <div className="flex shrink-0 items-center justify-around border-t px-2 py-2" style={{ borderColor: LINE }}>
-        {[{ label: "Messages", Icon: MessageSquare, active: true }, { label: "Help", Icon: HelpCircle, active: false }].map(({ label, Icon, active }) => (
-          <button key={label} type="button" onClick={active ? undefined : onBack}
-            className="flex flex-1 flex-col items-center gap-1 rounded-[8px] py-1 transition-colors">
-            <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} style={{ color: active ? ACCENT : "#A8A096" }} />
-            <span className="text-[10px]" style={{ color: active ? ACCENT : "#A8A096", fontWeight: active ? 600 : 500 }}>{label}</span>
-          </button>
-        ))}
       </div>
     </div>
   );
