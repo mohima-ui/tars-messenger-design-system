@@ -325,7 +325,7 @@ export default function HistoryPage() {
 
         <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
           <a href="/design-system/components/launcher" className="transition-colors hover:text-[#333333]">← Launcher</a>
-          <a href="/design-system/components/voice-stt" className="transition-colors hover:text-[#333333]">Voice STT →</a>
+          <a href="/design-system" className="transition-colors hover:text-[#333333]">All components →</a>
         </footer>
       </main>
     </div>

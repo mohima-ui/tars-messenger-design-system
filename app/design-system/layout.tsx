@@ -34,8 +34,6 @@ const NAV: NavGroup[] = [
       { label: "Error", href: "/design-system/components/error" },
       { label: "Launcher", href: "/design-system/components/launcher" },
       { label: "History", href: "/design-system/components/history" },
-      { label: "Voice — Speech to text", href: "/design-system/components/voice-stt" },
-      { label: "Voice — Text to speech", href: "/design-system/components/voice-tts" },
     ],
   },
   {

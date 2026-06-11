@@ -207,8 +207,6 @@ const COMPONENTS = [
   { name: "Error", slug: "error", note: "Soft, never alarming. Recoverable." },
   { name: "Launcher", slug: "launcher", note: "The bubble at rest. A tease appears once, then sleeps." },
   { name: "History", slug: "history", note: "Past conversations as gentle entries. Continue where you left off." },
-  { name: "Voice — Speech to text", slug: "voice-stt", note: "No surprise. A pulse, a wave, a way to stop." },
-  { name: "Voice — Text to speech", slug: "voice-tts", note: "Three semicircles, easing in and out." },
 ];
 
 function ColorTile({ swatch }: { swatch: Swatch }) {
@@ -820,8 +818,6 @@ export default function DesignSystemPage() {
                   "error",
                   "launcher",
                   "history",
-                  "voice-stt",
-                  "voice-tts",
                 ].includes(c.slug);
                 const Wrap = ready ? "a" : "div";
                 const props = ready
