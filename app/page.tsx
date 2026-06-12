@@ -260,7 +260,7 @@ function AiThinking() {
 /* ── Reasoning + tools, collapsed to a chip above the message (matches the DS) ── */
 type ToolEntry = { name: string; args: string; result: string };
 
-function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: ReactNode[]; tools: ToolEntry[]; onInteract?: () => void }) {
+function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: { title: ReactNode; body: ReactNode }[]; tools: ToolEntry[]; onInteract?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [openTools, setOpenTools] = useState<Set<string>>(new Set());
   const toggleTool = (n: string) => {
@@ -295,7 +295,9 @@ function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: ReactNode[
                   </span>
                   {i < arr.length - 1 && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: "#C5A8E0", minHeight: 10 }} />}
                 </div>
-                <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>{s}</span>
+                <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>
+                  <span className="font-semibold" style={{ color: INK }}>{s.title}.</span> {s.body}
+                </span>
               </div>
             ))}
           </div>
@@ -335,7 +337,7 @@ function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: ReactNode[
 }
 
 /* ── live reasoning panel shown while the AI is thinking (checks off step-by-step) ── */
-function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: ReactNode[]; toolName: string; step: number }) {
+function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: { title: ReactNode; body: ReactNode }[]; toolName: string; step: number }) {
   const total = reasoning.length;
   return (
     <div className="ml-1 rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
@@ -359,7 +361,10 @@ function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: ReactNode
                 </span>
                 {connector && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: "#C5A8E0", minHeight: 10 }} />}
               </div>
-              <span className="pb-1.5 text-[11px] leading-[1.5]" style={{ color: MUTED }}>{r}</span>
+              <div className="min-w-0 pb-1.5">
+                <p className="text-[11px] leading-[1.5] font-semibold" style={{ color: completed ? INK : MUTED }}>{r.title}</p>
+                <p className="text-[11px] italic leading-[1.5]" style={{ color: "#A8A096" }}>{r.body}</p>
+              </div>
             </div>
           );
         })}
@@ -602,9 +607,9 @@ function CitationSource({ n, source }: { n: number; source: { title: string; des
 }
 
 const PLANS_REASONING = [
-  "Read your usage signals to gauge the right tier",
-  "Retrieved the current plan catalog and pricing",
-  "Compared Starter, Growth and Enterprise for your scale",
+  { title: "Read your usage signals to gauge the right tier", body: "Checked your seat count and message volume to find the right fit." },
+  { title: "Retrieved the current plan catalog and pricing", body: "Pulled the live plan tiers and prices straight from the catalog." },
+  { title: "Compared Starter, Growth and Enterprise for your scale", body: "Weighed seat limits, monthly message caps, analytics depth and per-seat cost against how your team would actually use it day to day, then ranked the closest fit." },
 ];
 const PLANS_TOOLS = [
   { name: "get_plans", args: '{ "catalog": "current" }', result: '{ "plans": 3, "currency": "USD" }' },
@@ -1503,14 +1508,19 @@ function CornerPillVariant() {
                     </div>
                     {(() => {
                       const reasoning5 = [
-                        <>Validated <span className="font-medium">{email}</span> as a deliverable address</>,
-                        <>
-                          Called{" "}
-                          <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px font-mono text-[10px] tracking-tight"
-                            style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>send_SetupEmail</code>{" "}
-                          to deliver the {selectedPlan} trial link
-                        </>,
-                        <>Scheduled a reminder in case the trial isn&apos;t activated within 24h</>,
+                        { title: <>Validated <span className="font-medium">{email}</span> as a deliverable address</>, body: "Confirmed the inbox exists and can receive mail." },
+                        {
+                          title: (
+                            <>
+                              Called{" "}
+                              <code className="mx-0.5 inline-flex items-center rounded-[4px] px-1 py-px font-mono text-[10px] tracking-tight"
+                                style={{ backgroundColor: "#F0E7FA", color: ACCENT_INK }}>send_SetupEmail</code>{" "}
+                              to deliver the {selectedPlan} trial link
+                            </>
+                          ),
+                          body: "Generated and sent the setup link for your trial.",
+                        },
+                        { title: <>Scheduled a reminder in case the trial isn&apos;t activated within 24h</>, body: "Set a 24-hour nudge so you don't lose the trial." },
                       ];
                       const tools5 = [
                         { name: "validate_Email", args: `{ "email": "${email}" }`, result: `{ "valid": true, "deliverable": true }` },
