@@ -158,7 +158,18 @@ const TOOL_CALL = {
   result: '{ "documents": 12, "matched": "System Design — Week 7" }',
 };
 
+const THINKING_PHRASES = ["AI is thinking…", "Thinking some more…", "Almost done thinking…", "Still thinking…"];
+function useThinkingPhrase() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((p) => (p + 1) % THINKING_PHRASES.length), 2600);
+    return () => clearInterval(t);
+  }, []);
+  return THINKING_PHRASES[i];
+}
+
 function ThinkingTrace() {
+  const phrase = useThinkingPhrase();
   const [phase, setPhase] = useState<"thinking" | "done">("thinking");
   const [done, setDone] = useState(0); // completed (checked) reasoning steps
   const [toolDone, setToolDone] = useState(false);
@@ -223,7 +234,7 @@ function ThinkingTrace() {
         <div className="rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
           <div className="flex items-center gap-1.5">
             <Sparkles className="size-3.5 shrink-0 animate-[spin_2.4s_linear_infinite]" strokeWidth={1.75} style={{ color: ACCENT }} />
-            <span className="text-[12px] font-medium" style={{ color: INK }}>AI is thinking</span>
+            <span className="ai-shimmer text-[12px] font-medium">{phrase}</span>
           </div>
           <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
           <div className="mt-1.5 flex flex-col">

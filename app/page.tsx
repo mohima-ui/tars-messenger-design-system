@@ -204,42 +204,21 @@ const PLANS = [
   },
 ];
 
-function ThinkingEvents({ step, events = THINKING_EVENTS }: { step: number; events?: string[] }) {
-  return (
-    <div className="flex flex-col gap-1.5 px-1">
-      <svg width="0" height="0" className="absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="ai-sparkle" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2E1F5E" />
-            <stop offset="100%" stopColor="#9B6CF0" />
-          </linearGradient>
-        </defs>
-      </svg>
-      {events.slice(0, step).map((label, i) => (
-        <div key={i} className="flex items-center gap-2 text-[12px]" style={{ color: MUTED }}>
-          <Check className="size-3 shrink-0" strokeWidth={2.5} style={{ color: ACCENT }} />
-          {label}
-        </div>
-      ))}
-      {step < events.length && (
-        <div className="flex items-center gap-2 text-[12px]" style={{ color: INK }}>
-          <Sparkles
-            className="size-3.5 shrink-0"
-            strokeWidth={1.75}
-            fill="none"
-            stroke="url(#ai-sparkle)"
-            style={{ animation: "event-spin 2.4s linear infinite" }}
-          />
-          {events[step]}
-        </div>
-      )}
-    </div>
-  );
-}
 
+/* the thinking label cycles as the turn runs long */
+const THINKING_PHRASES = ["AI is thinking…", "Thinking some more…", "Almost done thinking…", "Still thinking…"];
+function useThinkingPhrase() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI(p => (p + 1) % THINKING_PHRASES.length), 2600);
+    return () => clearInterval(t);
+  }, []);
+  return THINKING_PHRASES[i];
+}
 
 /* simple single-line "AI is thinking" indicator (no stepped events) */
 function AiThinking() {
+  const phrase = useThinkingPhrase();
   return (
     <div className="flex items-center gap-2 px-1 text-[12px] font-medium" style={{ color: INK }}>
       <svg width="0" height="0" className="absolute" aria-hidden="true">
@@ -252,7 +231,7 @@ function AiThinking() {
       </svg>
       <Sparkles className="size-3.5 shrink-0" strokeWidth={1.75} fill="none" stroke="url(#ai-sparkle2)"
         style={{ animation: "event-spin 2.4s linear infinite" }} />
-      AI is thinking
+      <span className="ai-shimmer">{phrase}</span>
     </div>
   );
 }
@@ -338,6 +317,7 @@ function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: { title: R
 
 /* ── live reasoning panel shown while the AI is thinking (checks off step-by-step) ── */
 function ThinkingReasoning({ reasoning, tools, step, onDone }: { reasoning: { title: ReactNode; body: ReactNode }[]; tools: ToolEntry[]; step: number; onDone?: () => void }) {
+  const phrase = useThinkingPhrase();
   const total = reasoning.length;
   const reasoningDone = step >= total;
   // tools run one after another: toolProg counts running(even) / success(odd) beats
@@ -356,7 +336,7 @@ function ThinkingReasoning({ reasoning, tools, step, onDone }: { reasoning: { ti
     <div className="ml-1 rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
       <div className="flex items-center gap-1.5">
         <Sparkles className="size-3.5 shrink-0 animate-[spin_2.4s_linear_infinite]" strokeWidth={1.75} style={{ color: ACCENT }} />
-        <span className="text-[12px] font-medium" style={{ color: INK }}>AI is thinking</span>
+        <span className="ai-shimmer text-[12px] font-medium">{phrase}</span>
       </div>
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
       <div className="mt-1.5 flex flex-col">
@@ -1466,7 +1446,7 @@ function CornerPillVariant() {
                         {selectedPlan}
                       </div>
                     </div>
-                    {turn3Phase === "thinking" && <ThinkingEvents step={turn3Step} />}
+                    {turn3Phase === "thinking" && <AiThinking />}
                     {turn3Phase === "done" && (
                       <div onMouseEnter={() => setHoveredTurn(3)} onMouseLeave={() => setHoveredTurn(null)}>
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
@@ -1506,7 +1486,7 @@ function CornerPillVariant() {
                         Email me the link
                       </div>
                     </div>
-                    {turn4Phase === "thinking" && <ThinkingEvents step={turn4Step} events={EMAIL_ASK_EVENTS} />}
+                    {turn4Phase === "thinking" && <AiThinking />}
                     {turn4Phase === "done" && (
                       <div onMouseEnter={() => setHoveredTurn(4)} onMouseLeave={() => setHoveredTurn(null)}>
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>

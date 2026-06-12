@@ -119,6 +119,21 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* "AI is thinking…" — a shine sweeps across the text */
+@keyframes text-shimmer {
+  0% { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+.ai-shimmer {
+  background-image: linear-gradient(90deg, #4A1F77 0%, #4A1F77 40%, #B794D8 50%, #4A1F77 60%, #4A1F77 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: text-shimmer 2.2s linear infinite;
+}
+
 @keyframes wave-bar {
   0%, 100% { transform: scaleY(0.3); }
   50% { transform: scaleY(1); }
