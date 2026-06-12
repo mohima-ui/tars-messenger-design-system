@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Check, Loader2, Database } from "lucide-react";
+import { Sparkles, Check, Loader2, Database, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const LINE = "#E0DAD3";
@@ -12,6 +12,7 @@ const ACCENT = "#632E9A";
 const ACCENT_SOFT = "#F0E7FA";
 const ACCENT_INK = "#4A1F77";
 const ACCENT_BORDER = "#C5A8E0";
+const DANGER = "#C0392B";
 
 /* 1 · Typing — the classic 3-dot pulse in an AI bubble */
 function TypingDots() {
@@ -106,11 +107,31 @@ function ThinkingTrace() {
   );
 }
 
+/* 4 · Tool failed — a tool call errors, then auto-retries (not a dead end) */
+function ToolFailed() {
+  return (
+    <div className="flex flex-col gap-2 rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
+      <div className="flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: CHROME }}>
+        <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+        <span className="font-mono text-[11px]" style={{ color: INK }}>{TOOL_CALL.name}</span>
+        <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: DANGER }}>
+          <AlertCircle className="size-3" strokeWidth={2} /> failed
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5 px-0.5 text-[11px]" style={{ color: MUTED }}>
+        <Loader2 className="size-3 animate-spin" strokeWidth={2} style={{ color: ACCENT }} />
+        Retrying… <span style={{ color: "#A8A096" }}>attempt 2 of 3</span>
+      </div>
+    </div>
+  );
+}
+
 const ANATOMY = [
   { label: "Typing dots", token: "3 · size-1.5 · #8A8378 · staggered typing-dot pulse, in an AI bubble" },
   { label: "Thinking line", token: "Spinning Sparkles (accent) + 'AI is thinking' · 12 / 500" },
   { label: "Reasoning panel", token: "Warm panel · checklist (title + body) with timeline connectors · active step spins" },
   { label: "Tool row", token: "Database icon + tool name (mono) + 'running…' → 'Nms · success'" },
+  { label: "Tool failed", token: "Row → danger 'failed' (AlertCircle) + a muted 'Retrying… attempt N' line" },
 ];
 
 const SPECS = [
@@ -127,6 +148,7 @@ const STATES = [
   { name: "Typing", desc: "Composing a direct reply — no reasoning shown. The lightest indicator." },
   { name: "Thinking", desc: "A brief 'AI is thinking' line before the reasoning panel opens." },
   { name: "Reasoning & tools", desc: "Steps check off one by one (title + body) while a named tool runs to success — a continuous pending state. (In the chat it collapses into a 'Thought' chip above the answer once done.)" },
+  { name: "Tool failed", desc: "A tool call errors — the row turns danger ('failed') and the agent auto-retries, surfaced as 'Retrying… attempt N of M' rather than a dead end." },
 ];
 
 const DOS = [
@@ -188,6 +210,10 @@ export default function IndicatorsPage() {
               <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-5" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">3 · Reasoning &amp; tools</p>
                 <ThinkingTrace />
+              </div>
+              <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-5" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">4 · Tool failed</p>
+                <ToolFailed />
               </div>
             </div>
           </section>

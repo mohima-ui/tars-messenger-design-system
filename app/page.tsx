@@ -258,7 +258,7 @@ function AiThinking() {
 }
 
 /* ── Reasoning + tools, collapsed to a chip above the message (matches the DS) ── */
-type ToolEntry = { name: string; args: string; result: string };
+type ToolEntry = { name: string; args: string; result: string; ms?: number };
 
 function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: { title: ReactNode; body: ReactNode }[]; tools: ToolEntry[]; onInteract?: () => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -337,8 +337,21 @@ function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: { title: R
 }
 
 /* ── live reasoning panel shown while the AI is thinking (checks off step-by-step) ── */
-function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: { title: ReactNode; body: ReactNode }[]; toolName: string; step: number }) {
+function ThinkingReasoning({ reasoning, tools, step, onDone }: { reasoning: { title: ReactNode; body: ReactNode }[]; tools: ToolEntry[]; step: number; onDone?: () => void }) {
   const total = reasoning.length;
+  const reasoningDone = step >= total;
+  // tools run one after another: toolProg counts running(even) / success(odd) beats
+  const maxProg = tools.length * 2;
+  const [toolProg, setToolProg] = useState(0);
+  useEffect(() => {
+    if (!reasoningDone) { setToolProg(0); return; }
+    if (toolProg >= maxProg) { onDone?.(); return; }
+    const running = toolProg % 2 === 0;
+    const t = setTimeout(() => setToolProg((p) => p + 1), running ? 800 : 550);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reasoningDone, toolProg, maxProg]);
+  const shownTools = Math.min(Math.floor(toolProg / 2), tools.length - 1);
   return (
     <div className="ml-1 rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
       <div className="flex items-center gap-1.5">
@@ -369,12 +382,20 @@ function ThinkingReasoning({ reasoning, toolName, step }: { reasoning: { title: 
           );
         })}
       </div>
-      {step >= total && (
-        <div className="mt-1 flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: "#E4E4E7", animation: "fade-in 220ms ease-out both" }}>
-          <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
-          <code className="font-mono text-[11px]" style={{ color: INK }}>{toolName}</code>
-          <span className="ml-auto text-[11px]" style={{ color: MUTED }}>running…</span>
-          <span className="size-1.5 rounded-full" style={{ backgroundColor: ACCENT }} />
+      {reasoningDone && (
+        <div className="mt-1 flex flex-col gap-1.5">
+          {tools.map((tool, i) => {
+            if (i > shownTools) return null;
+            const success = toolProg > i * 2; // this tool has finished
+            return (
+              <div key={i} className="flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: "#E4E4E7", animation: "fade-in 220ms ease-out both" }}>
+                <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
+                <code className="font-mono text-[11px]" style={{ color: INK }}>{tool.name}</code>
+                <span className="ml-auto text-[11px]" style={{ color: MUTED }}>{success ? `${tool.ms ?? 64}ms · success` : "running…"}</span>
+                <span className="size-1.5 rounded-full" style={{ backgroundColor: success ? "#22A06B" : ACCENT }} />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -612,8 +633,8 @@ const PLANS_REASONING = [
   { title: "Compared Starter, Growth and Enterprise for your scale", body: "Weighed seat limits, monthly message caps, analytics depth and per-seat cost against how your team would actually use it day to day, then ranked the closest fit." },
 ];
 const PLANS_TOOLS = [
-  { name: "get_plans", args: '{ "catalog": "current" }', result: '{ "plans": 3, "currency": "USD" }' },
-  { name: "knowledge_retrieval", args: '{ "query": "pricing & plans overview" }', result: '{ "documents": 8, "top": "tars.com/pricing" }' },
+  { name: "get_plans", args: '{ "catalog": "current" }', result: '{ "plans": 3, "currency": "USD" }', ms: 48 },
+  { name: "knowledge_retrieval", args: '{ "query": "pricing & plans overview" }', result: '{ "documents": 8, "top": "tars.com/pricing" }', ms: 64 },
 ];
 
 const MSG_PLANS_INTRO = (
@@ -875,7 +896,7 @@ function CornerPillVariant() {
       const t = setTimeout(() => setPanelPhase("done"), 650);
       return () => clearTimeout(t);
     }
-    if (thinkingStep >= THINKING_EVENTS.length) { setPanelPhase("done"); return; }
+    if (thinkingStep >= THINKING_EVENTS.length) return; // tools play out in ThinkingReasoning; its onDone collapses the panel
     const t = setTimeout(() => setThinkingStep(s => s + 1), 1000);
     return () => clearTimeout(t);
   }, [phase, panelPhase, thinkingStep, conversationTurn]);
@@ -896,7 +917,7 @@ function CornerPillVariant() {
 
   useEffect(() => {
     if (conversationTurn !== 5 || turn5Phase !== "thinking") return;
-    if (turn5Step >= SEND_EVENTS.length + 1) { setTurn5Phase("done"); return; } // +1 beat for the tool running
+    if (turn5Step >= SEND_EVENTS.length + 1) return; // tools play out in ThinkingReasoning; its onDone collapses the panel
     const t = setTimeout(() => setTurn5Step(s => s + 1), 900);
     return () => clearTimeout(t);
   }, [conversationTurn, turn5Phase, turn5Step]);
@@ -1372,7 +1393,7 @@ function CornerPillVariant() {
                       <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
                         style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>Compare plans</div>
                     </div>
-                    {panelPhase === "thinking" && <ThinkingReasoning reasoning={PLANS_REASONING} toolName="knowledge_retrieval" step={thinkingStep} />}
+                    {panelPhase === "thinking" && <ThinkingReasoning reasoning={PLANS_REASONING} tools={PLANS_TOOLS} step={thinkingStep} onDone={() => setPanelPhase("done")} />}
                     {panelPhase === "done" && (
                       <div onMouseEnter={() => setHoveredTurn(2)} onMouseLeave={() => setHoveredTurn(null)}>
                         <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
@@ -1523,12 +1544,12 @@ function CornerPillVariant() {
                         { title: <>Scheduled a reminder in case the trial isn&apos;t activated within 24h</>, body: "Set a 24-hour nudge so you don't lose the trial." },
                       ];
                       const tools5 = [
-                        { name: "validate_Email", args: `{ "email": "${email}" }`, result: `{ "valid": true, "deliverable": true }` },
-                        { name: "send_SetupEmail", args: `{ "to": "${email}", "plan": "${selectedPlan}", "template": "trial_setup" }`, result: `{ "message_id": "msg_7c2f9a", "status": "sent" }` },
-                        { name: "schedule_Reminder", args: `{ "to": "${email}", "after_hours": 24, "condition": "not_activated" }`, result: `{ "scheduled": true, "job_id": "job_4471" }` },
+                        { name: "validate_Email", args: `{ "email": "${email}" }`, result: `{ "valid": true, "deliverable": true }`, ms: 32 },
+                        { name: "send_SetupEmail", args: `{ "to": "${email}", "plan": "${selectedPlan}", "template": "trial_setup" }`, result: `{ "message_id": "msg_7c2f9a", "status": "sent" }`, ms: 120 },
+                        { name: "schedule_Reminder", args: `{ "to": "${email}", "after_hours": 24, "condition": "not_activated" }`, result: `{ "scheduled": true, "job_id": "job_4471" }`, ms: 41 },
                       ];
                       if (turn5Phase === "thinking") {
-                        return <ThinkingReasoning reasoning={reasoning5} toolName="send_SetupEmail" step={turn5Step} />;
+                        return <ThinkingReasoning reasoning={reasoning5} tools={tools5} step={turn5Step} onDone={() => setTurn5Phase("done")} />;
                       }
                       return (
                         <div onMouseEnter={() => setHoveredTurn(5)} onMouseLeave={() => setHoveredTurn(null)}>
