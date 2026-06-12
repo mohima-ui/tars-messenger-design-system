@@ -196,18 +196,18 @@ const SHADOWS = [
 ];
 
 const COMPONENTS = [
+  { name: "Launcher", slug: "launcher", note: "The bubble at rest. A tease appears once, then sleeps." },
   { name: "Header", slug: "header", note: "Chat top bar — avatar, name, status, controls." },
   { name: "AI Message", slug: "ai-message", note: "The agent speaks plainly. Citations are inline; sources expand on demand." },
   { name: "Indicators", slug: "indicators", note: "Pending states — typing pulse, thinking line, reasoning checklist, tool running." },
-  { name: "User Message", slug: "user-message", note: "The person speaks back. Brand-soft, accent-ink." },
   { name: "Human Agent Message", slug: "human-agent", note: "Same shape as AI, but a named avatar (Priya, P) takes over." },
+  { name: "User Message", slug: "user-message", note: "The person speaks back. Brand-soft, accent-ink." },
   { name: "Human Handoff", slug: "handoff", note: "The seam. AI hands the conversation off — context intact." },
   { name: "Input Types", slug: "input-types", note: "Buttons, cards, calendar, auto-suggest, rating, geo — scaffolded replies." },
   { name: "Message Composer", slug: "composer", note: "The input bar. Voice at rest, send on intent, stop while recording." },
+  { name: "History", slug: "history", note: "Past conversations as gentle entries. Continue where you left off." },
   { name: "CSAT", slug: "csat", note: "Inline rating after resolution." },
   { name: "Error", slug: "error", note: "Soft, never alarming. Recoverable." },
-  { name: "Launcher", slug: "launcher", note: "The bubble at rest. A tease appears once, then sleeps." },
-  { name: "History", slug: "history", note: "Past conversations as gentle entries. Continue where you left off." },
 ];
 
 function ColorTile({ swatch }: { swatch: Swatch }) {

@@ -22,19 +22,19 @@ const NAV: NavGroup[] = [
   {
     group: "Components",
     items: [
+      { label: "Launcher", href: "/design-system/components/launcher" },
       { label: "Chatbot", href: "/design-system/components/chatbot" },
       { label: "Header", href: "/design-system/components/header" },
       { label: "AI Message", href: "/design-system/components/ai-message" },
       { label: "Indicators", href: "/design-system/components/indicators" },
-      { label: "User Message", href: "/design-system/components/user-message" },
       { label: "Human Agent Message", href: "/design-system/components/human-agent" },
+      { label: "User Message", href: "/design-system/components/user-message" },
       { label: "Human Handoff", href: "/design-system/components/handoff" },
       { label: "Input Types", href: "/design-system/components/input-types" },
       { label: "Message Composer", href: "/design-system/components/composer" },
+      { label: "History", href: "/design-system/components/history" },
       { label: "CSAT", href: "/design-system/components/csat" },
       { label: "Error", href: "/design-system/components/error" },
-      { label: "Launcher", href: "/design-system/components/launcher" },
-      { label: "History", href: "/design-system/components/history" },
     ],
   },
   {

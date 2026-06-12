@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, MapPin, Search, Check, ChevronLeft, ChevronRight, Zap, Rocket, ArrowRight } from "lucide-react";
+import { Star, MapPin, Search, Check, ChevronLeft, ChevronRight, Zap, Rocket } from "lucide-react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -19,48 +19,22 @@ function Chip({ label }: { label: string }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-2 rounded-full border px-[13px] py-[7px] text-left text-[12px] leading-5 whitespace-nowrap transition-all duration-200"
-      style={{ backgroundColor: PAPER, borderColor: LINE, color: INK }}
-      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT_BORDER; }}
-      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PAPER; e.currentTarget.style.borderColor = LINE; }}
+      className="rounded-full border px-3.5 py-1.5 text-[14px] whitespace-nowrap"
+      style={{ backgroundColor: PAPER, borderColor: LINE, color: INK, transition: "background-color 150ms ease, border-color 150ms ease, color 150ms ease" }}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT_BORDER; e.currentTarget.style.color = ACCENT_INK; }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PAPER; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK; }}
     >
       {label}
-      <ArrowRight className="size-3.5" strokeWidth={2} style={{ color: ACCENT_INK }} />
     </button>
   );
 }
 
 function ButtonsDemo() {
   return (
-    <div className="flex w-full max-w-[340px] flex-col gap-6">
-      {/* Quick replies — suggestion chips */}
-      <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: MUTED }}>Quick replies</p>
-        <div className="flex flex-col items-start gap-1.5">
-          {["I want to talk to sales", "I need support", "I want to become a partner"].map((l) => (
-            <Chip key={l} label={l} />
-          ))}
-        </div>
-      </div>
-
-      {/* Full-width actions */}
-      <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: MUTED }}>Actions</p>
-        <button
-          type="button"
-          className="w-full rounded-[10px] py-2.5 text-[14px] font-medium text-white transition-[filter] hover:brightness-105"
-          style={{ backgroundColor: ACCENT }}
-        >
-          Book a demo
-        </button>
-        <button
-          type="button"
-          className="w-full rounded-[10px] border py-2.5 text-[14px] font-medium transition-colors hover:bg-[#F9F3EA]"
-          style={{ borderColor: LINE, color: INK, backgroundColor: "#FFFFFF" }}
-        >
-          Maybe later
-        </button>
-      </div>
+    <div className="flex w-full max-w-[340px] flex-col items-start gap-1.5">
+      {["See a demo", "Compare plans", "What can it do?"].map((l) => (
+        <Chip key={l} label={l} />
+      ))}
     </div>
   );
 }
@@ -259,7 +233,7 @@ const SPECS = [
 ];
 
 const TYPES = [
-  { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices (quiet pills with an accent-ink arrow, accent on hover) and full-width actions — one accent-filled primary, the rest outlined." },
+  { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices — quiet paper pills (14px) that lift to accent-soft fill + accent-ink text on hover. Stack vertically below the bubble." },
   { name: "Cards", desc: "Richer selectable options (icon, title, detail). Selected card lifts to accent-soft with an accent border." },
   { name: "Calendar", desc: "Inline month picker for scheduling. One selected day filled with accent; navigate by month." },
   { name: "Auto suggestion", desc: "Typeahead input with a results list below; the matched prefix is bolded, first row pre-highlighted." },
@@ -324,7 +298,7 @@ export default function InputTypesPage() {
         </div>
 
         <div className="flex flex-col gap-12">
-          <Demo title="Buttons" desc="Quick-reply suggestion chips (quiet pills, accent on hover) and full-width actions — one accent-filled primary, the rest outlined.">
+          <Demo title="Buttons" desc="Quick-reply suggestion chips — quiet paper pills that lift to accent-soft fill + accent-ink text on hover.">
             <ButtonsDemo />
           </Demo>
 
