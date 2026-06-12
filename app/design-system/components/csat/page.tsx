@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Check, RotateCcw } from "lucide-react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
 const PAPER = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
-const ACCENT_SOFT = "#E0E5FA";
-const ACCENT_BORDER = "#A5B0EE";
-const ACCENT_INK = "#0A06A0";
-const SUCCESS_SOFT = "#E8F5EC";
-const SUCCESS_INK = "#0F7A38";
+const ACCENT = "#632E9A";
+const ACCENT_INK = "#4A1F77";
 
-const EMOJI_SCALE = [
+const EMOJI = [
   { value: 1, emoji: "😞", label: "Very poor" },
   { value: 2, emoji: "😐", label: "Poor" },
   { value: 3, emoji: "🙂", label: "Okay" },
@@ -21,213 +19,156 @@ const EMOJI_SCALE = [
   { value: 5, emoji: "😍", label: "Excellent" },
 ];
 
-function EmojiRating({ static_value }: { static_value?: number }) {
-  const [value, setValue] = useState<number | null>(static_value ?? null);
+/* in-thread notices */
+function ClosedBanner() {
   return (
-    <div
-      className="flex flex-col gap-3 rounded-[12px] border bg-white p-4"
-      style={{ borderColor: LINE }}
-    >
-      {value === null ? (
+    <div className="flex justify-center py-1">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: MUTED }}>
+        <Check className="size-3.5" strokeWidth={2.75} style={{ color: "#16A34A" }} />
+        This conversation has been closed
+      </span>
+    </div>
+  );
+}
+
+function ReopenedBanner() {
+  return (
+    <div className="flex justify-center py-1">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: MUTED }}>
+        <RotateCcw className="size-3.5" strokeWidth={2.5} style={{ color: ACCENT }} />
+        Conversation resumed
+      </span>
+    </div>
+  );
+}
+
+/* The CSAT bar — emoji rating → labelless feedback → confirmation.
+   Slides in to replace the composer once the conversation is resolved. */
+function CsatFlow({ start = "rate" }: { start?: "rate" | "feedback" | "confirmed" }) {
+  const [step, setStep] = useState<"rate" | "feedback" | "confirmed">(start);
+  const [value, setValue] = useState<number | null>(start === "rate" ? null : 4);
+  const [hover, setHover] = useState<number | null>(null);
+  const [comment, setComment] = useState("");
+  const active = hover ?? value;
+  const chosen = EMOJI.find((e) => e.value === value);
+
+  const reset = () => { setStep("rate"); setValue(null); setComment(""); };
+
+  const chatWithUs = (
+    <p className="mt-2.5 border-t pt-2.5 text-center text-[12px]" style={{ borderColor: LINE, color: MUTED }}>
+      Still have an issue?{" "}
+      <button type="button" onClick={reset} className="font-semibold transition-colors hover:underline" style={{ color: ACCENT }}>Chat with us</button>
+    </p>
+  );
+
+  return (
+    <div className="rounded-[12px] border px-4 pb-2.5 pt-3" style={{ borderColor: LINE, backgroundColor: "#FEFCF8" }}>
+      {step === "confirmed" ? (
         <>
-          <p className="text-[12px] font-semibold text-[#333333]">
-            How was your experience?
-          </p>
-          <div className="flex items-center justify-between gap-1">
-            {EMOJI_SCALE.map((e) => (
-              <button
-                key={e.value}
-                type="button"
-                onClick={() => setValue(e.value)}
-                className="group flex flex-col items-center gap-1 rounded-[8px] p-2 transition-colors hover:bg-[#F0EBE0]"
-                aria-label={e.label}
-              >
-                <span className="text-[22px] grayscale transition-all duration-200 group-hover:grayscale-0 group-hover:scale-110">
-                  {e.emoji}
+          <div className="flex flex-col items-center gap-2 py-3">
+            <span className="relative flex size-12 items-center justify-center rounded-full text-[28px]" style={{ backgroundColor: "#F0E7FA" }}>
+              {chosen?.emoji}
+              <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2" style={{ backgroundColor: "#16A34A", borderColor: "#FEFCF8" }}>
+                <Check className="size-3 text-white" strokeWidth={3} />
+              </span>
+            </span>
+            <div className="flex flex-col items-center gap-0.5">
+              <p className="text-[13px] font-semibold" style={{ color: INK }}>Thanks for your feedback!</p>
+              <p className="text-[11px]" style={{ color: MUTED }}>Your response helps us improve.</p>
+            </div>
+          </div>
+          {chatWithUs}
+        </>
+      ) : (
+        <>
+          <p className="text-center text-[13px] font-semibold" style={{ color: INK }}>How was your conversation experience with us?</p>
+          <div className="mt-2 flex items-start justify-center gap-1" onMouseLeave={() => setHover(null)}>
+            {EMOJI.map((e) => (
+              <button key={e.value} type="button" aria-label={e.label}
+                onMouseEnter={() => setHover(e.value)}
+                onClick={() => { setValue(e.value); setStep("feedback"); }}
+                className="flex flex-col items-center gap-0.5">
+                <span className="flex size-12 items-center justify-center rounded-full transition-colors" style={{ backgroundColor: active === e.value ? "#F0E7FA" : "transparent" }}>
+                  <span className="text-[30px] transition-all duration-200" style={{ filter: active === e.value ? "none" : "grayscale(1)", transform: active === e.value ? "scale(1.1)" : "none" }}>{e.emoji}</span>
                 </span>
-                <span className="text-[9px] font-medium text-[#979797] group-hover:text-[#333333]">
-                  {e.label}
-                </span>
+                <span className="text-[10px] font-medium whitespace-nowrap transition-opacity" style={{ color: ACCENT_INK, opacity: active === e.value ? 1 : 0 }}>{e.label}</span>
               </button>
             ))}
           </div>
+
+          {step === "rate" ? (
+            chatWithUs
+          ) : (
+            <div className="mt-1 flex flex-col gap-2">
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                placeholder="Let us know how we can improve…"
+                className="w-full resize-none rounded-[10px] border bg-white px-3 py-2 text-[13px] leading-snug outline-none transition-colors placeholder:text-[#979797] focus:border-[#632E9A]"
+                style={{ color: INK, borderColor: LINE, maxHeight: 110 }}
+              />
+              <button type="button" onClick={() => setStep("confirmed")}
+                className="w-full rounded-full py-2.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105" style={{ backgroundColor: ACCENT }}>
+                Submit Feedback
+              </button>
+              <button type="button" onClick={() => setStep("confirmed")}
+                className="text-center text-[12px] font-medium transition-colors hover:underline" style={{ color: MUTED }}>
+                Cancel
+              </button>
+            </div>
+          )}
         </>
-      ) : (
-        <div className="flex items-start gap-3">
-          <span className="text-[22px]">
-            {EMOJI_SCALE.find((e) => e.value === value)?.emoji}
-          </span>
-          <div className="flex flex-col gap-0.5">
-            <p className="text-[12px] font-semibold text-[#333333]">
-              Thanks for letting us know.
-            </p>
-            <p className="text-[11px] text-[#6E6E6E]">
-              {EMOJI_SCALE.find((e) => e.value === value)?.label} — anything
-              specific you&apos;d like to share?
-            </p>
-          </div>
-        </div>
       )}
     </div>
   );
 }
 
-function ThumbsRating({ static_value }: { static_value?: "up" | "down" }) {
-  const [value, setValue] = useState<"up" | "down" | null>(static_value ?? null);
-  return (
-    <div
-      className="flex flex-col gap-3 rounded-[12px] border bg-white p-4"
-      style={{ borderColor: LINE }}
-    >
-      <p className="text-[12px] font-semibold text-[#333333]">
-        Did that help?
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setValue("up")}
-          className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[12px] font-medium transition-colors ${
-            value === "up"
-              ? "border-[#A5B0EE] bg-[#E0E5FA] text-[#0A06A0]"
-              : "border-[#E0DAD3] bg-white text-[#333333] hover:border-[#A5B0EE] hover:bg-[#E0E5FA]"
-          }`}
-        >
-          👍 Yes
-        </button>
-        <button
-          type="button"
-          onClick={() => setValue("down")}
-          className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[12px] font-medium transition-colors ${
-            value === "down"
-              ? "border-[#A5B0EE] bg-[#E0E5FA] text-[#0A06A0]"
-              : "border-[#E0DAD3] bg-white text-[#333333] hover:border-[#A5B0EE] hover:bg-[#E0E5FA]"
-          }`}
-        >
-          👎 Not really
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NumericRating() {
-  const [value, setValue] = useState<number | null>(null);
-  return (
-    <div
-      className="flex flex-col gap-3 rounded-[12px] border bg-white p-4"
-      style={{ borderColor: LINE }}
-    >
-      <p className="text-[12px] font-semibold text-[#333333]">
-        Rate your conversation
-      </p>
-      <div className="flex items-center justify-between gap-1.5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setValue(n)}
-            className={`flex size-9 items-center justify-center rounded-full border text-[13px] font-semibold transition-colors ${
-              value === n
-                ? "border-[#A5B0EE] bg-[#E0E5FA] text-[#0A06A0]"
-                : "border-[#E0DAD3] bg-white text-[#333333] hover:border-[#A5B0EE] hover:bg-[#E0E5FA]"
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-      <div className="flex justify-between text-[10px] text-[#979797]">
-        <span>Not great</span>
-        <span>Loved it</span>
-      </div>
-    </div>
-  );
-}
-
-function Confirmed() {
-  return (
-    <div
-      className="flex items-center gap-2.5 rounded-[12px] border p-3"
-      style={{ borderColor: "#C2E8CF", backgroundColor: SUCCESS_SOFT }}
-    >
-      <span
-        className="inline-flex size-5 items-center justify-center rounded-full text-[11px] font-bold text-white"
-        style={{ backgroundColor: SUCCESS_INK }}
-      >
-        ✓
-      </span>
-      <p className="text-[12px] font-medium" style={{ color: SUCCESS_INK }}>
-        Thanks — your feedback is in.
-      </p>
-    </div>
-  );
-}
-
 const ANATOMY = [
-  { label: "Prompt", token: "12 / 18 · 600 ink — leads with a single question" },
-  { label: "Scale", token: "5-emoji · 5-number · or binary thumbs" },
-  { label: "Selection state", token: "accent-soft fill · accent-border · accent-ink text" },
-  { label: "Confirmation", token: "Success-soft card with check — replaces or sits below the rating" },
+  { label: "Trigger", token: "Conversation resolved → composer is swapped for the CSAT bar" },
+  { label: "Closed notice", token: "In-thread line · green check · 'This conversation has been closed'" },
+  { label: "Prompt", token: "13 · 600 · centered — 'How was your conversation experience with us?'" },
+  { label: "Emoji scale", token: "5 faces · size-12 · grayscale → color + 1.1x · per-emoji label on hover" },
+  { label: "Feedback", token: "Labelless textarea (rows 3) appears once a face is picked" },
+  { label: "Actions", token: "Submit Feedback (accent pill) + Cancel (text)" },
+  { label: "Confirmation", token: "Chosen emoji + green check badge · 'Thanks for your feedback!'" },
+  { label: "Chat with us", token: "'Still have an issue? Chat with us' → reopens composer + 'Conversation resumed'" },
 ];
 
 const SPECS = [
-  { prop: "Card bg", value: "#FFFFFF", note: "--bg-surface" },
-  { prop: "Card border", value: "1px #E0DAD3", note: "--border-line" },
-  { prop: "Prompt", value: "12 / 18 · 600 ink", note: "Lead with the question" },
-  { prop: "Emoji size", value: "22px", note: "Greyscale at rest, color on hover/select" },
-  { prop: "Number button", value: "size-9 · rounded-full", note: "Same circle treatment as avatars" },
-  { prop: "Thumb pill", value: "rounded-full · px-4 py-1.5", note: "Inherits Suggested Reply chip pattern" },
-  { prop: "Active fill", value: "#E0E5FA", note: "--accent-soft" },
-  { prop: "Active border", value: "1px #A5B0EE", note: "--accent-border" },
-  { prop: "Active text", value: "#0A06A0", note: "--accent-ink" },
-  { prop: "Confirmation", value: "Success soft + ink", note: "Semantic success palette" },
+  { prop: "Container", value: "border-t · px-4 · #FEFCF8", note: "Replaces the composer at the foot" },
+  { prop: "Entrance", value: "csat-slide-up 380ms", note: "Slides up; chat scrolls to keep last message in view" },
+  { prop: "Emoji", value: "size-12 · 30px glyph", note: "Greyscale at rest, color + 1.1x on hover/select" },
+  { prop: "Active emoji bg", value: "#F0E7FA", note: "--accent-soft circle" },
+  { prop: "Per-emoji label", value: "10 · 500 · #4A1F77", note: "Under its own emoji, opacity 0 → 1 on hover" },
+  { prop: "Textarea", value: "rows 3 · rounded-[10px]", note: "No label; focus border --accent" },
+  { prop: "Submit", value: "rounded-full · #632E9A", note: "Full-width accent pill" },
+  { prop: "Cancel", value: "text · muted", note: "Both Submit & Cancel reach the confirmation" },
+  { prop: "Confirmation badge", value: "size-5 · #16A34A check", note: "On the chosen emoji" },
+  { prop: "Notices", value: "no fill · icon + text", note: "Green check (closed) · accent rotate (resumed)" },
 ];
 
 const STATES = [
-  { name: "Rest", desc: "Prompt + all options visible. No selection." },
-  { name: "Hover", desc: "Option lifts to --accent-soft fill, border --accent-border. Emoji un-greyscales and scales 1.1x." },
-  { name: "Selected", desc: "Option pinned in accent-soft. Prompt swaps to a thank-you + optional follow-up question." },
-  { name: "Confirmed", desc: "Success-soft chip with check replaces the rating once feedback is committed." },
-];
-
-const VARIANTS_DETAIL = [
-  {
-    name: "Emoji scale",
-    when: "End of a multi-turn conversation. Capture nuance.",
-    not: "Don't use for single-question replies — too heavy.",
-  },
-  {
-    name: "Binary thumbs",
-    when: "Right after a single AI answer. Lightweight check.",
-    not: "Don't use as an end-of-session survey — too thin.",
-  },
-  {
-    name: "Numeric 1–5",
-    when: "When you want a clean number for the CRM. Familiar pattern.",
-    not: "Avoid 1–10 — labels become noisy in narrow widget width.",
-  },
+  { name: "Closed", desc: "An in-thread line marks the conversation closed; the CSAT bar slides up in place of the composer." },
+  { name: "Rate", desc: "Prompt + 5 faces. Hovering a face un-greyscales it and reveals its label directly beneath it." },
+  { name: "Feedback", desc: "Picking a face grows the frame: a labelless textarea slides in with Submit Feedback + Cancel; the chat scrolls up." },
+  { name: "Confirmed", desc: "Submit or Cancel collapses to the chosen emoji with a green check and a thank-you." },
+  { name: "Resumed", desc: "'Chat with us' restores the composer and drops a 'Conversation resumed' line into the thread." },
 ];
 
 const DOS = [
-  "Ask once, at a natural ending — never mid-conversation.",
-  "Confirm the rating with a soft success state, not a modal.",
-  "Make the optional comment really optional — never block on it.",
+  "Ask once, the moment the conversation is resolved — never mid-chat.",
+  "Keep the comment optional — Submit and Cancel both close it out.",
+  "Let the frame grow and scroll the thread so the last message stays visible.",
+  "Offer a way back into the conversation ('Chat with us').",
 ];
 
 const DONTS = [
-  "Don't auto-trigger CSAT every session — it trains users to dismiss it.",
-  "Don't grey-out the chosen option — keep it active and visible.",
-  "Don't reuse the brand --accent solid here — accent-soft only.",
+  "Don't block on a written comment — the rating is the signal.",
+  "Don't fill the closed/resumed notices — they're quiet in-thread lines.",
+  "Don't trigger CSAT every session — it trains users to dismiss it.",
+  "Don't show a modal — the rating lives inline, in place of the composer.",
 ];
-
-function StateRow({ name, desc }: { name: string; desc: string }) {
-  return (
-    <div className="flex items-baseline gap-4 py-2.5">
-      <span className="w-32 shrink-0 text-[12px] font-semibold text-[#333333]">{name}</span>
-      <p className="text-[12px] leading-relaxed text-[#6E6E6E]">{desc}</p>
-    </div>
-  );
-}
 
 export default function CsatPage() {
   return (
@@ -251,63 +192,56 @@ export default function CsatPage() {
           <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Component</p>
           <h1 className="mt-2 text-[32px] leading-tight font-semibold tracking-tight text-[#333333]">CSAT</h1>
           <p className="mt-3 text-[14px] leading-relaxed text-[#555]">
-            Inline rating at the close of a conversation. Three formats — pick the lightest
-            one that gets the signal you need. Always confirm gently and never block on a
-            comment.
+            After the conversation is resolved, the composer is swapped for an emoji rating that
+            slides up from the bottom. Pick a face and an optional comment box grows in. Quiet,
+            inline, never a modal — and a way back into the chat if anything&apos;s unresolved.
           </p>
         </div>
 
         <div className="flex flex-col gap-12">
-          {/* Variants */}
+          {/* Interactive */}
           <section>
-            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Variants</p>
-            <div className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-3" style={{ borderColor: CHROME }}>
-              <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Emoji scale</p>
-                <EmojiRating />
-              </div>
-              <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Binary thumbs</p>
-                <ThumbsRating />
-              </div>
-              <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Numeric 1–5</p>
-                <NumericRating />
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Interactive</p>
+            <div className="flex justify-center rounded-[14px] border bg-white p-8" style={{ borderColor: CHROME }}>
+              <div className="w-full max-w-[380px]">
+                <ClosedBanner />
+                <div className="mt-1"><CsatFlow /></div>
               </div>
             </div>
+            <p className="mt-2 text-[12px] text-[#979797]">Tap a face → the feedback box grows in. Submit or Cancel to confirm; &quot;Chat with us&quot; replays.</p>
           </section>
 
           {/* States */}
           <section>
-            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Selected + confirmed</p>
-            <div className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-2" style={{ borderColor: CHROME }}>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">States</p>
+            <div className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-3" style={{ borderColor: CHROME }}>
               <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Selected</p>
-                <EmojiRating static_value={4} />
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Rate</p>
+                <CsatFlow start="rate" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Feedback</p>
+                <CsatFlow start="feedback" />
               </div>
               <div className="flex flex-col gap-2">
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Confirmed</p>
-                <Confirmed />
+                <CsatFlow start="confirmed" />
               </div>
             </div>
           </section>
 
-          {/* Variant guidance */}
+          {/* Thread notices */}
           <section>
-            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">When to use which</p>
-            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
-              <div className="grid grid-cols-3 gap-4 bg-[#F9F3EA] px-4 py-2.5">
-                <span className="text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Variant</span>
-                <span className="text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">When</span>
-                <span className="text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Not when</span>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Thread notices</p>
+            <div className="grid grid-cols-1 gap-3 rounded-[14px] border bg-white p-6 lg:grid-cols-2" style={{ borderColor: CHROME }}>
+              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Closed</p>
+                <ClosedBanner />
               </div>
-              {VARIANTS_DETAIL.map((v) => (
-                <div key={v.name} className="grid grid-cols-3 gap-4 px-4 py-3">
-                  <span className="text-[12px] font-semibold text-[#333333]">{v.name}</span>
-                  <span className="text-[12px] text-[#6E6E6E]">{v.when}</span>
-                  <span className="text-[12px] text-[#6E6E6E]">{v.not}</span>
-                </div>
-              ))}
+              <div className="flex flex-col gap-2 rounded-[10px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Resumed</p>
+                <ReopenedBanner />
+              </div>
             </div>
           </section>
 
@@ -318,19 +252,22 @@ export default function CsatPage() {
               {ANATOMY.map((a, i) => (
                 <div key={a.label} className="flex items-baseline gap-4 px-4 py-3">
                   <span className="w-6 font-mono text-[11px] text-[#979797]">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="w-56 shrink-0 text-[12px] font-semibold text-[#333333]">{a.label}</span>
+                  <span className="w-44 shrink-0 text-[12px] font-semibold text-[#333333]">{a.label}</span>
                   <span className="text-[11px] text-[#6E6E6E]">{a.token}</span>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* States */}
+          {/* States detail */}
           <section>
-            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">States</p>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">State details</p>
             <div className="divide-y rounded-[12px] border bg-white px-4 py-2" style={{ borderColor: CHROME }}>
               {STATES.map((s) => (
-                <StateRow key={s.name} name={s.name} desc={s.desc} />
+                <div key={s.name} className="flex items-baseline gap-4 py-2.5">
+                  <span className="w-32 shrink-0 text-[12px] font-semibold text-[#333333]">{s.name}</span>
+                  <p className="text-[12px] leading-relaxed text-[#6E6E6E]">{s.desc}</p>
+                </div>
               ))}
             </div>
           </section>
@@ -341,8 +278,8 @@ export default function CsatPage() {
             <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
               {SPECS.map((s) => (
                 <div key={s.prop} className="flex items-baseline gap-4 px-4 py-3">
-                  <span className="w-48 shrink-0 text-[12px] font-semibold text-[#333333]">{s.prop}</span>
-                  <code className="w-56 shrink-0 font-mono text-[11px] text-[#333333]">{s.value}</code>
+                  <span className="w-44 shrink-0 text-[12px] font-semibold text-[#333333]">{s.prop}</span>
+                  <code className="w-52 shrink-0 font-mono text-[11px] text-[#333333]">{s.value}</code>
                   <span className="text-[11px] text-[#6E6E6E]">{s.note}</span>
                 </div>
               ))}
@@ -380,7 +317,7 @@ export default function CsatPage() {
         </div>
 
         <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
-          <a href="/design-system/components/handoff" className="transition-colors hover:text-[#333333]">← Human Handoff</a>
+          <a href="/design-system/components/composer" className="transition-colors hover:text-[#333333]">← Message Composer</a>
           <a href="/design-system/components/error" className="transition-colors hover:text-[#333333]">Error →</a>
         </footer>
       </main>

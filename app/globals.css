@@ -113,6 +113,12 @@
   to { opacity: 1; }
 }
 
+/* CSAT — slides up from the bottom and sticks above the composer */
+@keyframes csat-slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes wave-bar {
   0%, 100% { transform: scaleY(0.3); }
   50% { transform: scaleY(1); }

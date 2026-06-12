@@ -412,6 +412,120 @@ function HandoffCard({ name, joined, timeLabel }: { name: string; joined: boolea
   );
 }
 
+/* ── CSAT — after-conversation emoji scale; slides up, sticks above composer ── */
+const CSAT_EMOJIS = [
+  { value: 1, emoji: "😞", label: "Very poor" },
+  { value: 2, emoji: "😐", label: "Poor" },
+  { value: 3, emoji: "🙂", label: "Okay" },
+  { value: 4, emoji: "😊", label: "Good" },
+  { value: 5, emoji: "😍", label: "Excellent" },
+];
+
+/* conversation-closed notice — sits in the thread, after the last message */
+function ClosedBanner() {
+  return (
+    <div className="flex justify-center py-1" style={{ animation: "fade-in 240ms ease-out both" }}>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: MUTED }}>
+        <Check className="size-3.5" strokeWidth={2.75} style={{ color: "#16A34A" }} />
+        This conversation has been closed
+      </span>
+    </div>
+  );
+}
+
+/* conversation-resumed notice — shown after the user taps "Chat with us" */
+function ReopenedBanner() {
+  return (
+    <div className="flex justify-center py-1" style={{ animation: "fade-in 240ms ease-out both" }}>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: MUTED }}>
+        <RotateCcw className="size-3.5" strokeWidth={2.5} style={{ color: ACCENT }} />
+        Conversation resumed
+      </span>
+    </div>
+  );
+}
+
+function CsatBar({ onChatAgain, onExpand }: { onChatAgain: () => void; onExpand: () => void }) {
+  const [value, setValue] = useState<number | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const active = hover ?? value;
+  const chosen = CSAT_EMOJIS.find(e => e.value === value);
+  // keep the last message in view as the frame grows / shrinks
+  useEffect(() => { onExpand(); }, [value, submitted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chatWithUs = (
+    <p className="mt-2.5 border-t pt-2.5 text-center text-[12px]" style={{ borderColor: LINE, color: MUTED }}>
+      Still have an issue?{" "}
+      <button type="button" onClick={onChatAgain} className="font-semibold transition-colors hover:underline" style={{ color: ACCENT }}>Chat with us</button>
+    </p>
+  );
+
+  if (submitted) {
+    return (
+      <div className="shrink-0 border-t px-4 pb-2.5 pt-3" style={{ borderColor: LINE, backgroundColor: "#FEFCF8", animation: "csat-slide-up 380ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+        <div className="flex flex-col items-center gap-2 py-3" style={{ animation: "fade-in 260ms ease-out both" }}>
+          <span className="relative flex size-12 items-center justify-center rounded-full text-[28px]" style={{ backgroundColor: "#F0E7FA" }}>
+            {chosen?.emoji}
+            <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2" style={{ backgroundColor: "#16A34A", borderColor: "#FEFCF8" }}>
+              <Check className="size-3 text-white" strokeWidth={3} />
+            </span>
+          </span>
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="text-[13px] font-semibold" style={{ color: INK }}>Thanks for your feedback!</p>
+            <p className="text-[11px]" style={{ color: MUTED }}>Your response helps us improve.</p>
+          </div>
+        </div>
+        {chatWithUs}
+      </div>
+    );
+  }
+
+  return (
+    <div className="shrink-0 border-t px-4 pb-2.5 pt-3" style={{ borderColor: LINE, backgroundColor: "#FEFCF8", animation: "csat-slide-up 380ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+      <p className="text-center text-[13px] font-semibold" style={{ color: INK }}>How was your conversation experience with us?</p>
+      <div className="mt-2 flex items-start justify-center gap-1" onMouseLeave={() => setHover(null)}>
+        {CSAT_EMOJIS.map(e => (
+          <button key={e.value} type="button" aria-label={e.label}
+            onMouseEnter={() => setHover(e.value)} onClick={() => setValue(e.value)}
+            className="flex flex-col items-center gap-0.5">
+            <span className="flex size-12 items-center justify-center rounded-full transition-colors" style={{ backgroundColor: active === e.value ? "#F0E7FA" : "transparent" }}>
+              <span className="text-[30px] transition-all duration-200" style={{ filter: active === e.value ? "none" : "grayscale(1)", transform: active === e.value ? "scale(1.1)" : "none" }}>{e.emoji}</span>
+            </span>
+            <span className="whitespace-nowrap text-[10px] font-medium leading-tight transition-opacity" style={{ color: ACCENT_INK, opacity: active === e.value ? 1 : 0 }}>{e.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {value === null ? (
+        chatWithUs
+      ) : (
+        <div className="mt-1 flex flex-col gap-2" style={{ animation: "fade-in 200ms ease-out both" }}>
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            rows={3}
+            placeholder="Let us know how we can improve…"
+            autoFocus
+            className="scrollbar-subtle w-full resize-none rounded-[10px] border bg-white px-3 py-2 text-[13px] leading-snug outline-none transition-colors placeholder:text-[#979797] focus:border-[#632E9A]"
+            style={{ color: INK, borderColor: LINE, maxHeight: 110 }}
+          />
+          <button type="button" onClick={() => setSubmitted(true)}
+            className="w-full rounded-full py-2.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105"
+            style={{ backgroundColor: ACCENT }}>
+            Submit Feedback
+          </button>
+          <button type="button" onClick={() => setSubmitted(true)}
+            className="text-center text-[12px] font-medium transition-colors hover:underline" style={{ color: MUTED }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ── inline citation chip + hover source card (adapted from the home page) ── */
 const CITATION_SOURCES = [
@@ -572,6 +686,9 @@ function CornerPillVariant() {
   const [conversationTurn, setConversationTurn] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [handoffPhase, setHandoffPhase] = useState<"none" | "connecting" | "joined" | "replied">("none");
+  // after-conversation CSAT (slides up above the composer)
+  const [showCsat, setShowCsat] = useState(false);
+  const [reopened, setReopened] = useState(false);
   const [turn3Phase, setTurn3Phase] = useState<"thinking" | "done">("thinking");
   const [turn3Step, setTurn3Step] = useState(0);
   const [turn4Phase, setTurn4Phase] = useState<"thinking" | "done">("thinking");
@@ -737,6 +854,8 @@ function CornerPillVariant() {
     setSpeakingTurn(null);
     setInputText("");
     setAttachments([]);
+    setShowCsat(false);
+    setReopened(false);
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   };
 
@@ -830,6 +949,7 @@ function CornerPillVariant() {
     setHandoffPhase("connecting");
     window.setTimeout(() => setHandoffPhase("joined"), 5000);
     window.setTimeout(() => setHandoffPhase("replied"), 6800);
+    window.setTimeout(() => setShowCsat(true), 9000);
   };
 
   const handleStarterClick = (idx: number) => {
@@ -1458,8 +1578,13 @@ function CornerPillVariant() {
                 )}
                   </>
                 )}
+                {(showCsat || reopened) && <ClosedBanner />}
+                {reopened && <ReopenedBanner />}
               </div>
-              {/* composer — docked inside the chat window, styled like v3 */}
+              {/* composer — swapped for the CSAT bar once the query is resolved */}
+              {showCsat ? (
+                <CsatBar onChatAgain={() => { setShowCsat(false); setReopened(true); }} onExpand={() => requestAnimationFrame(scrollToLatest)} />
+              ) : (
               <div className="relative flex flex-col gap-1.5 px-3 pb-3 pt-2 shrink-0">
                 {showScrollToLatest && (
                   <button type="button" onClick={scrollToLatest} aria-label="Scroll to latest message" data-tooltip="Scroll to latest"
@@ -1594,6 +1719,7 @@ function CornerPillVariant() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 
