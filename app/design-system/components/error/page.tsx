@@ -6,47 +6,29 @@ const PAPER = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
 const DANGER = "#DC2626";
-const DANGER_SOFT = "#FEE2E2";
-const DANGER_BORDER = "#FCA5A5";
-const DANGER_INK = "#991B1B";
 
 function ErrorBanner({
   icon: Icon = AlertCircle,
   title,
-  desc,
   action,
 }: {
   icon?: typeof AlertCircle;
   title: string;
-  desc: string;
+  desc?: string;
   action?: { label: string; icon?: typeof RotateCcw };
 }) {
   const ActionIcon = action?.icon;
   return (
-    <div
-      className="flex items-start gap-3 rounded-[12px] border p-3"
-      style={{ borderColor: DANGER_BORDER, backgroundColor: DANGER_SOFT }}
-    >
-      <Icon
-        className="size-4 shrink-0"
-        strokeWidth={1.75}
-        style={{ color: DANGER_INK, marginTop: 1 }}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="text-[12px] font-semibold" style={{ color: DANGER_INK }}>
-          {title}
-        </p>
-        <p className="text-[11px] leading-relaxed" style={{ color: "#7F1D1D" }}>
-          {desc}
-        </p>
-      </div>
+    <div className="flex items-center gap-1.5">
+      <Icon className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: DANGER }} />
+      <span className="text-[12px]" style={{ color: MUTED }}>{title}</span>
       {action && (
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border bg-white px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-[#FFFAFA]"
-          style={{ borderColor: DANGER_BORDER, color: DANGER_INK }}
+          className="inline-flex items-center gap-1 text-[12px] font-semibold underline"
+          style={{ color: DANGER }}
         >
-          {ActionIcon && <ActionIcon className="size-3" strokeWidth={2} />}
+          {ActionIcon && <ActionIcon className="size-3" strokeWidth={2.25} />}
           {action.label}
         </button>
       )}
@@ -87,38 +69,36 @@ function FailedBubble() {
 }
 
 const ANATOMY = [
-  { label: "Container", token: "rounded-[12px] · danger-soft fill · danger-border stroke" },
-  { label: "Icon", token: "AlertCircle / WifiOff · size-4 · danger-ink" },
-  { label: "Title", token: "12 / 18 · 600 · danger-ink" },
-  { label: "Description", token: "11 / 16 · 400 · danger-deeper (#7F1D1D)" },
-  { label: "Recovery action", token: "Pill button · white fill · danger-border · danger-ink text" },
+  { label: "Treatment", token: "Quiet inline row — no fill, no card" },
+  { label: "Icon", token: "AlertCircle / WifiOff · size-3.5 · danger" },
+  { label: "Message", token: "12 · 400 · muted — one plain line" },
+  { label: "Retry", token: "Underlined · danger · inline with the message" },
+  { label: "Inline (per-message)", token: "Failed bubble dims; 'Couldn't send' + Retry beneath" },
 ];
 
 const SPECS = [
-  { prop: "Container bg", value: "#FEE2E2", note: "--danger-soft" },
-  { prop: "Container border", value: "1px #FCA5A5", note: "--danger-border (semantic)" },
-  { prop: "Icon color", value: "#991B1B", note: "--danger-ink" },
-  { prop: "Title", value: "12 / 18 · 600 #991B1B", note: "Plain, recoverable wording" },
-  { prop: "Description", value: "11 / 16 · 400 #7F1D1D", note: "Slightly deeper than the title" },
-  { prop: "Padding", value: "p-3", note: "12px on all sides" },
-  { prop: "Gap", value: "gap-3", note: "12px between icon, text, action" },
-  { prop: "Action button", value: "rounded-full · px-2.5 py-1 · 11/500", note: "White fill, danger stroke" },
+  { prop: "Treatment", value: "no fill", note: "Quiet inline row — never a card" },
+  { prop: "Icon", value: "size-3.5 · #DC2626", note: "--danger, small accent only" },
+  { prop: "Message", value: "12 · 400 · #6E6E6E", note: "Muted, plain wording" },
+  { prop: "Retry", value: "12 · 600 · #DC2626 underline", note: "Inline action" },
+  { prop: "Inline bubble", value: "opacity 60%", note: "Failed user message dims" },
+  { prop: "Inline label", value: "10 · #DC2626", note: "'Couldn't send.' + Retry" },
 ];
 
 const VARIANTS = [
   {
     name: "Send failed",
     icon: WifiOff,
-    title: "Couldn't send your message",
-    desc: "Check your connection and try again — your message is still here.",
+    title: "Couldn't send — check your connection.",
+    desc: "",
     action: { label: "Retry", icon: RotateCcw },
     inline: false,
   },
   {
     name: "AI couldn't reply",
     icon: AlertCircle,
-    title: "Tars hit a snag",
-    desc: "Something went wrong generating that reply. We've logged it.",
+    title: "Tars couldn't reply.",
+    desc: "",
     action: { label: "Try again", icon: RotateCcw },
     inline: false,
   },
@@ -133,10 +113,11 @@ const VARIANTS = [
 ];
 
 const STATES = [
-  { name: "Default (banner)", desc: "Inline danger-soft card with icon, title, description, and one recovery action." },
+  { name: "Send failed", desc: "Quiet row — small danger icon + muted message + underlined Retry. No card." },
+  { name: "AI couldn't reply", desc: "The same quiet row on the assistant side, with 'Try again'." },
   { name: "Inline message failure", desc: "User bubble dims to 60% opacity. Below it: tiny icon + 'Couldn't send' + underlined 'Retry'." },
-  { name: "Retrying", desc: "Action button swaps to a typing-dot loader; copy reads 'Sending…'" },
-  { name: "Resolved", desc: "Banner fades out (200ms) once the underlying problem clears. Don't leave stale errors." },
+  { name: "Retrying", desc: "The Retry swaps to a typing-dot loader; copy reads 'Sending…'." },
+  { name: "Resolved", desc: "The notice clears once the problem resolves. Don't leave stale errors." },
 ];
 
 const DOS = [
