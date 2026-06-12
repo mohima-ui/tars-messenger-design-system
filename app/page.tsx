@@ -276,9 +276,9 @@ function ReasoningChip({ reasoning, tools, onInteract }: { reasoning: { title: R
     <div className="ml-1 flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
       <button type="button" onClick={() => { onInteract?.(); setExpanded(e => !e); }}
         className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-[filter] hover:brightness-[0.98]"
-        style={{ borderColor: LINE, backgroundColor: "#F7F2EA", color: MUTED }}>
+        style={{ borderColor: expanded ? "#C5A8E0" : LINE, backgroundColor: expanded ? "#F0E7FA" : "#F7F2EA", color: expanded ? ACCENT_INK : MUTED }}>
         <Sparkles className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
-        Thought · {tools.length} {tools.length === 1 ? "tool" : "tools"}
+        Thought for {reasoning.length + 2}s · {tools.length} {tools.length === 1 ? "tool" : "tools"}
         <ChevronRight className="size-3 transition-transform" strokeWidth={2}
           style={{ transform: expanded ? "rotate(90deg)" : "rotate(0)" }} />
       </button>

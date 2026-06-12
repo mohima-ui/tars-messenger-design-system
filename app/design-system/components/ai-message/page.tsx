@@ -270,7 +270,7 @@ function ThinkingTrace() {
             type="button"
             onClick={() => setExpanded((e) => !e)}
             className="inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors hover:brightness-[0.98]"
-            style={{ borderColor: LINE, backgroundColor: "#F7F2EA", color: MUTED }}
+            style={{ borderColor: expanded ? ACCENT_BORDER : LINE, backgroundColor: expanded ? ACCENT_SOFT : "#F7F2EA", color: expanded ? ACCENT_INK : MUTED }}
           >
             <Sparkles className="size-3 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
             Thought for 5s · 1 tool
