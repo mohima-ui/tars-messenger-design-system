@@ -229,7 +229,7 @@ export default function UserMessagePage() {
         </div>
 
         <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
-          <a href="/design-system/components/ai-message" className="transition-colors hover:text-[#333333]">← AI Message</a>
+          <a href="/design-system/components/indicators" className="transition-colors hover:text-[#333333]">← Indicators</a>
           <a href="/design-system/components/human-agent" className="transition-colors hover:text-[#333333]">Human Agent →</a>
         </footer>
       </main>

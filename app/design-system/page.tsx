@@ -198,6 +198,7 @@ const SHADOWS = [
 const COMPONENTS = [
   { name: "Header", slug: "header", note: "Chat top bar — avatar, name, status, controls." },
   { name: "AI Message", slug: "ai-message", note: "The agent speaks plainly. Citations are inline; sources expand on demand." },
+  { name: "Indicators", slug: "indicators", note: "Pending states — typing pulse, thinking line, reasoning checklist, tool running." },
   { name: "User Message", slug: "user-message", note: "The person speaks back. Brand-soft, accent-ink." },
   { name: "Human Agent Message", slug: "human-agent", note: "Same shape as AI, but a named avatar (Priya, P) takes over." },
   { name: "Human Handoff", slug: "handoff", note: "The seam. AI hands the conversation off — context intact." },
@@ -809,6 +810,7 @@ export default function DesignSystemPage() {
                 const ready = [
                   "header",
                   "ai-message",
+                  "indicators",
                   "user-message",
                   "input-types",
                   "composer",

@@ -25,6 +25,7 @@ const NAV: NavGroup[] = [
       { label: "Chatbot", href: "/design-system/components/chatbot" },
       { label: "Header", href: "/design-system/components/header" },
       { label: "AI Message", href: "/design-system/components/ai-message" },
+      { label: "Indicators", href: "/design-system/components/indicators" },
       { label: "User Message", href: "/design-system/components/user-message" },
       { label: "Human Agent Message", href: "/design-system/components/human-agent" },
       { label: "Human Handoff", href: "/design-system/components/handoff" },

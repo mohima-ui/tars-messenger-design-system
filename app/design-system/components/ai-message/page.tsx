@@ -564,8 +564,8 @@ export default function AiMessagePage() {
           <a href="/design-system/components/header" className="transition-colors hover:text-[#333333]">
             ← Header
           </a>
-          <a href="/design-system/components/user-message" className="transition-colors hover:text-[#333333]">
-            User Message →
+          <a href="/design-system/components/indicators" className="transition-colors hover:text-[#333333]">
+            Indicators →
           </a>
         </footer>
       </main>
