@@ -63,7 +63,7 @@ function GradientStrokeBubble() {
       className="max-w-[80%] rounded-2xl rounded-bl-md p-[1.5px]"
       style={{
         background:
-          "linear-gradient(135deg, var(--accent) 0%, var(--neutral-200) 80%)",
+          "linear-gradient(135deg, var(--ds-accent) 0%, var(--n-200) 80%)",
       }}
     >
       <div className="bg-canvas text-bubble-ai-foreground rounded-2xl rounded-bl-md px-4 py-2.5 text-[15px] leading-relaxed">

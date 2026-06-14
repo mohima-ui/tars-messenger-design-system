@@ -1,21 +1,22 @@
 :root {
-  /* Type scale — tuned for messaging UI */
-  --text-xs: 0.75rem;      /* 12px — timestamps, meta */
-  --text-sm: 0.875rem;     /* 14px — secondary text, captions */
-  --text-base: 0.9375rem;  /* 15px — bubble body */
-  --text-md: 1rem;         /* 16px — composer input */
-  --text-lg: 1.125rem;     /* 18px — agent header */
-  --text-xl: 1.25rem;      /* 20px — section titles */
-  --text-2xl: 1.5rem;      /* 24px — page titles */
+  /* ─── Type scale — Poppins, tuned for dense chat UI ──────────────────── */
+  --text-caption:  0.625rem;   /* 10px — timestamps, meta, status */
+  --text-micro:    0.6875rem;  /* 11px — eyebrows, agent label */
+  --text-body-sm:  0.75rem;    /* 12px — bubble body (chat default) */
+  --text-body:     0.875rem;   /* 14px — header name, composer, labels */
+  --text-body-lg:  1rem;       /* 16px — paragraph, inline title */
+  --text-title:    1.125rem;   /* 18px — card title */
+  --text-subhead:  1.25rem;    /* 20px — section title */
+  --text-heading:  1.5rem;     /* 24px — page title */
+  --text-display:  1.875rem;   /* 30px — display heading */
 
-  /* Line heights */
-  --leading-tight: 1.25;
-  --leading-snug: 1.4;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.6;  /* bubble body — easier multi-line scan */
+  /* ─── Line heights ───────────────────────────────────────────────────── */
+  --leading-tight:   1.2;   /* headings · titles */
+  --leading-normal:  1.5;   /* UI · user bubble · default body */
+  --leading-relaxed: 1.6;   /* AI bubble · long-form replies */
 
-  /* Weights */
-  --font-weight-regular: 400;
-  --font-weight-medium: 500;
+  /* ─── Weights ────────────────────────────────────────────────────────── */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
   --font-weight-semibold: 600;
 }

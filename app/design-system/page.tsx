@@ -7,27 +7,9 @@ type Swatch = {
 };
 
 const ACCENTS: { tenant: string; accent: string; ink: string; soft: string; border: string }[] = [
-  {
-    tenant: "Global Payments",
-    accent: "#120BF4",
-    ink: "#0A06A0",
-    soft: "#E0E5FA",
-    border: "#A5B0EE",
-  },
-  {
-    tenant: "Vodafone",
-    accent: "#E60000",
-    ink: "#A30000",
-    soft: "#FEE2E2",
-    border: "#FCA5A5",
-  },
-  {
-    tenant: "Amex",
-    accent: "#009DDA",
-    ink: "#006FA0",
-    soft: "#DBF0FA",
-    border: "#7DC8E8",
-  },
+  { tenant: "TARS (default)", accent: "#632E9A", ink: "#4A1F77", soft: "#F0E7FA", border: "#C5A8E0" },
+  { tenant: "Global Payments", accent: "#120BF4", ink: "#0A06A0", soft: "#E0E5FA", border: "#A5B0EE" },
+  { tenant: "Vodafone", accent: "#E60000", ink: "#A30000", soft: "#FEE2E2", border: "#FCA5A5" },
 ];
 
 const NEUTRALS: Swatch[] = [
@@ -36,20 +18,16 @@ const NEUTRALS: Swatch[] = [
   { name: "50", token: "--n-50", hex: "#F9F3EA", note: "AI message", light: true },
   { name: "100", token: "--n-100", hex: "#F0EBE0", note: "Hover · warm", light: true },
   { name: "200", token: "--n-200", hex: "#E0DAD3", note: "Line · stroke", light: true },
-  { name: "300", token: "--n-300", hex: "#D9D5CC", note: "Card border" },
-  { name: "400", token: "--n-400", hex: "#C4B9A8" },
+  { name: "300", token: "--n-300", hex: "#D9D5CC", note: "Card edge" },
   { name: "500", token: "--n-500", hex: "#979797", note: "Muted text" },
   { name: "600", token: "--n-600", hex: "#6E6E6E", note: "Secondary text" },
   { name: "700", token: "--n-700", hex: "#555555", note: "Label text" },
   { name: "800", token: "--n-800", hex: "#333333", note: "Ink · primary text" },
-  { name: "900", token: "--n-900", hex: "#1A1A1A" },
 ];
 
 const SEMANTIC = [
   { name: "Success", base: "#16A34A", soft: "#E8F5EC", ink: "#0F7A38" },
-  { name: "Warning", base: "#D97706", soft: "#FEF3DC", ink: "#92500B" },
   { name: "Danger", base: "#DC2626", soft: "#FEE2E2", ink: "#991B1B" },
-  { name: "Info", base: "#0284C7", soft: "#DBEAFE", ink: "#0369A1" },
 ];
 
 const ROLE_GROUPS: {
@@ -59,35 +37,35 @@ const ROLE_GROUPS: {
   {
     name: "Surface",
     tokens: [
-      { token: "--bg-canvas", refers: "neutral-25", hex: "#FFFDFA", use: "Main messenger background" },
-      { token: "--bg-surface", refers: "neutral-0", hex: "#FFFFFF", use: "Card · modal · primary surface" },
-      { token: "--bg-paper", refers: "neutral-50", hex: "#F9F3EA", use: "AI bubble · composer · option pill" },
-      { token: "--bg-subtle", refers: "neutral-100", hex: "#F0EBE0", use: "Warm hover · pressed fill" },
+      { token: "--ds-bg-canvas", refers: "n-25", hex: "#FFFDFA", use: "Main messenger background" },
+      { token: "--ds-bg-surface", refers: "n-0", hex: "#FFFFFF", use: "Card · modal · primary surface" },
+      { token: "--ds-bg-paper", refers: "n-50", hex: "#F9F3EA", use: "AI bubble · composer · option pill" },
+      { token: "--ds-bg-subtle", refers: "n-100", hex: "#F0EBE0", use: "Warm hover · pressed fill" },
     ],
   },
   {
     name: "Text",
     tokens: [
-      { token: "--text-ink", refers: "neutral-800", hex: "#333333", use: "Primary text · bubble content · headings · icon hover" },
-      { token: "--text-label", refers: "neutral-700", hex: "#555555", use: "Strong labels · composer text" },
-      { token: "--text-secondary", refers: "neutral-600", hex: "#6E6E6E", use: "Secondary text · captions · icon rest" },
-      { token: "--text-muted", refers: "neutral-500", hex: "#979797", use: "Tertiary text · timestamps · placeholders · typing dots" },
+      { token: "--ds-text-ink", refers: "n-800", hex: "#333333", use: "Primary text · bubble content · headings · icon hover" },
+      { token: "--ds-text-label", refers: "n-700", hex: "#555555", use: "Strong labels · composer text" },
+      { token: "--ds-text-secondary", refers: "n-600", hex: "#6E6E6E", use: "Secondary text · captions · icon rest" },
+      { token: "--ds-text-muted", refers: "n-500", hex: "#979797", use: "Tertiary text · timestamps · placeholders · typing dots" },
     ],
   },
   {
     name: "Border",
     tokens: [
-      { token: "--border-line", refers: "neutral-200", hex: "#E0DAD3", use: "Default stroke · bubble · composer" },
-      { token: "--border-line-strong", refers: "neutral-300", hex: "#D9D5CC", use: "Card edge · hover stroke" },
+      { token: "--ds-border-line", refers: "n-200", hex: "#E0DAD3", use: "Default stroke · bubble · composer" },
+      { token: "--ds-border-line-strong", refers: "n-300", hex: "#D9D5CC", use: "Card edge · hover stroke" },
     ],
   },
   {
     name: "Accent (per tenant)",
     tokens: [
-      { token: "--accent", refers: "brand", hex: "#120BF4", use: "Send button · focus border · primary CTA" },
-      { token: "--accent-ink", refers: "brand", hex: "#0A06A0", use: "Text on accent-soft · pressed · arrow · icon active" },
-      { token: "--accent-soft", refers: "brand", hex: "#E0E5FA", use: "User bubble · suggestion hover · focus ring tint" },
-      { token: "--accent-border", refers: "brand", hex: "#A5B0EE", use: "User bubble border · subtle accent stroke" },
+      { token: "--ds-accent", refers: "brand", hex: "#632E9A", use: "Send button · focus border · primary CTA" },
+      { token: "--ds-accent-ink", refers: "brand", hex: "#4A1F77", use: "Text on accent-soft · pressed · arrow · icon active" },
+      { token: "--ds-accent-soft", refers: "brand", hex: "#F0E7FA", use: "User bubble · suggestion hover · focus ring tint" },
+      { token: "--ds-accent-border", refers: "brand", hex: "#C5A8E0", use: "User bubble border · subtle accent stroke" },
     ],
   },
 ];
@@ -112,86 +90,67 @@ const FAMILIES = [
 ];
 
 const TYPE_SCALE = [
-  { name: "8 · Nano", size: 8, line: 12, weight: 500, sample: "BETA" },
-  { name: "10 · Caption", size: 10, line: 14, weight: 500, sample: "Press ↵ to send" },
-  { name: "11 · Micro", size: 11, line: 16, weight: 500, sample: "Tars • AI Agent" },
-  { name: "12 · Body S", size: 12, line: 18, weight: 400, sample: "Message bubble text — the default for chat content." },
-  { name: "14 · Body", size: 14, line: 22, weight: 400, sample: "Header name · composer input · component labels." },
-  { name: "16 · Body L", size: 16, line: 24, weight: 500, sample: "Paragraph or in-line section title." },
-  { name: "18 · Title", size: 18, line: 26, weight: 600, sample: "Card title" },
-  { name: "20 · Subhead", size: 20, line: 28, weight: 600, sample: "Subhead" },
-  { name: "24 · Heading", size: 24, line: 32, weight: 600, sample: "Design System" },
-  { name: "28 · Heading L", size: 28, line: 36, weight: 600, sample: "Large heading" },
-  { name: "32 · Display", size: 32, line: 40, weight: 600, sample: "Display" },
+  { token: "--text-caption", name: "Caption", size: 10, line: 14, weight: 500, sample: "Press ↵ to send" },
+  { token: "--text-micro", name: "Micro", size: 11, line: 16, weight: 500, sample: "Tars • AI Agent" },
+  { token: "--text-body-sm", name: "Body S", size: 12, line: 18, weight: 400, sample: "Message bubble text — the default for chat content." },
+  { token: "--text-body", name: "Body", size: 14, line: 22, weight: 400, sample: "Header name · composer input · component labels." },
+  { token: "--text-body-lg", name: "Body L", size: 16, line: 24, weight: 500, sample: "Paragraph or in-line section title." },
+  { token: "--text-title", name: "Title", size: 18, line: 26, weight: 600, sample: "Card title" },
+  { token: "--text-subhead", name: "Subhead", size: 20, line: 28, weight: 600, sample: "Subhead" },
+  { token: "--text-heading", name: "Heading", size: 24, line: 32, weight: 600, sample: "Design System" },
+  { token: "--text-display", name: "Display", size: 30, line: 38, weight: 600, sample: "Display" },
 ];
 
 const WEIGHTS = [
   { name: "Regular", value: 400, sample: "The agent speaks plainly." },
   { name: "Medium", value: 500, sample: "Labels and chips." },
   { name: "Semibold", value: 600, sample: "Emphasized words & titles." },
-  { name: "Bold", value: 700, sample: "Brand wordmark · tars" },
 ];
 
 const LINE_HEIGHTS = [
-  { name: "Tight", token: "--lh-tight", value: "1.1", use: "Display · large headings", sample: "Display heading\nover two lines" },
-  { name: "Compact", token: "--lh-compact", value: "1.2", use: "Headings · titles", sample: "Section title\nshown compact" },
-  { name: "Snug", token: "--lh-snug", value: "1.4", use: "UI labels · dense rows", sample: "Form labels and dense UI rows sit at snug height." },
-  { name: "Normal", token: "--lh-normal", value: "1.45", use: "User bubble · default body", sample: "User bubble text uses normal line-height for readable but dense chat." },
-  { name: "Relaxed", token: "--lh-relaxed", value: "1.55", use: "AI bubble · long-form replies", sample: "AI bubble messages get more breathing room since replies tend to be longer and explanatory." },
-  { name: "Loose", token: "--lh-loose", value: "1.7", use: "Documentation · long-form", sample: "Long-form documentation, FAQ pages, and help-center articles use the loosest setting for sustained reading." },
+  { name: "Tight", token: "--leading-tight", value: "1.2", use: "Headings · titles", sample: "Section title\nshown compact" },
+  { name: "Normal", token: "--leading-normal", value: "1.5", use: "UI · user bubble · default body", sample: "User bubble text uses normal line-height for readable but dense chat." },
+  { name: "Relaxed", token: "--leading-relaxed", value: "1.6", use: "AI bubble · long-form replies", sample: "AI bubble messages get more breathing room since replies tend to be longer and explanatory." },
 ];
 
-const LETTER_SPACINGS = [
-  { name: "Tighter", token: "--ls-tighter", value: "-0.02em", use: "Display headings", sample: "Display Heading" },
-  { name: "Tight", token: "--ls-tight", value: "-0.01em", use: "Large headings", sample: "Large Heading" },
-  { name: "Normal", token: "--ls-normal", value: "0", use: "Default body", sample: "Default body text" },
-  { name: "Wide", token: "--ls-wide", value: "0.04em", use: "Small labels", sample: "Subdued label" },
-  { name: "Wider", token: "--ls-wider", value: "0.08em", use: "Section eyebrows", sample: "FOUNDATION" },
-  { name: "Widest", token: "--ls-widest", value: "0.12em", use: "Tiny uppercase tags", sample: "AI AGENT" },
-];
-
-const SPACING: { name: string; token: string; px: number; use?: string }[] = [
-  { name: "1", token: "--sp-1", px: 4, use: "Inside a message group — label → bubble → toolbar stack" },
-  { name: "1.5", token: "--sp-1.5", px: 6, use: "Between suggestion / option buttons" },
-  { name: "2", token: "--sp-2", px: 8, use: "Composer icon gap · bubble → options gap" },
-  { name: "3", token: "--sp-3", px: 12, use: "Between message turns in the history list" },
-  { name: "4", token: "--sp-4", px: 16, use: "Card padding — header · main · composer" },
-  { name: "5", token: "--sp-5", px: 20, use: "Section breathing" },
-  { name: "6", token: "--sp-6", px: 24, use: "Card margins · top offset" },
-  { name: "8", token: "--sp-8", px: 32, use: "Major section gaps" },
+const SPACING: { token: string; px: number; use?: string }[] = [
+  { token: "gap-1 · p-1", px: 4, use: "Inside a message group — label → bubble → toolbar" },
+  { token: "gap-2 · p-2", px: 8, use: "Composer icon gap · bubble → options gap" },
+  { token: "gap-3 · p-3", px: 12, use: "Between message turns in the history list" },
+  { token: "gap-4 · p-4", px: 16, use: "Card padding — header · main · composer" },
+  { token: "gap-6 · p-6", px: 24, use: "Card margins · section gaps" },
+  { token: "gap-8 · p-8", px: 32, use: "Major section gaps" },
 ];
 
 const RADII = [
-  { name: "2", token: "--r-xs", px: 2, use: "Subtle clip" },
-  { name: "4", token: "--r-sm", px: 4, use: "Inline kbd · tag" },
-  { name: "6", token: "--r-md", px: 6, use: "Icon button" },
-  { name: "8", token: "--r-lg", px: 8, use: "Secondary chip" },
-  { name: "10", token: "--r-xl", px: 10, use: "Inline card" },
-  { name: "12", token: "--r-2xl", px: 12, use: "Bubble · composer · primary chip" },
-  { name: "20", token: "--r-3xl", px: 20, use: "Chat card" },
-  { name: "full", token: "--r-full", px: 9999, use: "Pill button · avatar" },
+  { token: "--ds-radius-sm", px: 4, use: "Kbd · tag · badge" },
+  { token: "--ds-radius-md", px: 6, use: "Icon button" },
+  { token: "--ds-radius-lg", px: 8, use: "Chip · inline card" },
+  { token: "--ds-radius-xl", px: 12, use: "Bubble · composer · card" },
+  { token: "--ds-radius-2xl", px: 20, use: "Widget shell" },
+  { token: "--ds-radius-full", px: 9999, use: "Pill button · avatar" },
 ];
 
 const SHADOWS = [
   {
-    name: "sh-1",
+    name: "--ds-shadow-sm",
     use: "Toolbar · subtle lift",
     css: "0 1px 2px rgba(0,0,0,0.05)",
   },
   {
-    name: "sh-2",
+    name: "--ds-shadow-md",
     use: "Hover card · button",
     css: "0 4px 12px -3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
   },
   {
-    name: "sh-3",
-    use: "Chat widget · floating panel",
-    css: "0 -3px 14px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.05), 0 14px 36px rgba(0,0,0,0.10), 0 36px 72px rgba(0,0,0,0.08)",
+    name: "--ds-shadow-lg",
+    use: "Floating widget · panel",
+    css: "0 12px 40px -8px rgba(0,0,0,0.18), 0 2px 10px rgba(0,0,0,0.06)",
   },
   {
-    name: "ring-focus",
+    name: "--ds-ring-focus",
     use: "Focus ring (accent)",
-    css: "0 0 0 4px rgba(18,11,244,0.15)",
+    css: "0 0 0 4px color-mix(in srgb, var(--ds-accent) 18%, transparent)",
   },
 ];
 
@@ -299,7 +258,7 @@ export default function DesignSystemPage() {
           <p className="mt-4 text-[14px] leading-relaxed text-[#555]">
             Tokens are the contract between brand and product. Components consume{" "}
             <code className="rounded bg-[#F9F3EA] px-1.5 py-0.5 font-mono text-[12px]">
-              var(--accent)
+              var(--ds-accent)
             </code>
             , never literal hexes. Tenants swap by changing one CSS variable
             block — the warm cream surface stays brand-agnostic.
@@ -310,7 +269,7 @@ export default function DesignSystemPage() {
           <Section
             id="typography"
             title="Typography"
-            intro="Poppins for everything. An 11-step scale spans 8px micro tags to 32px display. Weights, line-heights, and tracking are normalized so any combination reads cleanly."
+            intro="Poppins for everything. A 9-step scale spans 10px captions to 30px display. Three weights and three line-heights cover every surface."
           >
             <div className="flex flex-col gap-8">
               {/* Font families */}
@@ -357,12 +316,12 @@ export default function DesignSystemPage() {
                       key={t.name}
                       className="flex items-baseline gap-6 px-4 py-3"
                     >
-                      <div className="w-28 shrink-0">
+                      <div className="w-32 shrink-0">
                         <p className="text-[11px] font-semibold text-[#333333]">
-                          {t.name}
+                          {t.size} · {t.name}
                         </p>
                         <p className="font-mono text-[10px] text-[#6E6E6E]">
-                          {t.size} / {t.line} · {t.weight}
+                          {t.token}
                         </p>
                       </div>
                       <p
@@ -435,38 +394,6 @@ export default function DesignSystemPage() {
                 </div>
               </div>
 
-              {/* Letter spacing */}
-              <div>
-                <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">
-                  Letter spacing
-                </p>
-                <div className="flex flex-col divide-y divide-[#E5E5E5] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white">
-                  {LETTER_SPACINGS.map((s) => (
-                    <div
-                      key={s.name}
-                      className="flex items-baseline gap-6 px-4 py-3"
-                    >
-                      <div className="w-28 shrink-0">
-                        <p className="text-[11px] font-semibold text-[#333333]">
-                          {s.name}
-                        </p>
-                        <p className="font-mono text-[10px] text-[#6E6E6E]">
-                          {s.value}
-                        </p>
-                      </div>
-                      <span
-                        className="text-[16px] text-[#333333]"
-                        style={{ letterSpacing: s.value }}
-                      >
-                        {s.sample}
-                      </span>
-                      <span className="ml-auto text-[10px] text-[#979797]">
-                        {s.use}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </Section>
 
@@ -586,7 +513,7 @@ export default function DesignSystemPage() {
                   The bridge between primitives and components. A bubble
                   references{" "}
                   <code className="font-mono text-[11px] text-[#555]">
-                    var(--bg-paper)
+                    var(--ds-bg-paper)
                   </code>
                   , not{" "}
                   <code className="font-mono text-[11px] text-[#555]">
@@ -638,7 +565,7 @@ export default function DesignSystemPage() {
           <Section
             id="spacing"
             title="Spacing"
-            intro="4px base. Most chat gaps use 1–2 (4–8px) within a message, 3 (12px) between turns, 4 (16px) for card padding."
+            intro="Tailwind's 4px scale — no custom tokens. Chat gaps use gap-1–2 (4–8px) within a message, gap-3 (12px) between turns, p-4 (16px) for card padding."
           >
             <div className="flex flex-col gap-6">
               {/* Scale */}
@@ -646,10 +573,10 @@ export default function DesignSystemPage() {
                 <div className="flex flex-col divide-y divide-[#E5E5E5]">
                   {SPACING.map((s) => (
                     <div
-                      key={s.name}
+                      key={s.token}
                       className="flex items-center gap-4 px-4 py-2.5"
                     >
-                      <span className="w-20 font-mono text-[11px] text-[#6E6E6E]">
+                      <span className="w-24 font-mono text-[11px] text-[#6E6E6E]">
                         {s.token}
                       </span>
                       <span className="w-12 text-[11px] font-semibold text-[#333333]">
@@ -684,11 +611,11 @@ export default function DesignSystemPage() {
                       <p className="mt-0.5 text-[11px] text-[#6E6E6E]">
                         Label, bubble, toolbar, and option list stack with{" "}
                         <code className="font-mono text-[11px] text-[#333333]">
-                          --sp-1
+                          gap-1
                         </code>{" "}
                         (4px). Options themselves use{" "}
                         <code className="font-mono text-[11px] text-[#333333]">
-                          --sp-1.5
+                          gap-1.5
                         </code>{" "}
                         (6px) between each other.
                       </p>
@@ -720,7 +647,7 @@ export default function DesignSystemPage() {
                       <p className="mt-0.5 text-[11px] text-[#6E6E6E]">
                         Consecutive turns (AI → user → AI) sit{" "}
                         <code className="font-mono text-[11px] text-[#333333]">
-                          --sp-3
+                          gap-3
                         </code>{" "}
                         (12px) apart in the scroll list.
                       </p>
@@ -750,7 +677,7 @@ export default function DesignSystemPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {RADII.map((r) => (
                 <div
-                  key={r.name}
+                  key={r.token}
                   className="flex flex-col gap-2 rounded-[12px] border border-[#E5E5E5] bg-white p-3"
                 >
                   <div
@@ -774,7 +701,7 @@ export default function DesignSystemPage() {
           <Section
             id="shadow"
             title="Shadow"
-            intro="Stacked neutral greys. The widget itself uses sh-3 (four layers including an upward shadow so the halo wraps top + bottom)."
+            intro="Stacked neutral greys, three levels plus a focus ring. The floating widget uses --ds-shadow-lg."
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {SHADOWS.map((s) => (

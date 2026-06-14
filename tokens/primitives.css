@@ -1,39 +1,25 @@
 :root {
-  /* Neutrals */
-  --neutral-0: #FFFFFF;
-  --neutral-25: #FAFAFA;
-  --neutral-50: #F5F5F5;
-  --neutral-100: #F0F0F0;
-  --neutral-200: #E3E3E3;
-  --neutral-300: #C4C4C4;
-  --neutral-400: #979797;
-  --neutral-500: #6E6E6E;
-  --neutral-600: #555555;
-  --neutral-700: #303030;
-  --neutral-800: #1A1A1A;
+  /* ─── Primitives — the raw palette. Components NEVER use these directly;
+         they flow up into the --ds-* role tokens in semantic.css. ─────── */
 
-  /* Success */
-  --success-50: #ECFDF5;
-  --success-600: #059669;
-  --success-700: #047857;
+  /* Neutrals — warm grey */
+  --n-0:   #FFFFFF;   /* surface */
+  --n-25:  #FFFDFA;   /* canvas */
+  --n-50:  #F9F3EA;   /* paper — AI bubble */
+  --n-100: #F0EBE0;   /* subtle warm hover */
+  --n-200: #E0DAD3;   /* line · stroke */
+  --n-300: #D9D5CC;   /* strong line · card edge */
+  --n-500: #979797;   /* muted text */
+  --n-600: #6E6E6E;   /* secondary text */
+  --n-700: #555555;   /* label text */
+  --n-800: #333333;   /* ink — primary text */
 
-  /* Warning */
-  --warning-50: #FFFBEB;
-  --warning-600: #D97706;
-  --warning-700: #B45309;
+  /* Semantic hues — base / soft / ink */
+  --success:      #16A34A;
+  --success-soft: #E8F5EC;
+  --success-ink:  #0F7A38;
 
-  /* Danger */
-  --danger-50: #FEF2F2;
-  --danger-600: #DC2626;
-  --danger-700: #B91C1C;
-
-  /* Info */
-  --info-50: #F0F9FF;
-  --info-600: #0284C7;
-  --info-700: #0369A1;
-
-  /* Accent — TARS brand (indigo/violet) */
-  --accent-50: #EEF2FF;
-  --accent-600: #5B5BD6;
-  --accent-700: #4747B5;
+  --danger:       #DC2626;
+  --danger-soft:  #FEE2E2;
+  --danger-ink:   #991B1B;
 }

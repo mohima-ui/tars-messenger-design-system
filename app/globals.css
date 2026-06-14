@@ -49,30 +49,16 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* Role-token utilities (chat-specific surfaces, bubbles, accent) */
-  --color-canvas: var(--bg-canvas);
-  --color-surface: var(--bg-surface);
-  --color-bubble-ai: var(--bubble-ai-bg);
-  --color-bubble-ai-foreground: var(--bubble-ai-fg);
-  --color-bubble-ai-border: var(--bubble-ai-border);
-  --color-bubble-user: var(--bubble-user-bg);
-  --color-bubble-user-foreground: var(--bubble-user-fg);
-  --color-accent-hover: var(--accent-hover);
-  --color-border-subtle: var(--border-subtle);
-  --color-text-secondary: var(--text-secondary);
-
-  /* Status palette (50/600/700) */
-  --color-success-50: var(--success-50);
-  --color-success-600: var(--success-600);
-  --color-success-700: var(--success-700);
-  --color-warning-50: var(--warning-50);
-  --color-warning-600: var(--warning-600);
-  --color-warning-700: var(--warning-700);
-  --color-danger-50: var(--danger-50);
-  --color-danger-600: var(--danger-600);
-  --color-danger-700: var(--danger-700);
-  --color-info-50: var(--info-50);
-  --color-info-600: var(--info-600);
-  --color-info-700: var(--info-700);
+  --color-canvas: var(--ds-bg-canvas);
+  --color-surface: var(--ds-bg-surface);
+  --color-bubble-ai: var(--ds-bg-paper);
+  --color-bubble-ai-foreground: var(--ds-text-ink);
+  --color-bubble-ai-border: var(--ds-border-line);
+  --color-bubble-user: var(--ds-accent-soft);
+  --color-bubble-user-foreground: var(--ds-accent-ink);
+  --color-accent-hover: var(--ds-accent-hover);
+  --color-border-subtle: var(--ds-border-line);
+  --color-text-secondary: var(--ds-text-secondary);
 
   /* Chat-specific animations */
   --animate-typing-dot: typing-dot 1.4s ease-in-out infinite;
