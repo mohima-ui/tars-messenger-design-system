@@ -31,6 +31,7 @@ import {
   Search,
   MapPin,
   Calendar,
+  Star,
 } from "lucide-react";
 
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
@@ -179,7 +180,7 @@ const SEND_EVENTS = [
 ];
 
 const STARTER_OPTIONS = [
-  ["Pick a time", "Pick a city", "Talk to an agent"],
+  ["Pick a time", "Pick a city", "Share location", "Rate us", "Talk to an agent"],
   ["Compare plans", "Start free trial", "Talk to an agent"],
   ["See a demo", "Compare plans", "What can it do?"],
 ];
@@ -698,6 +699,10 @@ function CornerPillVariant() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [cityMessage, setCityMessage] = useState<string | null>(null);
   const [timeMessage, setTimeMessage] = useState<string | null>(null);
+  const [showRating, setShowRating] = useState(false);
+  const [ratingValue, setRatingValue] = useState<number | null>(null);
+  const [showGeo, setShowGeo] = useState(false);
+  const [geoMessage, setGeoMessage] = useState<string | null>(null);
   const [handoffPhase, setHandoffPhase] = useState<"none" | "connecting" | "joined" | "replied">("none");
   // after-conversation CSAT (slides up above the composer)
   const [showCsat, setShowCsat] = useState(false);
@@ -1365,7 +1370,7 @@ function CornerPillVariant() {
                       <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m1" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                         {isRichAnswer ? richTokens : (animated ? <Words>{STARTER_RESPONSES[selectedStarter]}</Words> : STARTER_RESPONSES[selectedStarter])}
                       </div>
-                      {conversationTurn === 1 && !showScheduler && !showSuggest && (
+                      {conversationTurn === 1 && !showScheduler && !showSuggest && !showRating && !showGeo && (
                         <div className="flex flex-wrap gap-2 px-1 mt-3">
                           {STARTER_OPTIONS[selectedStarter].map((opt, i) => (
                             <button key={opt} className="rounded-full border px-3.5 py-1.5 text-[14px]"
@@ -1377,7 +1382,7 @@ function CornerPillVariant() {
                               }}
                               onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
                               onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : opt === "Pick a time" ? () => setShowScheduler(true) : opt === "Pick a city" ? () => { setShowSuggest(true); setSuggestOpen(true); } : undefined}>
+                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : opt === "Pick a time" ? () => setShowScheduler(true) : opt === "Pick a city" ? () => { setShowSuggest(true); setSuggestOpen(true); } : opt === "Rate us" ? () => setShowRating(true) : opt === "Share location" ? () => setShowGeo(true) : undefined}>
                               {opt}
                             </button>
                           ))}
@@ -1428,6 +1433,91 @@ function CornerPillVariant() {
                             Pick a city
                           </div>
                         </div>
+                      )}
+                      {conversationTurn === 1 && showRating && (
+                        <>
+                          {/* user picks "Rate us" */}
+                          <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                            <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                              Rate us
+                            </div>
+                          </div>
+                          {ratingValue === null ? (
+                            /* agent shows the stars (not in a bubble) */
+                            <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                              <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                                AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                              </p>
+                              <div className="ml-1">
+                                <StarRating onRate={setRatingValue} />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* the rating, sent as a user message */}
+                              <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                                <div className="flex items-center gap-1.5 rounded-[12px] rounded-br-[4px] px-3.5 py-2" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                                  <span className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                      <Star key={n} className="size-3.5" strokeWidth={1.75} style={{ color: "#4A1F77", fill: n <= ratingValue ? "#4A1F77" : "transparent" }} />
+                                    ))}
+                                  </span>
+                                  <span className="text-[14px]">{ratingValue}/5</span>
+                                </div>
+                              </div>
+                              {/* agent acknowledgment */}
+                              <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                                <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                                  AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                                </p>
+                                <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                                  <Words>Thank you for the {ratingValue}/5 — we really appreciate the feedback!</Words>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )}
+                      {conversationTurn === 1 && showGeo && (
+                        <>
+                          {/* user picks "Share location" */}
+                          <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                            <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                              Share location
+                            </div>
+                          </div>
+                          {geoMessage === null ? (
+                            /* agent shows the share button */
+                            <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                              <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                                AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                              </p>
+                              <div className="ml-1">
+                                <GeoShare onShare={setGeoMessage} />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* the shared location, sent as a user message */}
+                              <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                                <div className="flex items-center gap-1.5 rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                                  <MapPin className="size-3.5 shrink-0" strokeWidth={2} />
+                                  <span>{geoMessage}</span>
+                                  <Check className="size-3.5 shrink-0" strokeWidth={2.5} style={{ color: "#16A34A" }} />
+                                </div>
+                              </div>
+                              {/* agent acknowledgment */}
+                              <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                                <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                                  AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                                </p>
+                                <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                                  <Words>Got it — I&apos;ll show what&apos;s available near {geoMessage}.</Words>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </>
                       )}
                       {conversationTurn === 1 && cityMessage && (
                         <>
@@ -2221,6 +2311,50 @@ const SUGGEST_PLACES = [
   { city: "Singapore", region: "Singapore" },
   { city: "Sydney", region: "New South Wales, Australia" },
 ];
+/* ── star rating (CSAT) ── */
+function StarRating({ onRate }: { onRate: (n: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      <div className="flex gap-1" onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => {
+          const filled = n <= hover;
+          return (
+            <button
+              key={n}
+              type="button"
+              aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              onMouseEnter={() => setHover(n)}
+              onClick={() => onRate(n)}
+              className="transition-transform hover:scale-110"
+            >
+              <Star className="size-7" strokeWidth={1.75} style={{ color: filled ? ACCENT : LINE, fill: filled ? ACCENT : "transparent" }} />
+            </button>
+          );
+        })}
+      </div>
+      <p className="ml-0.5 text-[11px]" style={{ color: MUTED }}>{hover ? `${hover}/5` : "Tap a star to rate"}</p>
+    </div>
+  );
+}
+
+/* ── geo-location share ── */
+function GeoShare({ onShare }: { onShare: (loc: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onShare("San Francisco, CA")}
+      className="inline-flex items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-[14px] font-medium transition-colors"
+      style={{ borderColor: LINE, backgroundColor: "#F9F3EA", color: INK }}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK; }}
+    >
+      <MapPin className="size-4" strokeWidth={2} />
+      Share my location
+    </button>
+  );
+}
+
 export default function V4Page() {
   return (
     <main style={{ minHeight: "100vh", width: "100%" }}>

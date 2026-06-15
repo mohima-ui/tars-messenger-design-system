@@ -307,7 +307,6 @@ function StarRatingDemo() {
   const active = hover || rating;
   return (
     <div className="flex flex-col items-start gap-2">
-      <p className="text-[13px]" style={{ color: INK }}>How was your experience?</p>
       <div className="flex gap-1" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((n) => {
           const filled = n <= active;
@@ -329,7 +328,7 @@ function StarRatingDemo() {
           );
         })}
       </div>
-      <p className="text-[11px]" style={{ color: MUTED }}>{rating ? `You rated ${rating} / 5` : "Tap a star to rate"}</p>
+      <p className="text-[11px]" style={{ color: MUTED }}>{active ? `${active}/5` : "Tap a star to rate"}</p>
     </div>
   );
 }
@@ -343,8 +342,10 @@ function GeoLocationDemo() {
         <button
           type="button"
           onClick={() => setShared(true)}
-          className="inline-flex items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-[14px] font-medium transition-[filter] hover:brightness-[0.98]"
-          style={{ borderColor: ACCENT_BORDER, backgroundColor: ACCENT_SOFT, color: ACCENT_INK }}
+          className="inline-flex items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-[14px] font-medium transition-colors"
+          style={{ borderColor: LINE, backgroundColor: PAPER, color: INK }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT_BORDER; e.currentTarget.style.color = ACCENT_INK; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PAPER; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK; }}
         >
           <MapPin className="size-4" strokeWidth={2} />
           Share my location

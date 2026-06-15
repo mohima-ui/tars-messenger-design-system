@@ -26,6 +26,10 @@ import {
   Download,
   Settings,
   Sparkles,
+  ChevronLeft,
+  MapPin,
+  Star,
+  Calendar,
 } from "lucide-react";
 
 /* ── word-by-word streaming (ported from the main app) ── */
@@ -519,6 +523,135 @@ function HandoffFlow() {
   );
 }
 
+/* ── date + time scheduler ── */
+const SCHED_WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const SCHED_CELLS: { label: number; current: boolean }[] = [
+  { label: 31, current: false },
+  ...Array.from({ length: 30 }, (_, i) => ({ label: i + 1, current: true })),
+  ...[1, 2, 3, 4].map((n) => ({ label: n, current: false })),
+];
+const SCHED_SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM"];
+const SCHED_AVAILABLE: Record<number, string[]> = Object.fromEntries(
+  [15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30].map((d) => [d, SCHED_SLOTS]),
+);
+const SCHED_WDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function CalendarPicker({ onSelect }: { onSelect: (text: string) => void }) {
+  const [day, setDay] = useState<number | null>(null);
+  const [time, setTime] = useState<string | null>(null);
+  const slots = day !== null ? SCHED_AVAILABLE[day] : null;
+  return (
+    <div className="w-[360px] max-w-full overflow-hidden rounded-[12px] border border-[#E0DAD3] bg-white">
+      <div className="relative">
+        <div className="border-r border-[#E0DAD3] p-3.5" style={{ width: "calc(100% - 150px)" }}>
+          <div className="mb-3 flex items-center justify-between">
+            <button type="button" className="flex size-6 items-center justify-center rounded-[6px] text-[#6E6E6E] transition-colors hover:bg-[#F9F3EA]"><ChevronLeft className="size-4" strokeWidth={2} /></button>
+            <span className="text-[13px] font-semibold text-[#333333]">June 2026</span>
+            <button type="button" className="flex size-6 items-center justify-center rounded-[6px] text-[#6E6E6E] transition-colors hover:bg-[#F9F3EA]"><ChevronRight className="size-4" strokeWidth={2} /></button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {SCHED_WEEKDAYS.map((d, i) => (
+              <span key={i} className="flex h-6 items-center justify-center text-[10px] font-medium text-[#A8A096]">{d}</span>
+            ))}
+            {SCHED_CELLS.map((cell, i) => {
+              if (!cell.current) return <span key={`x${i}`} className="flex h-8 items-center justify-center text-[12px] text-[#D9D2C7]">{cell.label}</span>;
+              const available = cell.label in SCHED_AVAILABLE;
+              if (!available) return <span key={cell.label} className="flex h-8 items-center justify-center text-[12px] text-[#C4B9A8]">{cell.label}</span>;
+              const selected = day === cell.label;
+              return (
+                <button
+                  key={cell.label}
+                  type="button"
+                  onClick={() => { setDay(cell.label); setTime(null); }}
+                  className="flex h-8 items-center justify-center rounded-[7px] text-[12px] font-medium transition-colors"
+                  style={{ backgroundColor: selected ? "#632E9A" : "#F0EBE0", color: selected ? "#FFFFFF" : "#333333" }}
+                >
+                  {cell.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="absolute inset-y-0 right-0 flex w-[150px] flex-col p-3.5">
+          {day === null ? (
+            <>
+              <span className="text-[13px] font-semibold text-[#333333]">Please select a date</span>
+              <div className="flex flex-1 items-center justify-center py-8 text-center"><span className="text-[12px] text-[#6E6E6E]">No availability to show</span></div>
+            </>
+          ) : (
+            <>
+              <span className="text-[13px] font-semibold text-[#333333]">{SCHED_WDAY[day % 7]}, June {day}</span>
+              <div className="scrollbar-subtle mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                {(slots ?? []).map((s) => {
+                  const on = time === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => { setTime(s); onSelect(`${SCHED_WDAY[day % 7]}, June ${day} at ${s}`); }}
+                      className="rounded-[8px] border py-1.5 text-center text-[12px] font-medium transition-colors"
+                      style={{ borderColor: on ? "#632E9A" : "#E0DAD3", backgroundColor: on ? "#632E9A" : "#FFFFFF", color: on ? "#FFFFFF" : "#333333" }}
+                      onMouseEnter={(e) => { if (!on) { e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.backgroundColor = "#F0E7FA"; } }}
+                      onMouseLeave={(e) => { if (!on) { e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.backgroundColor = "#FFFFFF"; } }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── star rating ── */
+function StarRating({ onRate }: { onRate: (n: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      <div className="flex gap-1" onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" aria-label={`${n} stars`} onMouseEnter={() => setHover(n)} onClick={() => onRate(n)} className="transition-transform hover:scale-110">
+            <Star className="size-7" strokeWidth={1.75} style={{ color: n <= hover ? "#632E9A" : "#E0DAD3", fill: n <= hover ? "#632E9A" : "transparent" }} />
+          </button>
+        ))}
+      </div>
+      <p className="ml-0.5 text-[11px] text-[#6E6E6E]">{hover ? `${hover}/5` : "Tap a star to rate"}</p>
+    </div>
+  );
+}
+
+/* ── geo-location share ── */
+function GeoShare({ onShare }: { onShare: (loc: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onShare("San Francisco, CA")}
+      className="inline-flex items-center gap-2 rounded-[10px] border border-[#E0DAD3] bg-[#F9F3EA] px-3.5 py-2.5 text-[14px] font-medium text-[#333333] transition-colors"
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = "#333333"; }}
+    >
+      <MapPin className="size-4" strokeWidth={2} />
+      Share my location
+    </button>
+  );
+}
+
+/* ── auto-suggestion (cities) ── */
+const SUGGEST_PLACES = [
+  { city: "San Francisco", region: "California, USA" },
+  { city: "San Jose", region: "California, USA" },
+  { city: "San Diego", region: "California, USA" },
+  { city: "San Antonio", region: "Texas, USA" },
+  { city: "Santa Fe", region: "New Mexico, USA" },
+  { city: "Seattle", region: "Washington, USA" },
+  { city: "Singapore", region: "Singapore" },
+  { city: "Sydney", region: "New South Wales, Australia" },
+];
+
 /* ── conversation history (sidebar) ── */
 const HISTORY = [
   { group: "Today", items: ["Studio plan pricing", "Reset my password"] },
@@ -527,11 +660,11 @@ const HISTORY = [
 ];
 
 type Msg =
-  | { from: "ai"; text: string; chips?: string[]; liveChips?: string[]; stream?: boolean; kind?: "agent" | "plans" | "handoff" }
-  | { from: "user"; text: string };
+  | { from: "ai"; text: string; chips?: string[]; liveChips?: string[]; stream?: boolean; kind?: "agent" | "plans" | "handoff" | "calendar" | "rating" | "geo" }
+  | { from: "user"; text: string; icon?: "calendar" | "location"; stars?: number; check?: boolean };
 
 // chips that lead to a scripted response — others are shown but disabled
-const LIVE_CHIPS = new Set(["What is an AI agent?", "Compare plans"]);
+const LIVE_CHIPS = new Set(["What is an AI agent?", "Compare plans", "Product demo", "Pick a time", "Pick a city", "Share location", "Rate us", "Talk to an agent"]);
 
 // composer demo data — voice transcript + waveform shape
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
@@ -544,7 +677,7 @@ const GREETING: Extract<Msg, { from: "ai" }> = {
   from: "ai",
   text: "Hi there! I'm Tars, your AI agent. I can show you our product, compare plans, or explain how AI agents work. What can I help you with?",
   chips: ["Product demo", "Compare plans", "What is an AI agent?"],
-  liveChips: ["What is an AI agent?"],
+  liveChips: ["What is an AI agent?", "Product demo"],
 };
 
 export default function WebChat() {
@@ -560,6 +693,21 @@ export default function WebChat() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
+  // a widget produced a result → remove the widget, post the result as a user message, then an agent ack
+  function pushResult(userMsg: Msg, ack: string) {
+    setSuggestOpen(false);
+    setMessages((m) => [
+      ...m.filter((msg) => !(msg.from === "ai" && (msg.kind === "calendar" || msg.kind === "rating" || msg.kind === "geo"))),
+      userMsg,
+    ]);
+    setPending("simple");
+    setTimeout(() => {
+      setPending(null);
+      setMessages((m) => [...m, { from: "ai", text: ack, stream: true }]);
+    }, 800);
+  }
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -661,6 +809,19 @@ export default function WebChat() {
       setMessages((m) => [...m, { from: "ai", kind: "handoff", text: "" }]);
       return;
     }
+    // product demo → offer the input-type options
+    if (t === "Product demo") {
+      setPending("simple");
+      setTimeout(() => {
+        setPending(null);
+        setMessages((m) => [...m, { from: "ai", text: "Sure — what would you like to do?", chips: ["Pick a time", "Pick a city", "Share location", "Rate us", "Talk to an agent"], stream: true }]);
+      }, 900);
+      return;
+    }
+    if (t === "Pick a time") { setMessages((m) => [...m, { from: "ai", kind: "calendar", text: "" }]); return; }
+    if (t === "Share location") { setMessages((m) => [...m, { from: "ai", kind: "geo", text: "" }]); return; }
+    if (t === "Rate us") { setMessages((m) => [...m, { from: "ai", kind: "rating", text: "" }]); return; }
+    if (t === "Pick a city") { setSuggestOpen(true); return; }
     // picking a plan card → offer to email the setup link
     if (PLANS.some((p) => p.title === t)) {
       setPending("simple");
@@ -842,6 +1003,23 @@ export default function WebChat() {
                 <div key={i} className="w-full">
                   <HandoffFlow />
                 </div>
+              ) : m.from === "ai" && (m.kind === "calendar" || m.kind === "rating" || m.kind === "geo") ? (
+                <div key={i} className="flex flex-col items-start">
+                  <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                    AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                  </p>
+                  <div className="ml-1">
+                    {m.kind === "calendar" && (
+                      <CalendarPicker onSelect={(text) => pushResult({ from: "user", text, icon: "calendar" }, `Booked! Your demo is set for ${text} — I've sent a calendar invite.`)} />
+                    )}
+                    {m.kind === "rating" && (
+                      <StarRating onRate={(n) => pushResult({ from: "user", text: `${n}/5`, stars: n }, `Thank you for the ${n}/5 — we really appreciate the feedback!`)} />
+                    )}
+                    {m.kind === "geo" && (
+                      <GeoShare onShare={(loc) => pushResult({ from: "user", text: loc, icon: "location", check: true }, `Got it — I'll show what's available near ${loc}.`)} />
+                    )}
+                  </div>
+                </div>
               ) : m.from === "ai" ? (
                 <div key={i} className="group flex flex-col items-start">
                   <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
@@ -924,10 +1102,20 @@ export default function WebChat() {
               ) : (
                 <div key={i} className="flex justify-end">
                   <div
-                    className="w-fit max-w-[80%] rounded-[12px] rounded-br-[4px] px-4 py-2.5 text-[14px] leading-[1.7] tracking-[0.005em] text-[#4A1F77]"
+                    className="flex w-fit max-w-[80%] items-center gap-1.5 rounded-[12px] rounded-br-[4px] px-4 py-2.5 text-[14px] leading-[1.7] tracking-[0.005em] text-[#4A1F77]"
                     style={{ backgroundColor: "#F0E7FA", boxShadow: "inset 0 0 0 1px #C5A8E0" }}
                   >
-                    {m.text}
+                    {m.stars ? (
+                      <span className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star key={n} className="size-3.5" strokeWidth={1.75} style={{ color: "#4A1F77", fill: n <= (m.stars ?? 0) ? "#4A1F77" : "transparent" }} />
+                        ))}
+                      </span>
+                    ) : (
+                      m.icon === "calendar" ? <Calendar className="size-3.5 shrink-0" strokeWidth={2} /> : m.icon === "location" ? <MapPin className="size-3.5 shrink-0" strokeWidth={2} /> : null
+                    )}
+                    <span>{m.text}</span>
+                    {m.check && <Check className="size-3.5 shrink-0" strokeWidth={2.5} style={{ color: "#16A34A" }} />}
                   </div>
                 </div>
               )
@@ -958,6 +1146,38 @@ export default function WebChat() {
         {/* composer — matches the website widget */}
         <div className="shrink-0 px-6 pb-1.5">
           <div className="mx-auto flex max-w-[800px] flex-col">
+            {/* city suggestions — pops up above the composer */}
+            {suggestOpen && (() => {
+              const sq = draft.trim().toLowerCase();
+              const sres = sq ? SUGGEST_PLACES.filter((p) => p.city.toLowerCase().includes(sq) || p.region.toLowerCase().includes(sq)) : SUGGEST_PLACES;
+              return (
+                <div className="mb-2 overflow-hidden rounded-[12px] border border-[#E0DAD3] bg-white" style={{ boxShadow: "0 4px 14px -3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)" }}>
+                  <div className="scrollbar-subtle max-h-[200px] overflow-y-auto">
+                    {sres.length > 0 ? (
+                      sres.map((p, i) => (
+                        <button
+                          key={p.city}
+                          type="button"
+                          onClick={() => { setDraft(""); pushResult({ from: "user", text: `${p.city}, ${p.region}`, icon: "location" }, `Got it — I'll show options near ${p.city}.`); }}
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                          style={{ borderTop: i === 0 ? "none" : "1px solid #E0DAD3" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F0E7FA")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          <MapPin className="size-4 shrink-0" strokeWidth={2} style={{ color: "#6E6E6E" }} />
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] text-[#333333]">{p.city}</span>
+                            <span className="block truncate text-[11px] text-[#6E6E6E]">{p.region}</span>
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-center text-[12px] text-[#6E6E6E]">No matches</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             {/* press-enter hint */}
             {draft.trim() && (
               <div className="mb-1.5 flex items-center justify-center gap-1 px-1 text-[10px] leading-4 text-[#A8A096]">
