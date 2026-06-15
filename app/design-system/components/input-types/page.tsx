@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, MapPin, Search, Check, ChevronLeft, ChevronRight, Zap, Rocket } from "lucide-react";
+import { Star, MapPin, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -39,42 +39,79 @@ function ButtonsDemo() {
   );
 }
 
-/* ── Cards ── */
-const CARDS = [
-  { key: "starter", Icon: Zap, title: "Starter", desc: "1 agent · basic analytics", price: "$29/mo" },
-  { key: "growth", Icon: Rocket, title: "Growth", desc: "5 agents · full analytics · API", price: "$79/mo" },
-];
+/* ── Cards (inline card) ── */
+function InlineCard({ state }: { state: "default" | "hover" | "selected" }) {
+  const hover = state === "hover";
+  const selected = state === "selected";
+  const borderColor = selected ? ACCENT : hover ? ACCENT_BORDER : LINE;
+  return (
+    <div
+      className="w-[260px] rounded-[12px] border bg-white p-2 transition-all"
+      style={{
+        borderColor,
+        boxShadow: selected
+          ? `inset 0 0 0 1px ${ACCENT}`
+          : hover
+            ? `0 0 0 3px ${ACCENT_SOFT}`
+            : undefined,
+      }}
+    >
+      {/* product image — placeholder */}
+      <div
+        className="relative flex h-[104px] w-full items-center justify-center rounded-[8px] border"
+        style={{
+          borderColor: LINE,
+          backgroundColor: "#F4EEE3",
+          backgroundImage:
+            "repeating-linear-gradient(135deg, rgba(140,131,120,0.16) 0px, rgba(140,131,120,0.16) 1.5px, transparent 1.5px, transparent 12px)",
+        }}
+      >
+        <span className="font-mono text-[9px] tracking-wider uppercase" style={{ color: MUTED }}>
+          Product image
+        </span>
+        {selected && (
+          <span
+            className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full"
+            style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+          >
+            <Check className="size-3" strokeWidth={3} />
+          </span>
+        )}
+      </div>
+      {/* body */}
+      <div className="px-1 pt-2.5">
+        <p className="font-mono text-[9px] tracking-wider uppercase" style={{ color: MUTED }}>
+          Recommended
+        </p>
+        <p className="mt-1 text-[14px] font-semibold" style={{ color: selected ? ACCENT_INK : INK }}>
+          Pro Plan · 14-day trial
+        </p>
+        <p className="mt-1 text-[12px] leading-snug" style={{ color: MUTED }}>
+          The full Tars stack — AI, voice, advanced routing, unlimited handoffs.
+        </p>
+        <div className="mt-2.5">
+          <span className="text-[14px] font-semibold" style={{ color: INK }}>
+            $49/mo
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CARD_STATES = ["default", "hover", "selected"] as const;
 
 function CardsDemo() {
-  const [selected, setSelected] = useState("growth");
   return (
-    <div className="grid w-full max-w-[420px] grid-cols-2 gap-2.5">
-      {CARDS.map(({ key, Icon, title, desc, price }) => {
-        const on = selected === key;
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setSelected(key)}
-            className="flex flex-col items-start gap-2 rounded-[12px] border p-3.5 text-left transition-all"
-            style={{
-              borderColor: on ? ACCENT_BORDER : LINE,
-              backgroundColor: on ? ACCENT_SOFT : "#FFFFFF",
-              boxShadow: on ? `inset 0 0 0 1px ${ACCENT_BORDER}` : undefined,
-            }}
-          >
-            <span
-              className="flex size-7 items-center justify-center rounded-full"
-              style={{ backgroundColor: on ? "#FFFFFF" : PAPER, color: ACCENT }}
-            >
-              <Icon className="size-3.5" strokeWidth={2} />
-            </span>
-            <span className="text-[13px] font-semibold" style={{ color: on ? ACCENT_INK : INK }}>{title}</span>
-            <span className="text-[11px] leading-snug" style={{ color: MUTED }}>{desc}</span>
-            <span className="mt-0.5 text-[12px] font-semibold" style={{ color: INK }}>{price}</span>
-          </button>
-        );
-      })}
+    <div className="flex w-full flex-wrap gap-5">
+      {CARD_STATES.map((s) => (
+        <div key={s} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>
+            {s}
+          </span>
+          <InlineCard state={s} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -234,7 +271,7 @@ const SPECS = [
 
 const TYPES = [
   { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices — quiet paper pills (14px) that lift to accent-soft fill + accent-ink text on hover. Stack vertically below the bubble." },
-  { name: "Cards", desc: "Richer selectable options (icon, title, detail). Selected card lifts to accent-soft with an accent border." },
+  { name: "Cards", desc: "An inline card — product image, eyebrow label, title, description, price, and a CTA button. A product, an article, or a form embedded without breaking the conversation." },
   { name: "Calendar", desc: "Inline month picker for scheduling. One selected day filled with accent; navigate by month." },
   { name: "Auto suggestion", desc: "Typeahead input with a results list below; the matched prefix is bolded, first row pre-highlighted." },
   { name: "Star rating", desc: "Five-star input for quick CSAT. Hover and selection fill with accent." },
@@ -302,7 +339,7 @@ export default function InputTypesPage() {
             <ButtonsDemo />
           </Demo>
 
-          <Demo title="Cards" desc="Selectable option cards with an icon, title, and supporting detail. Click to select.">
+          <Demo title="Cards" desc="An inline card — product image, eyebrow, title, description, price, and a CTA. Embedded without breaking the conversation.">
             <CardsDemo />
           </Demo>
 

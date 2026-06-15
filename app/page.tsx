@@ -187,19 +187,19 @@ const PLANS = [
   {
     title: "Starter",
     value: "$29/mo",
-    features: ["2k conversations / mo", "1 agent", "Basic analytics", "Solid for small teams"],
+    desc: "For small teams getting started — 1 agent, 2,000 conversations a month, and basic analytics.",
     highlight: false,
   },
   {
     title: "Growth",
     value: "$79/mo",
-    features: ["15k conversations / mo", "5 agents", "Full analytics", "API access"],
+    desc: "The full Tars stack — 5 agents, 15,000 conversations, full analytics, and API access.",
     highlight: true,
   },
   {
     title: "Enterprise",
     value: "Custom",
-    features: ["Unlimited everything", "SSO", "Dedicated SLA", "Dedicated CSM"],
+    desc: "Everything unlimited — SSO, a dedicated SLA, and a dedicated customer success manager.",
     highlight: false,
   },
 ];
@@ -1385,49 +1385,61 @@ function CornerPillVariant() {
                         </div>
                         {/* plan cards — horizontal scroll */}
                         <div className="mt-2 flex gap-2 overflow-x-auto scrollbar-subtle px-0.5 pt-1 pb-1">
-                          {PLANS.map((plan, i) => (
+                          {PLANS.map((plan, i) => {
+                            const on = selectedPlan === plan.title;
+                            return (
                             <div
                               key={plan.title}
-                              className={`flex shrink-0 w-[190px] min-h-[120px] flex-col rounded-[12px] border p-2.5 ${conversationTurn === 2 ? "cursor-pointer" : "cursor-default"}`}
+                              className={`flex w-[220px] shrink-0 flex-col rounded-[12px] border bg-white p-2 ${conversationTurn === 2 ? "cursor-pointer" : "cursor-default"}`}
                               style={{
-                                backgroundColor: "#F9F3EA",
-                                borderColor: selectedPlan === plan.title ? ACCENT : "#E0DAD3",
-                                transition: "border-color 150ms ease",
+                                borderColor: on ? ACCENT : "#E0DAD3",
+                                boxShadow: on ? `inset 0 0 0 1px ${ACCENT}` : undefined,
+                                transition: "border-color 150ms ease, box-shadow 150ms ease",
                                 animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both",
                                 animationDelay: `${streamMs(MSG_PLANS_INTRO) + i * 90}ms`,
                               }}
                               onMouseEnter={(e) => {
-                                if (conversationTurn === 2) e.currentTarget.style.borderColor = "#C5A8E0";
+                                if (conversationTurn === 2 && !on) {
+                                  e.currentTarget.style.borderColor = "#C5A8E0";
+                                  e.currentTarget.style.boxShadow = "0 0 0 3px #F0E7FA";
+                                }
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = selectedPlan === plan.title ? ACCENT : "#E0DAD3";
+                                if (!on) {
+                                  e.currentTarget.style.borderColor = "#E0DAD3";
+                                  e.currentTarget.style.boxShadow = "none";
+                                }
                               }}
                               onClick={() => handlePlanClick(plan.title)}
                             >
-                              {/* title + badge */}
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="truncate text-[13px] font-semibold" style={{ color: INK }}>{plan.title}</span>
-                                {plan.highlight && (
-                                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: "#F0E7FA", color: "#632E9A" }}>
-                                    Popular
+                              {/* product image — placeholder */}
+                              <div
+                                className="relative flex h-[104px] w-full items-center justify-center rounded-[8px] border"
+                                style={{
+                                  borderColor: "#E0DAD3",
+                                  backgroundColor: "#F4EEE3",
+                                  backgroundImage:
+                                    "repeating-linear-gradient(135deg, rgba(140,131,120,0.16) 0px, rgba(140,131,120,0.16) 1.5px, transparent 1.5px, transparent 12px)",
+                                }}
+                              >
+                                <span className="font-mono text-[9px] tracking-wider uppercase" style={{ color: MUTED }}>Product image</span>
+                                {on && (
+                                  <span className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full" style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}>
+                                    <Check className="size-3" strokeWidth={3} />
                                   </span>
                                 )}
                               </div>
-                              {/* features as bullet points */}
-                              <ul className="mt-1.5 flex flex-col gap-1">
-                                {plan.features.map((f) => (
-                                  <li key={f} className="flex items-start gap-1.5 text-[12px] leading-[1.35]" style={{ color: MUTED }}>
-                                    <span className="mt-[6px] size-[3px] shrink-0 rounded-full" style={{ backgroundColor: "#C5A8E0" }} />
-                                    <span>{f}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                              {/* footer: value */}
-                              <div className="mt-3 border-t pt-2" style={{ borderColor: "#E0DAD3" }}>
-                                <span className="text-[13px] font-bold" style={{ color: ACCENT }}>{plan.value}</span>
+                              {/* body */}
+                              <div className="px-1 pt-2.5">
+                                <span className="block truncate text-[14px] font-semibold" style={{ color: on ? ACCENT_INK : INK }}>{plan.title}</span>
+                                <p className="mt-1 text-[12px] leading-snug" style={{ color: MUTED }}>{plan.desc}</p>
+                                <div className="mt-2.5">
+                                  <span className="text-[14px] font-semibold" style={{ color: INK }}>{plan.value}</span>
+                                </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {/* follow-up question — appears after the intro streams */}
                         <div className="mt-2 w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK, animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: `${streamMs(MSG_PLANS_INTRO) + PLANS.length * 90 + 200}ms` }}>
