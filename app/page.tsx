@@ -29,6 +29,8 @@ import {
   MessageSquare,
   HelpCircle,
   Search,
+  MapPin,
+  Calendar,
 } from "lucide-react";
 
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
@@ -177,7 +179,7 @@ const SEND_EVENTS = [
 ];
 
 const STARTER_OPTIONS = [
-  ["Pick a time", "Compare plans", "Talk to an agent"],
+  ["Pick a time", "Pick a city", "Talk to an agent"],
   ["Compare plans", "Start free trial", "Talk to an agent"],
   ["See a demo", "Compare plans", "What can it do?"],
 ];
@@ -692,6 +694,10 @@ function CornerPillVariant() {
   const [conversationTurn, setConversationTurn] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showScheduler, setShowScheduler] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [cityMessage, setCityMessage] = useState<string | null>(null);
+  const [timeMessage, setTimeMessage] = useState<string | null>(null);
   const [handoffPhase, setHandoffPhase] = useState<"none" | "connecting" | "joined" | "replied">("none");
   // after-conversation CSAT (slides up above the composer)
   const [showCsat, setShowCsat] = useState(false);
@@ -933,6 +939,19 @@ function CornerPillVariant() {
         setInputText("");
         setTimeout(() => setPhase("chatting"), 120);
       }
+      return;
+    }
+    // city flow: send the chosen city as a user message
+    if (showSuggest && !cityMessage && val) {
+      setCityMessage(val);
+      setSuggestOpen(false);
+      setInputText("");
+      return;
+    }
+    // scheduler flow: send the chosen date + time as a user message
+    if (showScheduler && !timeMessage && val) {
+      setTimeMessage(val);
+      setInputText("");
       return;
     }
     if (awaitingEmail && val) {
@@ -1346,7 +1365,7 @@ function CornerPillVariant() {
                       <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m1" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                         {isRichAnswer ? richTokens : (animated ? <Words>{STARTER_RESPONSES[selectedStarter]}</Words> : STARTER_RESPONSES[selectedStarter])}
                       </div>
-                      {conversationTurn === 1 && !showScheduler && (
+                      {conversationTurn === 1 && !showScheduler && !showSuggest && (
                         <div className="flex flex-wrap gap-2 px-1 mt-3">
                           {STARTER_OPTIONS[selectedStarter].map((opt, i) => (
                             <button key={opt} className="rounded-full border px-3.5 py-1.5 text-[14px]"
@@ -1358,7 +1377,7 @@ function CornerPillVariant() {
                               }}
                               onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
                               onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : opt === "Pick a time" ? () => setShowScheduler(true) : undefined}>
+                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : opt === "Pick a time" ? () => setShowScheduler(true) : opt === "Pick a city" ? () => { setShowSuggest(true); setSuggestOpen(true); } : undefined}>
                               {opt}
                             </button>
                           ))}
@@ -1379,6 +1398,54 @@ function CornerPillVariant() {
                               AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
                             </p>
                             <CalendarPicker onSelect={setInputText} />
+                          </div>
+                        </>
+                      )}
+                      {conversationTurn === 1 && timeMessage && (
+                        <>
+                          {/* the chosen slot, sent as a user message */}
+                          <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                            <div className="flex items-center gap-1.5 rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                              <Calendar className="size-3.5 shrink-0" strokeWidth={2} />
+                              <span>{timeMessage}</span>
+                            </div>
+                          </div>
+                          {/* agent acknowledgment */}
+                          <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                            <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                              AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                            </p>
+                            <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                              <Words>Booked! Your demo is set for {timeMessage}. I&apos;ve sent a calendar invite — see you then.</Words>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      {conversationTurn === 1 && showSuggest && (
+                        /* user picks "Pick a city" — popup appears above the composer */
+                        <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                          <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                            Pick a city
+                          </div>
+                        </div>
+                      )}
+                      {conversationTurn === 1 && cityMessage && (
+                        <>
+                          {/* the chosen city, sent as a user message */}
+                          <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                            <div className="flex items-center gap-1.5 rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                              <MapPin className="size-3.5 shrink-0" strokeWidth={2} />
+                              <span>{cityMessage}</span>
+                            </div>
+                          </div>
+                          {/* agent acknowledgment */}
+                          <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                            <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                              AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                            </p>
+                            <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
+                              <Words>Perfect — I&apos;ll line up your demo for {cityMessage.split(",")[0]}. You&apos;re all set!</Words>
+                            </div>
                           </div>
                         </>
                       )}
@@ -1627,6 +1694,38 @@ function CornerPillVariant() {
                 <CsatBar onChatAgain={() => { setShowCsat(false); setReopened(true); }} onExpand={() => requestAnimationFrame(scrollToLatest)} />
               ) : (
               <div className="relative flex flex-col gap-1.5 px-3 pb-3 pt-2 shrink-0">
+                {/* city suggestions — pops up above the composer */}
+                {suggestOpen && (() => {
+                  const sq = inputText.trim().toLowerCase();
+                  const sres = sq ? SUGGEST_PLACES.filter((p) => p.city.toLowerCase().includes(sq) || p.region.toLowerCase().includes(sq)) : SUGGEST_PLACES;
+                  return (
+                    <div className="overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE, boxShadow: "0 4px 14px -3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)", animation: "option-in 220ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                      <div className="scrollbar-subtle max-h-[176px] overflow-y-auto">
+                        {sres.length > 0 ? (
+                          sres.map((p, i) => (
+                            <button
+                              key={p.city}
+                              type="button"
+                              onClick={() => { setInputText(`${p.city}, ${p.region}`); setSuggestOpen(false); }}
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                              style={{ borderTop: i === 0 ? "none" : `1px solid ${LINE}` }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F0E7FA")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              <MapPin className="size-4 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
+                              <span className="min-w-0">
+                                <span className="block truncate text-[13px]" style={{ color: INK }}>{p.city}</span>
+                                <span className="block truncate text-[11px]" style={{ color: MUTED }}>{p.region}</span>
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-4 text-center text-[12px]" style={{ color: MUTED }}>No matches</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {showScrollToLatest && (
                   <button type="button" onClick={scrollToLatest} aria-label="Scroll to latest message" data-tooltip="Scroll to latest"
                     className="tooltip-host absolute -top-9 left-[calc(50%+12px)] z-30 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border bg-white transition-transform hover:scale-110 active:scale-95"
@@ -2028,10 +2127,6 @@ function CalendarPicker({ onSelect }: { onSelect: (text: string) => void }) {
   const slots = day !== null ? SCHED_AVAILABLE[day] : null;
   return (
     <div className="w-full max-w-[340px] overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
-      {/* title */}
-      <div className="border-b px-3 py-2.5" style={{ borderColor: LINE, backgroundColor: "#F9F3EA" }}>
-        <span className="text-[13px] font-semibold" style={{ color: INK }}>Select a Date and Time</span>
-      </div>
       <div className="relative">
         {/* calendar — drives the card height */}
         <div className="border-r p-3" style={{ width: "calc(100% - 132px)", borderColor: LINE }}>
@@ -2115,6 +2210,17 @@ function CalendarPicker({ onSelect }: { onSelect: (text: string) => void }) {
   );
 }
 
+/* ── auto-suggestion (typeahead → one value) ── */
+const SUGGEST_PLACES = [
+  { city: "San Francisco", region: "California, USA" },
+  { city: "San Jose", region: "California, USA" },
+  { city: "San Diego", region: "California, USA" },
+  { city: "San Antonio", region: "Texas, USA" },
+  { city: "Santa Fe", region: "New Mexico, USA" },
+  { city: "Seattle", region: "Washington, USA" },
+  { city: "Singapore", region: "Singapore" },
+  { city: "Sydney", region: "New South Wales, Australia" },
+];
 export default function V4Page() {
   return (
     <main style={{ minHeight: "100vh", width: "100%" }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, MapPin, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, MapPin, Check, ChevronLeft, ChevronRight, Plus, Mic, ArrowUp } from "lucide-react";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -145,10 +145,6 @@ function SchedView({ day, time }: { day: number | null; time: string | null }) {
   const slots = day !== null ? AVAILABLE_DAYS[day] : null;
   return (
     <div className="w-[440px] max-w-full overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
-      {/* title */}
-      <div className="border-b px-4 py-3" style={{ borderColor: LINE, backgroundColor: PAPER }}>
-        <span className="text-[14px] font-semibold" style={{ color: INK }}>Select a Date and Time</span>
-      </div>
       <div className="relative">
         {/* calendar — drives the card height */}
         <div className="border-r p-3.5" style={{ width: "calc(100% - 160px)", borderColor: LINE }}>
@@ -234,33 +230,71 @@ function CalendarDemo() {
   );
 }
 
-/* ── Auto suggestion ── */
-const SUGGESTIONS = ["San Francisco, CA", "San Francisco Bay Area", "San Fernando, CA", "Santa Fe, NM"];
+/* ── Auto suggestion (composer-driven suggestions popup) ── */
+const PLACES = [
+  { city: "San Francisco", region: "California, USA" },
+  { city: "San Jose", region: "California, USA" },
+  { city: "San Diego", region: "California, USA" },
+  { city: "San Antonio", region: "Texas, USA" },
+  { city: "Santa Fe", region: "New Mexico, USA" },
+  { city: "Seattle", region: "Washington, USA" },
+  { city: "Singapore", region: "Singapore" },
+  { city: "Sydney", region: "New South Wales, Australia" },
+];
 
 function AutoSuggestDemo() {
-  const query = "San F";
+  const [query, setQuery] = useState("San");
+  const [open, setOpen] = useState(true);
+  const q = query.trim().toLowerCase();
+  const results = q ? PLACES.filter((p) => p.city.toLowerCase().includes(q) || p.region.toLowerCase().includes(q)) : PLACES;
   return (
-    <div className="w-full max-w-[320px]">
-      <div className="flex items-center gap-2 rounded-[10px] border px-3 py-2.5" style={{ borderColor: ACCENT_BORDER, backgroundColor: "#FFFFFF" }}>
-        <Search className="size-4 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
-        <span className="text-[14px]" style={{ color: INK }}>{query}</span>
-        <span className="ml-0.5 inline-block h-[16px] w-px animate-pulse" style={{ backgroundColor: ACCENT }} />
-      </div>
-      <div className="mt-1.5 overflow-hidden rounded-[10px] border bg-white" style={{ borderColor: LINE }}>
-        {SUGGESTIONS.map((s, i) => (
-          <button
-            key={s}
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors"
-            style={{ color: INK, backgroundColor: i === 0 ? PAPER : "transparent" }}
-          >
-            <MapPin className="size-3.5 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
-            <span>
-              <span className="font-semibold">{s.slice(0, query.length)}</span>
-              {s.slice(query.length)}
-            </span>
-          </button>
-        ))}
+    <div className="w-full max-w-[360px]">
+      {/* suggestions — pops above the composer as you type */}
+      {open && (
+        <div className="mb-2 overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE, boxShadow: "0 4px 14px -3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)" }}>
+          <div className="scrollbar-subtle max-h-[228px] overflow-y-auto">
+            {results.length > 0 ? (
+              results.map((p, i) => (
+                <button
+                  key={p.city}
+                  type="button"
+                  onClick={() => { setQuery(`${p.city}, ${p.region}`); setOpen(false); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                  style={{ borderTop: i === 0 ? "none" : `1px solid ${LINE}` }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = ACCENT_SOFT)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <MapPin className="size-4 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px]" style={{ color: INK }}>{p.city}</span>
+                    <span className="block truncate text-[11px]" style={{ color: MUTED }}>{p.region}</span>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-center text-[12px]" style={{ color: MUTED }}>No matches</div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* composer — matches the app's message composer */}
+      <div className="flex w-full items-center gap-2 rounded-[12px] border px-3 py-2 transition-all" style={{ borderColor: LINE, backgroundColor: PAPER }}>
+        <button type="button" aria-label="Add attachment" className="flex size-7 shrink-0 items-center justify-center rounded-[6px] transition-colors" style={{ color: MUTED }}>
+          <Plus className="size-4" strokeWidth={1.5} />
+        </button>
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          placeholder="Ask me anything..."
+          className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#A8A096]"
+          style={{ color: INK }}
+        />
+        <button type="button" aria-label="Voice input" className="flex size-7 shrink-0 items-center justify-center rounded-full transition-colors" style={{ color: MUTED }}>
+          <Mic className="size-4" strokeWidth={1.5} />
+        </button>
+        <button type="button" aria-label="Send" className="flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: ACCENT }}>
+          <ArrowUp className="size-4" strokeWidth={2} />
+        </button>
       </div>
     </div>
   );
@@ -343,7 +377,7 @@ const TYPES = [
   { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices — quiet paper pills (14px) that lift to accent-soft fill + accent-ink text on hover. Stack vertically below the bubble." },
   { name: "Cards", desc: "An inline card — product image, eyebrow label, title, description, price, and a CTA button. A product, an article, or a form embedded without breaking the conversation." },
   { name: "Calendar", desc: "Inline date + time picker for scheduling — a month grid beside a scrollable time list. Selected day and time fill with accent." },
-  { name: "Auto suggestion", desc: "Typeahead input with a results list below; the matched prefix is bolded, first row pre-highlighted." },
+  { name: "Auto suggestion", desc: "As the user types in the composer, a Suggestions panel pops up above it with matching results (e.g. cities) — pin icon, primary + secondary line. Tapping one fills the composer to send." },
   { name: "Star rating", desc: "Five-star input for quick CSAT. Hover and selection fill with accent." },
   { name: "Geo-location", desc: "A single share button that resolves to a confirmed location chip once granted." },
 ];
@@ -417,7 +451,7 @@ export default function InputTypesPage() {
             <CalendarDemo />
           </Demo>
 
-          <Demo title="Auto suggestion" desc="Typeahead input with a results list — the matched prefix is bolded.">
+          <Demo title="Auto suggestion" desc="Type in the composer to surface matching questions above it. Tap one to fill the composer, or dismiss with ×.">
             <AutoSuggestDemo />
           </Demo>
 
