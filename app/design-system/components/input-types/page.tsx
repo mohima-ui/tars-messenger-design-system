@@ -15,25 +15,35 @@ const ACCENT_INK = "#4A1F77";
 
 /* ── Buttons ── */
 /* Quick-reply pill — suggestion chip; quiet by default, accent on hover. */
-function Chip({ label }: { label: string }) {
+function Chip({ label, state }: { label: string; state: "default" | "hover" }) {
+  const hover = state === "hover";
   return (
     <button
       type="button"
       className="rounded-full border px-3.5 py-1.5 text-[14px] whitespace-nowrap"
-      style={{ backgroundColor: PAPER, borderColor: LINE, color: INK, transition: "background-color 150ms ease, border-color 150ms ease, color 150ms ease" }}
-      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT_BORDER; e.currentTarget.style.color = ACCENT_INK; }}
-      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PAPER; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK; }}
+      style={{
+        backgroundColor: hover ? ACCENT_SOFT : PAPER,
+        borderColor: hover ? ACCENT_BORDER : LINE,
+        color: hover ? ACCENT_INK : INK,
+      }}
     >
       {label}
     </button>
   );
 }
 
+const BUTTON_STATES = ["default", "hover"] as const;
+
 function ButtonsDemo() {
   return (
-    <div className="flex w-full max-w-[340px] flex-col items-start gap-1.5">
-      {["See a demo", "Compare plans", "What can it do?"].map((l) => (
-        <Chip key={l} label={l} />
+    <div className="flex flex-wrap gap-8">
+      {BUTTON_STATES.map((s) => (
+        <div key={s} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>
+            {s}
+          </span>
+          <Chip label="Compare plans" state={s} />
+        </div>
       ))}
     </div>
   );
@@ -116,50 +126,110 @@ function CardsDemo() {
   );
 }
 
-/* ── Calendar ── */
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const LEAD = 1; // June 2026 starts on a Monday
-const DAYS = Array.from({ length: 30 }, (_, i) => i + 1);
+/* ── Calendar (date + time picker) ── */
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+// June 2026 starts on Monday → one leading cell (May 31), then 1–30, then trailing (Jul 1–4)
+const CAL_CELLS: { label: number; current: boolean }[] = [
+  { label: 31, current: false },
+  ...Array.from({ length: 30 }, (_, i) => ({ label: i + 1, current: true })),
+  ...[1, 2, 3, 4].map((n) => ({ label: n, current: false })),
+];
+// weekdays with availability
+const SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM"];
+const AVAILABLE_DAYS: Record<number, string[]> = Object.fromEntries(
+  [15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30].map((d) => [d, SLOTS]),
+);
+const WEEKDAY_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function SchedView({ day, time }: { day: number | null; time: string | null }) {
+  const slots = day !== null ? AVAILABLE_DAYS[day] : null;
+  return (
+    <div className="w-[440px] max-w-full overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+      {/* title */}
+      <div className="border-b px-4 py-3" style={{ borderColor: LINE, backgroundColor: PAPER }}>
+        <span className="text-[14px] font-semibold" style={{ color: INK }}>Select a Date and Time</span>
+      </div>
+      <div className="relative">
+        {/* calendar — drives the card height */}
+        <div className="border-r p-3.5" style={{ width: "calc(100% - 160px)", borderColor: LINE }}>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex size-6 items-center justify-center" style={{ color: MUTED }}><ChevronLeft className="size-4" strokeWidth={2} /></span>
+            <span className="text-[13px] font-semibold" style={{ color: INK }}>June 2026</span>
+            <span className="flex size-6 items-center justify-center" style={{ color: MUTED }}><ChevronRight className="size-4" strokeWidth={2} /></span>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {WEEKDAYS.map((d, i) => (
+              <span key={i} className="flex h-6 items-center justify-center text-[10px] font-medium" style={{ color: "#A8A096" }}>{d}</span>
+            ))}
+            {CAL_CELLS.map((cell, i) => {
+              if (!cell.current) {
+                return <span key={`x${i}`} className="flex h-8 items-center justify-center text-[12px]" style={{ color: "#D9D2C7" }}>{cell.label}</span>;
+              }
+              const available = cell.label in AVAILABLE_DAYS;
+              if (!available) {
+                return <span key={cell.label} className="flex h-8 items-center justify-center text-[12px]" style={{ color: "#C4B9A8" }}>{cell.label}</span>;
+              }
+              const selected = day === cell.label;
+              return (
+                <span
+                  key={cell.label}
+                  className="flex h-8 items-center justify-center rounded-[7px] text-[12px] font-medium"
+                  style={{ backgroundColor: selected ? ACCENT : "#F0EBE0", color: selected ? "#FFFFFF" : INK }}
+                >
+                  {cell.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        {/* right panel — pinned to the calendar height; times scroll within */}
+        <div className="absolute inset-y-0 right-0 flex w-[160px] flex-col p-3.5">
+          {day === null ? (
+            <>
+              <span className="text-[13px] font-semibold" style={{ color: INK }}>Please select a date</span>
+              <div className="flex flex-1 items-center justify-center py-8">
+                <span className="text-[12px]" style={{ color: MUTED }}>No availability to show</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-[13px] font-semibold" style={{ color: INK }}>{WEEKDAY_FULL[day % 7]}, June {day}</span>
+              <div className="scrollbar-subtle mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                {(slots ?? []).map((t) => {
+                  const on = time === t;
+                  return (
+                    <span
+                      key={t}
+                      className="rounded-[8px] border py-1.5 text-center text-[12px] font-medium"
+                      style={{ borderColor: on ? ACCENT : LINE, backgroundColor: on ? ACCENT : "#FFFFFF", color: on ? "#FFFFFF" : INK }}
+                    >
+                      {t}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SCHED_STATES: { state: string; day: number | null; time: string | null }[] = [
+  { state: "default", day: null, time: null },
+  { state: "selected", day: 17, time: "10:00 AM" },
+];
 
 function CalendarDemo() {
-  const [selected, setSelected] = useState(9);
   return (
-    <div className="w-full max-w-[280px] rounded-[12px] border bg-white p-3" style={{ borderColor: LINE }}>
-      <div className="mb-2 flex items-center justify-between px-1">
-        <button type="button" className="flex size-6 items-center justify-center rounded-[6px] transition-colors hover:bg-[#F9F3EA]" style={{ color: MUTED }}>
-          <ChevronLeft className="size-4" strokeWidth={2} />
-        </button>
-        <span className="text-[13px] font-semibold" style={{ color: INK }}>June 2026</span>
-        <button type="button" className="flex size-6 items-center justify-center rounded-[6px] transition-colors hover:bg-[#F9F3EA]" style={{ color: MUTED }}>
-          <ChevronRight className="size-4" strokeWidth={2} />
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-0.5">
-        {WEEKDAYS.map((d, i) => (
-          <span key={i} className="flex h-7 items-center justify-center text-[10px] font-semibold" style={{ color: "#A8A096" }}>{d}</span>
-        ))}
-        {Array.from({ length: LEAD }).map((_, i) => <span key={`b${i}`} />)}
-        {DAYS.map((d) => {
-          const on = selected === d;
-          return (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setSelected(d)}
-              className="flex h-8 items-center justify-center rounded-full text-[12px] transition-colors"
-              style={{
-                backgroundColor: on ? ACCENT : "transparent",
-                color: on ? "#FFFFFF" : INK,
-                fontWeight: on ? 600 : 400,
-              }}
-              onMouseEnter={(e) => { if (!on) e.currentTarget.style.backgroundColor = PAPER; }}
-              onMouseLeave={(e) => { if (!on) e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              {d}
-            </button>
-          );
-        })}
-      </div>
+    <div className="flex flex-wrap gap-6">
+      {SCHED_STATES.map(({ state, day, time }) => (
+        <div key={state} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>{state}</span>
+          <SchedView day={day} time={time} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -272,7 +342,7 @@ const SPECS = [
 const TYPES = [
   { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices — quiet paper pills (14px) that lift to accent-soft fill + accent-ink text on hover. Stack vertically below the bubble." },
   { name: "Cards", desc: "An inline card — product image, eyebrow label, title, description, price, and a CTA button. A product, an article, or a form embedded without breaking the conversation." },
-  { name: "Calendar", desc: "Inline month picker for scheduling. One selected day filled with accent; navigate by month." },
+  { name: "Calendar", desc: "Inline date + time picker for scheduling — a month grid beside a scrollable time list. Selected day and time fill with accent." },
   { name: "Auto suggestion", desc: "Typeahead input with a results list below; the matched prefix is bolded, first row pre-highlighted." },
   { name: "Star rating", desc: "Five-star input for quick CSAT. Hover and selection fill with accent." },
   { name: "Geo-location", desc: "A single share button that resolves to a confirmed location chip once granted." },
@@ -343,7 +413,7 @@ export default function InputTypesPage() {
             <CardsDemo />
           </Demo>
 
-          <Demo title="Calendar" desc="Inline month picker for scheduling. Select a day; navigate by month.">
+          <Demo title="Calendar" desc="Inline date + time picker — pick a day on the month grid and a slot from the scrollable time list.">
             <CalendarDemo />
           </Demo>
 

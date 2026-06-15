@@ -691,6 +691,7 @@ function CornerPillVariant() {
   const [hoveredTurn, setHoveredTurn] = useState<null | 0 | 1 | 2 | 3 | 4 | 5>(null);
   const [conversationTurn, setConversationTurn] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [showScheduler, setShowScheduler] = useState(false);
   const [handoffPhase, setHandoffPhase] = useState<"none" | "connecting" | "joined" | "replied">("none");
   // after-conversation CSAT (slides up above the composer)
   const [showCsat, setShowCsat] = useState(false);
@@ -1345,7 +1346,7 @@ function CornerPillVariant() {
                       <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" data-message-id="m1" style={{ backgroundColor: "#F9F3EA", borderColor: "#E0DAD3", color: INK }}>
                         {isRichAnswer ? richTokens : (animated ? <Words>{STARTER_RESPONSES[selectedStarter]}</Words> : STARTER_RESPONSES[selectedStarter])}
                       </div>
-                      {conversationTurn === 1 && (
+                      {conversationTurn === 1 && !showScheduler && (
                         <div className="flex flex-wrap gap-2 px-1 mt-3">
                           {STARTER_OPTIONS[selectedStarter].map((opt, i) => (
                             <button key={opt} className="rounded-full border px-3.5 py-1.5 text-[14px]"
@@ -1357,13 +1358,30 @@ function CornerPillVariant() {
                               }}
                               onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#F0E7FA"; e.currentTarget.style.borderColor = "#C5A8E0"; e.currentTarget.style.color = "#4A1F77"; }}
                               onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#F9F3EA"; e.currentTarget.style.borderColor = "#E0DAD3"; e.currentTarget.style.color = INK; }}
-                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : undefined}>
+                              onClick={opt === "Compare plans" ? handleComparePlans : opt === "Talk to an agent" ? handleTalkToHuman : opt === "Pick a time" ? () => setShowScheduler(true) : undefined}>
                               {opt}
                             </button>
                           ))}
                         </div>
                       )}
                       {actionsRow(1, STARTER_RESPONSES[selectedStarter], "mt-2.5")}
+                      {conversationTurn === 1 && showScheduler && (
+                        <>
+                          {/* user picks "Pick a time" */}
+                          <div className="mt-3 flex justify-end" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+                            <div className="rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: "#F0E7FA", color: "#4A1F77", maxWidth: 260, boxShadow: "inset 0 0 0 1px #C5A8E0" }}>
+                              Pick a time
+                            </div>
+                          </div>
+                          {/* agent responds with the scheduler */}
+                          <div className="mt-3" style={{ animation: "option-in 280ms cubic-bezier(0.2,0.6,0.2,1) both", animationDelay: "120ms" }}>
+                            <p className="ml-1 mb-1 text-[11px] font-medium tracking-wide" style={{ color: MUTED }}>
+                              AI Agent <span style={{ color: "#A8A096" }}>• {timeLabel}</span>
+                            </p>
+                            <CalendarPicker onSelect={setInputText} />
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })()}
@@ -1986,6 +2004,112 @@ function HistoryView({ onNew, onOpen, onClose }: { onNew: () => void; onOpen: ()
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ── date + time picker (Calendly-style scheduler) ── */
+const SCHED_WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const SCHED_CELLS: { label: number; current: boolean }[] = [
+  { label: 31, current: false },
+  ...Array.from({ length: 30 }, (_, i) => ({ label: i + 1, current: true })),
+  ...[1, 2, 3, 4].map((n) => ({ label: n, current: false })),
+];
+const SCHED_SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM"];
+const SCHED_AVAILABLE: Record<number, string[]> = Object.fromEntries(
+  [15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30].map((d) => [d, SCHED_SLOTS]),
+);
+const SCHED_WDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function CalendarPicker({ onSelect }: { onSelect: (text: string) => void }) {
+  const [day, setDay] = useState<number | null>(null);
+  const [time, setTime] = useState<string | null>(null);
+  const slots = day !== null ? SCHED_AVAILABLE[day] : null;
+  return (
+    <div className="w-full max-w-[340px] overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+      {/* title */}
+      <div className="border-b px-3 py-2.5" style={{ borderColor: LINE, backgroundColor: "#F9F3EA" }}>
+        <span className="text-[13px] font-semibold" style={{ color: INK }}>Select a Date and Time</span>
+      </div>
+      <div className="relative">
+        {/* calendar — drives the card height */}
+        <div className="border-r p-3" style={{ width: "calc(100% - 132px)", borderColor: LINE }}>
+          <div className="mb-2.5 flex items-center justify-between">
+            <button type="button" className="flex size-6 items-center justify-center rounded-[6px] transition-colors hover:bg-[#F9F3EA]" style={{ color: MUTED }}>
+              <ChevronLeft className="size-4" strokeWidth={2} />
+            </button>
+            <span className="text-[12px] font-semibold" style={{ color: INK }}>June 2026</span>
+            <button type="button" className="flex size-6 items-center justify-center rounded-[6px] transition-colors hover:bg-[#F9F3EA]" style={{ color: MUTED }}>
+              <ChevronRight className="size-4" strokeWidth={2} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {SCHED_WEEKDAYS.map((d, i) => (
+              <span key={i} className="flex h-5 items-center justify-center text-[9px] font-medium" style={{ color: "#A8A096" }}>{d}</span>
+            ))}
+            {SCHED_CELLS.map((cell, i) => {
+              if (!cell.current) {
+                return <span key={`x${i}`} className="flex h-7 items-center justify-center text-[11px]" style={{ color: "#D9D2C7" }}>{cell.label}</span>;
+              }
+              const available = cell.label in SCHED_AVAILABLE;
+              if (!available) {
+                return <span key={cell.label} className="flex h-7 items-center justify-center text-[11px]" style={{ color: "#C4B9A8" }}>{cell.label}</span>;
+              }
+              const selected = day === cell.label;
+              return (
+                <button
+                  key={cell.label}
+                  type="button"
+                  onClick={() => { setDay(cell.label); setTime(null); }}
+                  className="flex h-7 items-center justify-center rounded-[6px] text-[11px] font-medium transition-colors"
+                  style={{ backgroundColor: selected ? ACCENT : "#F0EBE0", color: selected ? "#FFFFFF" : INK }}
+                >
+                  {cell.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* right panel — pinned to calendar height; times scroll within */}
+        <div className="absolute inset-y-0 right-0 flex w-[132px] flex-col p-3">
+          {day === null ? (
+            <>
+              <span className="text-[12px] font-semibold" style={{ color: INK }}>Please select a date</span>
+              <div className="flex flex-1 items-center justify-center py-6 text-center">
+                <span className="text-[11px]" style={{ color: MUTED }}>No availability to show</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-[12px] font-semibold" style={{ color: INK }}>{SCHED_WDAY[day % 7]}, June {day}</span>
+              {slots && slots.length > 0 ? (
+                <div className="scrollbar-subtle mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                  {slots.map((t) => {
+                    const on = time === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => { setTime(t); onSelect(`${SCHED_WDAY[day % 7]}, June ${day} at ${t}`); }}
+                        className="rounded-[8px] border py-1.5 text-center text-[11px] font-medium transition-colors"
+                        style={{ borderColor: on ? ACCENT : LINE, backgroundColor: on ? ACCENT : "#FFFFFF", color: on ? "#FFFFFF" : INK }}
+                        onMouseEnter={(e) => { if (!on) { e.currentTarget.style.borderColor = ACCENT_BORDER; e.currentTarget.style.backgroundColor = ACCENT_SOFT; } }}
+                        onMouseLeave={(e) => { if (!on) { e.currentTarget.style.borderColor = LINE; e.currentTarget.style.backgroundColor = "#FFFFFF"; } }}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center py-6 text-center">
+                  <span className="text-[11px]" style={{ color: MUTED }}>No availability to show</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
