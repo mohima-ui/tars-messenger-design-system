@@ -535,6 +535,28 @@ function CsatBar({ onChatAgain, onExpand }: { onChatAgain: () => void; onExpand:
   );
 }
 
+/* ── close-confirmation — same slot/style as the CSAT bar; "Yes" swaps it for the CSAT ── */
+function CloseConfirmBar({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
+  return (
+    <div className="shrink-0 border-t px-5 pb-5 pt-5" style={{ borderColor: LINE, backgroundColor: "#FEFCF8", animation: "csat-slide-up 380ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+      <p className="text-center text-[13px] font-semibold" style={{ color: INK }}>Close conversation</p>
+      <p className="mt-1 text-center text-[12px]" style={{ color: MUTED }}>Do you want to close this conversation?</p>
+      <div className="mt-4 flex items-center justify-center gap-2.5">
+        <button type="button" onClick={onNo}
+          className="inline-flex h-8 items-center rounded-lg border px-4 text-[13px] font-medium transition-colors hover:bg-[#F0EBE0]"
+          style={{ borderColor: LINE, color: INK }}>
+          No
+        </button>
+        <button type="button" onClick={onYes}
+          className="inline-flex h-8 items-center rounded-lg px-4 text-[13px] font-medium text-white transition-[filter] hover:brightness-105"
+          style={{ backgroundColor: ACCENT }}>
+          Yes
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 /* ── inline citation chip + hover source card (adapted from the home page) ── */
 const CITATION_SOURCES = [
@@ -729,12 +751,26 @@ function CornerPillVariant() {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [view, setView] = useState<"chat" | "history">("chat");
   const [closing, setClosing] = useState(false);
+  // "Close this conversation?" confirmation before the top-right X takes effect
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   // close the chat by collapsing the panel down, then return to the launcher
   const closeChat = () => {
     setMenuOpen(false);
     setClosing(true);
     window.setTimeout(() => { setPhase("pill"); setClosing(false); setView("chat"); }, 400);
+  };
+  // top-right X: if feedback isn't up yet, confirm first; otherwise close outright
+  const handleCloseClick = () => {
+    setMenuOpen(false);
+    if (showCsat || reopened) closeChat();
+    else setShowCloseConfirm(true);
+  };
+  // "Yes" in the confirm dialog → surface the CSAT instead of closing
+  const confirmClose = () => {
+    setShowCloseConfirm(false);
+    setShowCsat(true);
+    requestAnimationFrame(scrollToLatest);
   };
   // voice → text (STT) like v2
   const [recording, setRecording] = useState(false);
@@ -1338,7 +1374,7 @@ function CornerPillVariant() {
                     style={{ color: MUTED }}
                     onMouseEnter={e => { e.currentTarget.style.backgroundColor = SUBTLE; e.currentTarget.style.color = INK; }}
                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = MUTED; }}
-                    onClick={closeChat}
+                    onClick={handleCloseClick}
                     aria-label="Close"
                     data-tooltip="Close"
                   >
@@ -1779,8 +1815,10 @@ function CornerPillVariant() {
                 {(showCsat || reopened) && <ClosedBanner />}
                 {reopened && <ReopenedBanner />}
               </div>
-              {/* composer — swapped for the CSAT bar once the query is resolved */}
-              {showCsat ? (
+              {/* composer — swapped for the close-confirm, then the CSAT bar */}
+              {showCloseConfirm ? (
+                <CloseConfirmBar onYes={confirmClose} onNo={() => setShowCloseConfirm(false)} />
+              ) : showCsat ? (
                 <CsatBar onChatAgain={() => { setShowCsat(false); setReopened(true); }} onExpand={() => requestAnimationFrame(scrollToLatest)} />
               ) : (
               <div className="relative flex flex-col gap-1.5 px-3 pb-3 pt-2 shrink-0">
