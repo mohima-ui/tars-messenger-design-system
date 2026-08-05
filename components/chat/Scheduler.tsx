@@ -5,10 +5,15 @@ import { useState } from "react";
 
 /* Calendar + time picker — the scheduling input.
 
-   The design-system preview lays the month grid beside a 160px time column,
-   which needs ~440px. The launcher column is 364px, so here the two stack: the
-   grid first, then the slots for the chosen day underneath. Same parts, same
-   states — only the axis changes.
+   Laid out as in the design system: the month grid on the left, the chosen
+   day's times in a column on the right. The grid drives the card height and the
+   time column is pinned to it, so the card is the same size whether or not a
+   day is picked — choosing one fills the empty right-hand space instead of
+   growing the card and shoving the thread.
+
+   The DS preview is 440px with a 160px time column; the launcher column is
+   364px, so the time column is narrowed to keep the date cells tappable. Same
+   parts, same states, same axis.
 
    Only days with availability are selectable; the rest are visible but muted,
    so the shape of the month still reads. Picking a slot submits, matching the
@@ -21,6 +26,11 @@ const FAINT = "#A8A096";
 const OUT_OF_MONTH = "#D9D2C7";
 const UNAVAILABLE = "#C4B9A8";
 const AVAILABLE_BG = "#F0EBE0";
+
+/* The DS gives the time column 160px of its 440px. Here the card is 364px, so
+   it takes 132px — the same share of the width, which leaves the date cells
+   wide enough to stay tappable. */
+const TIME_W = 132;
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const WEEKDAY_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -87,8 +97,9 @@ export function Scheduler({
       style={{ borderColor: LINE, opacity: spent ? 0.5 : 1, pointerEvents: spent ? "none" : undefined }}
       aria-disabled={spent}
     >
-      {/* month grid */}
-      <div className="p-3.5">
+      <div className="relative">
+      {/* month grid — sets the card height; the time column is pinned to it */}
+      <div className="border-r p-3" style={{ width: `calc(100% - ${TIME_W}px)`, borderColor: LINE }}>
         <div className="mb-3 flex items-center justify-between">
           {/* single month of availability, so the arrows are present but inert */}
           <span className="flex size-6 items-center justify-center" style={{ color: FAINT }}>
@@ -162,25 +173,29 @@ export function Scheduler({
         </div>
       </div>
 
-      {/* slots for the chosen day */}
-      <div className="border-t p-3.5" style={{ borderColor: LINE }}>
+      {/* slots for the chosen day — empty until there is one */}
+      <div
+        className="absolute inset-y-0 right-0 flex flex-col p-3"
+        style={{ width: TIME_W }}
+      >
         {day === null ? (
           <>
-            <p className="text-[13px] font-semibold" style={{ color: INK }}>
+            <p className="text-[12px] font-semibold leading-snug" style={{ color: INK }}>
               Please select a date
             </p>
-            <p className="mt-1 text-[12px]" style={{ color: MUTED }}>
-              No availability to show
-            </p>
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-center text-[11px] leading-snug" style={{ color: MUTED }}>
+                No availability to show
+              </p>
+            </div>
           </>
         ) : (
           <>
-            <p className="text-[13px] font-semibold" style={{ color: INK }}>
+            <p className="text-[12px] font-semibold leading-snug" style={{ color: INK }}>
               {weekday(day)}, {monthName} {day}
             </p>
-            {/* capped so a long day's slots scroll rather than pushing the
-                composer off-screen */}
-            <div className="mt-2.5 grid max-h-[132px] grid-cols-2 gap-1.5 overflow-y-auto [scrollbar-width:thin]">
+            {/* scrolls within the calendar's height rather than growing the card */}
+            <div className="scrollbar-subtle mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
               {slots.map((t) => {
                 const on = time === t;
                 return (
@@ -204,6 +219,7 @@ export function Scheduler({
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );
