@@ -31,8 +31,8 @@ function Bubble({
       )}
       <div className="flex justify-start">
         <div
-          className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed"
-          style={{ backgroundColor: AI_BG, borderColor: LINE, color: INK }}
+          className="max-w-full rounded-[16px] rounded-bl-[2px] p-3 text-[14px] leading-[1.6] tracking-normal"
+          style={{ backgroundColor: AI_BG, boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK }}
         >
           {children}
         </div>
@@ -311,7 +311,7 @@ function ThinkingTrace() {
           )}
 
           <div className="flex justify-start">
-            <div className="max-w-[90%] rounded-[12px] rounded-bl-[4px] border px-3.5 py-2 text-[14px] leading-relaxed" style={{ backgroundColor: AI_BG, borderColor: LINE, color: INK }}>
+            <div className="max-w-full rounded-[16px] rounded-bl-[2px] p-3 text-[14px] leading-[1.6] tracking-normal" style={{ backgroundColor: AI_BG, boxShadow: `inset 0 0 0 1px ${LINE}`, color: INK }}>
               For Week 7, the focus is <span className="font-semibold">System Design Mastery</span> — here are the key tasks and milestones to work through.
             </div>
           </div>
@@ -336,13 +336,13 @@ const ANATOMY = [
 
 const SPECS = [
   { prop: "Background", value: "#F9F3EA", note: "n-50 · --bg-paper" },
-  { prop: "Border", value: "1px #E0DAD3", note: "--border-line" },
+  { prop: "Border", value: "inset ring 1px #E0DAD3", note: "--border-line · takes no layout space" },
   { prop: "Text", value: "#333333", note: "--text-ink" },
-  { prop: "Font", value: "14 · leading-relaxed · 400", note: "Body · 1.625 · Regular" },
+  { prop: "Font", value: "Poppins 14 · 160% · 400", note: "Letter-spacing 0" },
   { prop: "Emphasis", value: "600", note: "Semibold for emphasized words" },
-  { prop: "Padding", value: "px-3.5 py-2", note: "14px × 8px" },
-  { prop: "Max width", value: "90%", note: "Of the message column" },
-  { prop: "Radius", value: "12 · 12 · 12 · 4 (bl)", note: "Sharp corner anchors to speaker" },
+  { prop: "Padding", value: "p-3", note: "12px all sides" },
+  { prop: "Width", value: "hug · max 100%", note: "Short replies shrink to content" },
+  { prop: "Radius", value: "16 · 16 · 16 · 2 (bl)", note: "Sharp corner anchors to speaker" },
   { prop: "Alignment", value: "justify-start", note: "Left-aligned" },
   { prop: "Animation", value: "word-by-word 38ms", note: "On first reveal only" },
 ];

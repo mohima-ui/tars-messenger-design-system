@@ -1,73 +1,22 @@
-import { ChevronLeft, MoreVertical, Plus, Mic, X } from "lucide-react";
+import { ChatbotShell } from "@/components/chat/ChatbotShell";
 
-const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
-const INK = "#333333";
-const MUTED = "#6E6E6E";
-const PAPER = "#F9F3EA";
-
-/* ── bare chatbot shell: header · message area · composer ── */
-function ChatbotShell() {
-  return (
-    <div
-      className="flex flex-col overflow-hidden rounded-[28px] border bg-[#FEFCF8]"
-      style={{ width: 400, height: 680, borderColor: LINE, boxShadow: "0 12px 40px -8px rgba(0,0,0,0.18), 0 2px 10px rgba(0,0,0,0.06)" }}
-    >
-      {/* header */}
-      <div className="flex h-16 w-full shrink-0 items-center gap-1 border-b px-4" style={{ borderColor: LINE }}>
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
-            <ChevronLeft className="size-5" strokeWidth={1.5} />
-          </span>
-          <img src="/tars-logomark.png" alt="" className="ml-0.5 size-9 shrink-0 rounded-[10px] object-cover" />
-          <div className="ml-1.5 min-w-0">
-            <p className="truncate text-[16px] font-semibold leading-tight" style={{ color: INK }}>Tars</p>
-            <p className="mt-0.5 truncate text-[12px] leading-tight" style={{ color: MUTED }}>Virtual Assistant</p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <span className="flex size-7 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
-            <MoreVertical className="size-4" strokeWidth={1.5} />
-          </span>
-          <span className="flex size-7 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
-            <X className="size-4" strokeWidth={1.5} />
-          </span>
-        </div>
-      </div>
-
-      {/* message area — empty */}
-      <div className="flex-1" />
-
-      {/* composer */}
-      <div className="flex flex-col gap-1.5 px-3 pb-3 pt-2 shrink-0">
-        <div className="flex w-full items-end gap-2 rounded-[16px] border px-3 py-2" style={{ borderColor: LINE, backgroundColor: PAPER }}>
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
-            <Plus className="size-4" strokeWidth={1.5} />
-          </span>
-          <span className="min-w-0 flex-1 py-[5px] text-[14px] leading-[1.5]" style={{ color: "#979797" }}>
-            Ask me anything...
-          </span>
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px]" style={{ color: MUTED }}>
-            <Mic className="size-4" strokeWidth={1.5} />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const ANATOMY = [
   { label: "Header", token: "h-16 · back/history · avatar · agent name + caption · menu — border-bottom" },
   { label: "Message area", token: "flex-1 scrollable canvas — empty in the bare shell" },
-  { label: "Composer", token: "Docked input — attach · field · mic, on paper surface" },
+  { label: "Composer", token: "Docked input — attach · field · mic/send, on paper surface" },
+  { label: "Powered by", token: "“powered by TARS” under the composer — hidden with poweredBy={false}" },
 ];
 
 const SPECS = [
-  { prop: "Panel", value: "400 × 680 · r-28", note: "--bg-surface #FEFCF8" },
-  { prop: "Header height", value: "64px", note: "border-line bottom" },
-  { prop: "Avatar", value: "36px · r-10", note: "Tenant agent avatar" },
+  { prop: "Panel", value: "400 × 712 · r-40", note: "--bg-surface #FEFCF8" },
+  { prop: "Elevation", value: "--ds-shadow-xl", note: "4-layer cast — floating over the host page" },
+  { prop: "Header height", value: "80px", note: "1px #EBE7E3 divider" },
+  { prop: "Avatar", value: "40px · r-10", note: "Tenant agent avatar" },
   { prop: "Composer field", value: "r-16 · paper", note: "--bg-paper #F9F3EA · 1px border-line" },
   { prop: "Placeholder", value: "14px #979797", note: "“Ask me anything...”" },
+  { prop: "Powered by", value: "10px/16", note: "MUTED label · “TARS” bold in ink" },
 ];
 
 export default function ChatbotPage() {

@@ -1,7 +1,8 @@
 "use client";
 
-import { Sparkles, Check, Loader2, Database, AlertCircle } from "lucide-react";
+import { Sparkles, Loader2, Database, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { ThinkingTrace } from "@/components/chat/ThinkingTrace";
 
 const LINE = "#E0DAD3";
 const CHROME = "#E5E5E5";
@@ -9,9 +10,6 @@ const AI_BG = "#F9F3EA";
 const INK = "#333333";
 const MUTED = "#6E6E6E";
 const ACCENT = "#632E9A";
-const ACCENT_SOFT = "#F0E7FA";
-const ACCENT_INK = "#4A1F77";
-const ACCENT_BORDER = "#C5A8E0";
 const DANGER = "#C0392B";
 
 /* the thinking label cycles as the turn runs long */
@@ -63,62 +61,6 @@ const TOOL_CALL = {
   args: '{ "query": "week 7 plan", "top_k": 5 }',
   result: '{ "documents": 12, "matched": "System Design — Week 7" }',
 };
-
-function ThinkingTrace() {
-  const phrase = useThinkingPhrase();
-  const [done, setDone] = useState(0);
-  const [toolDone, setToolDone] = useState(false);
-
-  // loop forever: steps check off → tool runs → success → pause → restart
-  useEffect(() => {
-    if (done < REASONING_STEPS.length) {
-      const t = setTimeout(() => setDone((d) => d + 1), 900);
-      return () => clearTimeout(t);
-    }
-    const t1 = setTimeout(() => setToolDone(true), 800);
-    const t2 = setTimeout(() => { setToolDone(false); setDone(0); }, 2600);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [done]);
-
-  return (
-    <div className="rounded-[12px] border p-3" style={{ borderColor: LINE, backgroundColor: "#FBF8F3" }}>
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3.5 shrink-0 animate-[spin_2.4s_linear_infinite]" strokeWidth={1.75} style={{ color: ACCENT }} />
-        <span className="ai-shimmer text-[12px] font-medium">{phrase}</span>
-      </div>
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>Reasoning</p>
-      <div className="mt-1.5 flex flex-col">
-        {REASONING_STEPS.map((r, i) => {
-          if (i > done) return null;
-          const completed = i < done;
-          const connector = i < done && i < REASONING_STEPS.length - 1;
-          return (
-            <div key={i} className="flex gap-2" style={{ animation: "fade-in 260ms ease-out both" }}>
-              <div className="flex shrink-0 flex-col items-center">
-                <span className="flex size-4 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: completed ? ACCENT_SOFT : "transparent" }}>
-                  {completed ? <Check className="size-2.5" strokeWidth={2.5} style={{ color: ACCENT_INK }} /> : <Loader2 className="size-3 animate-spin" strokeWidth={2} style={{ color: ACCENT }} />}
-                </span>
-                {connector && <span className="my-0.5 w-px flex-1" style={{ backgroundColor: ACCENT_BORDER, minHeight: 12 }} />}
-              </div>
-              <div className="min-w-0 pb-2">
-                <p className="text-[12px] font-semibold leading-[1.5]" style={{ color: completed ? INK : MUTED }}>{r.title}</p>
-                <p className="text-[12px] italic leading-[1.5]" style={{ color: "#A8A096" }}>{r.body}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {done >= REASONING_STEPS.length && (
-        <div className="mt-2.5 flex items-center gap-2 rounded-[8px] border bg-white px-3 py-2" style={{ borderColor: CHROME, animation: "fade-in 220ms ease-out both" }}>
-          <Database className="size-3.5 shrink-0" strokeWidth={1.75} style={{ color: ACCENT }} />
-          <span className="font-mono text-[11px]" style={{ color: INK }}>{TOOL_CALL.name}</span>
-          <span className="ml-auto text-[11px]" style={{ color: MUTED }}>{toolDone ? `${TOOL_CALL.ms}ms · success` : "running…"}</span>
-          <span className="size-1.5 rounded-full" style={{ backgroundColor: toolDone ? "#22A06B" : ACCENT }} />
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* 4 · Tool failed — a tool call errors, then auto-retries (not a dead end) */
 function ToolFailed() {
@@ -222,7 +164,7 @@ export default function IndicatorsPage() {
               </div>
               <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-5" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">3 · Reasoning &amp; tools</p>
-                <ThinkingTrace />
+                <ThinkingTrace steps={REASONING_STEPS} tool={TOOL_CALL} accent={ACCENT} loop />
               </div>
               <div className="flex flex-col gap-4 rounded-[10px] border bg-white p-5" style={{ borderColor: CHROME }}>
                 <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">4 · Tool failed</p>

@@ -8,7 +8,7 @@ function Bubble({ children, fullWidth }: { children: React.ReactNode; fullWidth?
   return (
     <div className="flex justify-end">
       <div
-        className={`rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed ${
+        className={`rounded-[16px] rounded-br-[2px] p-[10px] text-[14px] leading-relaxed ${
           fullWidth ? "w-full" : "max-w-[80%]"
         }`}
         style={{ backgroundColor: USER_BG, color: USER_TEXT, boxShadow: `inset 0 0 0 1px ${USER_BORDER}` }}
@@ -30,9 +30,9 @@ const SPECS = [
   { prop: "Stroke", value: "inset 1px #C5A8E0", note: "--accent-border, inset box-shadow (inside, no added height)" },
   { prop: "Text", value: "#4A1F77", note: "--accent-ink (Tars purple; per tenant)" },
   { prop: "Font", value: "14 · leading-relaxed · 400", note: "Body · 1.625 · Regular" },
-  { prop: "Padding", value: "px-3.5 py-2", note: "14px × 8px" },
+  { prop: "Padding", value: "p-[10px]", note: "10px all sides" },
   { prop: "Max width", value: "80%", note: "Tighter than AI's 88% — typed messages are shorter" },
-  { prop: "Radius", value: "12 · 12 · 4 (br) · 12", note: "Sharp corner anchors right (speaker side)" },
+  { prop: "Radius", value: "16 · 16 · 2 (br) · 16", note: "Sharp corner anchors right (speaker side)" },
   { prop: "Alignment", value: "justify-end", note: "Right-aligned" },
   { prop: "Animation", value: "bubble-in 240ms", note: "No word streaming — typed messages appear whole" },
 ];
@@ -124,7 +124,7 @@ export default function UserMessagePage() {
                   <p className="text-[12px] font-semibold text-[#333333]">{t.name}</p>
                   <div className="flex justify-end">
                     <div
-                      className="max-w-[80%] rounded-[12px] rounded-br-[4px] px-3.5 py-2 text-[14px] leading-relaxed"
+                      className="max-w-[80%] rounded-[16px] rounded-br-[2px] p-[10px] text-[14px] leading-relaxed"
                       style={{ backgroundColor: t.bg, color: t.text, boxShadow: `inset 0 0 0 1px ${t.border}` }}
                     >
                       How long does it take?

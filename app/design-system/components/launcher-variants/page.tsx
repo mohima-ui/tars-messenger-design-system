@@ -1495,6 +1495,9 @@ function CornerPillVariant() {
 /* ══════════════════════════════════════════════════════════
    CONCEPT A — Sonar Orb
    ══════════════════════════════════════════════════════════ */
+/* Punches the centre out of the halo layers, leaving a ~3.5px ring around the
+   44px avatar inside the 52px orb. */
+const SONAR_RING_MASK = "radial-gradient(circle at center, transparent 22.5px, #000 23.5px)";
 const SONAR_MSG = "Exploring pricing? I can walk you through which plan fits your team best.";
 const SONAR_OPTS = ["Help me choose a plan", "What's in Enterprise?", "Ask something else"];
 
@@ -1633,13 +1636,13 @@ function SonarOrbVariant() {
             </div>
           )}
 
-          {/* orb */}
+          {/* orb — full ring track + rotating highlight, both masked to a true
+              ring so the halo reads as a complete circle rather than a cut arc */}
           <div className="relative flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
-            {/* spinning arc */}
             <div className="absolute inset-0 rounded-full"
-              style={{ background: "conic-gradient(from 0deg, transparent 0deg, #2E2E2E 50deg, transparent 100deg)", animation: "sonar-spin 2.8s linear infinite", borderRadius: "50%" }} />
-            {/* gap ring */}
-            <div className="absolute rounded-full" style={{ inset: 2, backgroundColor: SKEL_BG, borderRadius: "50%" }} />
+              style={{ background: `color-mix(in srgb, ${ACCENT} 20%, transparent)`, WebkitMaskImage: SONAR_RING_MASK, maskImage: SONAR_RING_MASK }} />
+            <div className="absolute inset-0 rounded-full"
+              style={{ background: `conic-gradient(from 0deg, transparent 0deg, ${ACCENT} 70deg, transparent 150deg)`, animation: "sonar-spin 2.8s linear infinite", WebkitMaskImage: SONAR_RING_MASK, maskImage: SONAR_RING_MASK }} />
             {/* avatar */}
             <button className="relative z-10 size-11 rounded-full overflow-hidden"
               style={{ boxShadow: "0 3px 12px -3px rgba(0,0,0,0.22)" }}
