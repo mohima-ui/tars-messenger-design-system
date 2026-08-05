@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from "react";
 import {
   Plus,
   Search,
@@ -24,13 +24,18 @@ import {
   Volume2,
   MoreVertical,
   Download,
-  Settings,
   Sparkles,
   ChevronLeft,
   MapPin,
   Star,
   Calendar,
 } from "lucide-react";
+import { Sources, type Source } from "@/components/chat/Sources";
+/* aliased — this file already has its own PlanCards for the "Compare plans" flow */
+import { PlanCards as PricingCards, type Plan } from "@/components/chat/PlanCards";
+import { DataTable, type TableData } from "@/components/chat/DataTable";
+import { StatusList, type StatusListData } from "@/components/chat/StatusList";
+import { ImageGallery, type GalleryData } from "@/components/chat/ImageGallery";
 
 /* ── word-by-word streaming (ported from the main app) ── */
 const WORD_STEP_MS = 38;
@@ -69,17 +74,17 @@ function useThinkingPhrase() {
 function AiThinking() {
   const phrase = useThinkingPhrase();
   return (
-    <div className="flex items-center gap-2 px-1 text-[12px] font-medium text-[#333333]">
+    <div className="flex items-center gap-2 px-1 text-[14px] font-medium text-[#333333]">
       <svg width="0" height="0" className="absolute" aria-hidden="true">
         <defs>
           <linearGradient id="ai-sparkle-web" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#2E1F5E" />
-            <stop offset="100%" stopColor="#9B6CF0" />
+            <stop offset="100%" stopColor="#632E9A" />
           </linearGradient>
         </defs>
       </svg>
       <Sparkles
-        className="size-3.5 shrink-0"
+        className="size-4 shrink-0"
         strokeWidth={1.75}
         fill="none"
         stroke="url(#ai-sparkle-web)"
@@ -276,6 +281,179 @@ const PLANS_REASONING = [
   { title: "Retrieved the current plan catalog and pricing", body: "Pulled the live plan tiers and prices straight from the catalog." },
   { title: "Compared Starter, Growth and Enterprise for your scale", body: "Weighed seat limits, message caps, analytics depth and per-seat cost against how your team would actually use it, then ranked the closest fit." },
 ];
+/* Mirrors the launcher's opening trace, so the same question reasons the same
+   way on both surfaces. */
+const CHAT_REASONING = [
+  { title: "Reading your question", body: "Working out what you're actually asking for." },
+  { title: "Checking your context", body: "Cross-referencing anything relevant from earlier in this chat." },
+  { title: "Tool calling", body: "Querying the knowledge base for the most relevant material." },
+];
+const CHAT_TOOLS: Tool[] = [
+  { name: "button_group", args: '{ "intent": "get_started" }', result: '{ "options": 3 }', ms: 64 },
+];
+
+const CHAT_REPLY =
+  "Happy to help. I'm the Tars agent — I can answer questions, look things up, and actually get things done for you.";
+const CHAT_CHIPS = ["Schedule a demo", "See how it works", "Check Tars pricing and plans"];
+/* only this branch is built out so far; the others render but stay inert */
+const CHAT_LIVE_CHIPS = ["See how it works"];
+
+const SEE_HOW_REPLY =
+  "Think of a Tars agent as a teammate who already knows your business. You point it at what you already have — help docs, past tickets, product data — and it answers in your voice instead of reading from a script.\n\nIt doesn't just reply, though. It looks things up and acts: checking an order, booking a slot, raising a ticket. And when it needs something back, it asks with the right control — a form, a calendar, a set of options.\n\nThe whole conversation follows the customer across every channel, so nobody re-explains themselves — and when a person is genuinely needed, it hands over with the full history attached.";
+
+const SEE_HOW_SOURCES: Source[] = [
+  {
+    name: "How Tars agents work",
+    description: "Product overview — what an agent is trained on and what it can act on.",
+    url: "hellotars.com/ai-agents",
+  },
+  {
+    name: "Actions & integrations",
+    description: "The systems an agent can read from and write to during a conversation.",
+    url: "hellotars.com/platform/integrations",
+  },
+  {
+    name: "Handoff to a human",
+    description: "How context transfers when a conversation moves to your team.",
+    url: "help.hellotars.com/handoff",
+  },
+  {
+    name: "Channels & deployment",
+    description: "Running one agent across web, WhatsApp, email and in-app.",
+    url: "hellotars.com/platform/channels",
+  },
+];
+
+const GALLERY_RE = /\b(image gallery|gallery|photos?|images?|screenshots?)\b/i;
+const GALLERY_REPLY =
+  "Here are the consultants taking appointments this week — tap one to see their full profile.";
+const GALLERY: GalleryData = {
+  title: "Available consultants",
+  images: [
+    { src: "/v1/doctors/dr-mehta.png", caption: "Dr Anil Mehta", detail: "General medicine" },
+    { src: "/v1/doctors/dr-kaur.png", caption: "Dr Simran Kaur", detail: "Dermatology" },
+    { src: "/v1/doctors/dr-paul.png", caption: "Dr Audrey Paul", detail: "Paediatrics" },
+    { src: "/v1/doctors/dr-gilbert.png", caption: "Dr Erin Gilbert", detail: "Obstetrics" },
+    { src: "/v1/doctors/dr-novak.png", caption: "Dr Luka Novak", detail: "Cardiology" },
+  ],
+};
+
+const STATUS_RE = /\b(status list|status|where things stand)\b/i;
+const STATUS_REPLY =
+  "Here's a week in the life of a banking agent — support and sales work sitting side by side.";
+const STATUS: StatusListData = {
+  title: "Banking · last 7 days",
+  groups: [
+    {
+      name: "In progress",
+      tone: "active",
+      items: [
+        {
+          title: "Loan enquiry — income and amount captured",
+          meta: "Today",
+          tags: ["Sales", "Qualified"],
+        },
+        {
+          title: "Branch appointment booked in chat",
+          meta: "Tomorrow",
+          tags: ["Support", "Scheduled"],
+        },
+      ],
+    },
+    {
+      name: "Escalated",
+      tone: "urgent",
+      items: [
+        {
+          title: "Suspected fraud passed to the fraud desk",
+          meta: "2h ago",
+          tags: ["Support", "Handoff"],
+        },
+      ],
+    },
+    {
+      name: "Completed",
+      tone: "done",
+      items: [
+        {
+          title: "Card dispute raised and confirmed",
+          meta: "Mon",
+          tags: ["Support"],
+          done: true,
+        },
+        {
+          title: "412 balance & statement requests answered",
+          meta: "This week",
+          tags: ["Support", "Automated"],
+          done: true,
+        },
+      ],
+    },
+  ],
+};
+
+const TABLE_RE = /\b(data table|table|comparison)\b/i;
+const TABLE_REPLY = "Here's how the three agent types compare.";
+const TABLE: TableData = {
+  title: "Tars AI Agent Feature Comparison",
+  columns: ["Feature", "Sales agent", "Support agent", "General AI agent"],
+  rows: [
+    ["24/7 availability", "Yes", "Yes", "Yes"],
+    ["FAQ answering", "No", "Yes", "Yes"],
+    ["Ticket creation", "No", "Yes", "Yes"],
+    ["Lead qualification", "Yes", "No", "Yes"],
+    ["Product recommendations", "Yes", "No", "Yes"],
+  ],
+};
+
+const PRICING_RE = /\b(pricing|plans?|cost|how much)\b/i;
+const PRICING_REPLY = "Here's how the plans compare — most teams start on Growth.";
+const PRICING_PLANS: Plan[] = [
+  {
+    name: "Free",
+    description: "Try an agent on your own docs — 1 agent, 100 conversations, no card needed.",
+    price: "$0",
+  },
+  {
+    name: "Starter",
+    description:
+      "For small teams getting started — 1 agent, 2,000 conversations a month, and basic analytics.",
+    price: "$29/mo",
+  },
+  {
+    name: "Growth",
+    description:
+      "The full Tars stack — 5 agents, 15,000 conversations, full analytics, and API access.",
+    price: "$79/mo",
+  },
+  {
+    name: "Scale",
+    description: "For busy support desks — 15 agents, 50,000 conversations, and priority routing.",
+    price: "$199/mo",
+  },
+  {
+    name: "Business",
+    description: "Multi-team setup — unlimited agents, 150,000 conversations, and audit logs.",
+    price: "$399/mo",
+  },
+  {
+    name: "Enterprise",
+    description:
+      "Everything unlimited — SSO, a dedicated SLA, and a dedicated customer success manager.",
+    price: "Custom",
+  },
+  {
+    name: "Education",
+    description: "For schools and universities — Growth features at a reduced rate, verified.",
+    price: "$19/mo",
+  },
+  {
+    name: "Non-profit",
+    description: "Registered charities get the Growth plan at cost, with onboarding included.",
+    price: "$15/mo",
+  },
+];
+
 const PLANS_TOOLS: Tool[] = [
   { name: "get_plans", args: '{ "catalog": "current" }', result: '{ "plans": 3, "currency": "USD" }', ms: 48 },
   { name: "knowledge_retrieval", args: '{ "query": "pricing & plans overview" }', result: '{ "documents": 8, "top": "tars.com/pricing" }', ms: 64 },
@@ -360,12 +538,14 @@ function ReasoningChip({ reasoning, tools }: { reasoning: { title: string; body:
 }
 
 /* ── live reasoning panel — checks off steps, runs tools, then calls onDone ── */
-function ThinkingReasoning({ reasoning, tools, onDone }: { reasoning: { title: string; body: string }[]; tools: Tool[]; onDone: () => void }) {
+function ThinkingReasoning({ reasoning, tools, onDone, onAdvance }: { reasoning: { title: string; body: string }[]; tools: Tool[]; onDone: () => void; onAdvance?: () => void }) {
   const phrase = useThinkingPhrase();
   const total = reasoning.length;
   const [step, setStep] = useState(0);
   const [toolProg, setToolProg] = useState(0);
   const fired = useRef(false);
+  // keep the latest reasoning step/tool in view as the panel grows
+  useEffect(() => { onAdvance?.(); }, [step, toolProg, onAdvance]);
   useEffect(() => {
     if (step >= total) return;
     const t = setTimeout(() => setStep((s) => s + 1), 1000);
@@ -501,7 +681,7 @@ function HandoffFlow() {
             <span className="flex size-4 items-center justify-center rounded-full bg-[#632E9A] text-[8px] font-semibold text-white">P</span>
             <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">Priya <span className="text-[#A8A096]">is typing…</span></p>
           </div>
-          <div className="flex w-fit items-center gap-1 rounded-[12px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-3.5 py-2.5">
+          <div className="flex w-fit items-center gap-1 rounded-[16px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-3.5 py-2.5">
             {[0, 1, 2].map((i) => (
               <span key={i} className="block size-1.5 rounded-full" style={{ backgroundColor: "#8A8378", animation: `typing-dot 1.2s ease-in-out ${i * 150}ms infinite` }} />
             ))}
@@ -514,7 +694,7 @@ function HandoffFlow() {
             <span className="flex size-4 items-center justify-center rounded-full bg-[#632E9A] text-[8px] font-semibold text-white">P</span>
             <p className="text-[11px] font-medium tracking-wide text-[#6E6E6E]">Priya <span className="text-[#A8A096]">· 10:24 AM</span></p>
           </div>
-          <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-4 py-2.5 text-[14px] leading-[1.7] tracking-[0.005em] text-[#333333]">
+          <div className="w-fit max-w-full rounded-[16px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] p-3 text-[14px] leading-[1.7] tracking-[0.005em] text-[#333333]">
             Hi! I&apos;ve got everything Tars shared — let me check on that for you now.
           </div>
         </div>
@@ -652,6 +832,79 @@ const SUGGEST_PLACES = [
   { city: "Sydney", region: "New South Wales, Australia" },
 ];
 
+/* ── CSAT — emoji rating bar (replaces the composer when resolved) ── */
+const CSAT_EMOJIS = [
+  { value: 1, emoji: "😞", label: "Very poor" },
+  { value: 2, emoji: "😐", label: "Poor" },
+  { value: 3, emoji: "🙂", label: "Okay" },
+  { value: 4, emoji: "😊", label: "Good" },
+  { value: 5, emoji: "😍", label: "Excellent" },
+];
+function CsatBar({ onChatAgain }: { onChatAgain: () => void }) {
+  const [value, setValue] = useState<number | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const active = hover ?? value;
+  const chosen = CSAT_EMOJIS.find((e) => e.value === value);
+  const chatWithUs = (
+    <p className="mt-2.5 border-t border-[#E0DAD3] pt-2.5 text-center text-[12px] text-[#6E6E6E]">
+      Still have an issue? <button type="button" onClick={onChatAgain} className="font-semibold text-[#632E9A] transition-colors hover:underline">Chat with us</button>
+    </p>
+  );
+  if (submitted) {
+    return (
+      <div style={{ animation: "csat-slide-up 380ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+        <div className="flex flex-col items-center gap-2 py-3" style={{ animation: "fade-in 260ms ease-out both" }}>
+          <span className="relative flex size-12 items-center justify-center rounded-full text-[28px]" style={{ backgroundColor: "#F0E7FA" }}>
+            {chosen?.emoji}
+            <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2" style={{ backgroundColor: "#16A34A", borderColor: "#FEFCF8" }}>
+              <Check className="size-3 text-white" strokeWidth={3} />
+            </span>
+          </span>
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="text-[13px] font-semibold text-[#333333]">Thanks for your feedback!</p>
+            <p className="text-[11px] text-[#6E6E6E]">Your response helps us improve.</p>
+          </div>
+        </div>
+        {chatWithUs}
+      </div>
+    );
+  }
+  return (
+    <div style={{ animation: "csat-slide-up 380ms cubic-bezier(0.2,0.6,0.2,1) both" }}>
+      <p className="text-center text-[13px] font-semibold text-[#333333]">How was your conversation experience with us?</p>
+      <div className="mt-2 flex items-start justify-center gap-1" onMouseLeave={() => setHover(null)}>
+        {CSAT_EMOJIS.map((e) => (
+          <button key={e.value} type="button" aria-label={e.label} onMouseEnter={() => setHover(e.value)} onClick={() => setValue(e.value)} className="flex flex-col items-center gap-0.5">
+            <span className="flex size-12 items-center justify-center rounded-full transition-colors" style={{ backgroundColor: active === e.value ? "#F0E7FA" : "transparent" }}>
+              <span className="text-[30px] transition-all duration-200" style={{ filter: active === e.value ? "none" : "grayscale(1)", transform: active === e.value ? "scale(1.1)" : "none" }}>{e.emoji}</span>
+            </span>
+            <span className="whitespace-nowrap text-[10px] font-medium leading-tight transition-opacity" style={{ color: "#4A1F77", opacity: active === e.value ? 1 : 0 }}>{e.label}</span>
+          </button>
+        ))}
+      </div>
+      {value === null ? (
+        chatWithUs
+      ) : (
+        <div className="mt-1 flex flex-col gap-2" style={{ animation: "fade-in 200ms ease-out both" }}>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            placeholder="Let us know how we can improve…"
+            autoFocus
+            className="scrollbar-subtle w-full resize-none rounded-[10px] border border-[#E0DAD3] bg-white px-3 py-2 text-[13px] leading-snug text-[#333333] outline-none transition-colors placeholder:text-[#979797] focus:border-[#632E9A]"
+            style={{ maxHeight: 110 }}
+          />
+          <button type="button" onClick={() => setSubmitted(true)} className="w-full rounded-full py-2.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105" style={{ backgroundColor: "#632E9A" }}>Submit Feedback</button>
+          <button type="button" onClick={() => setSubmitted(true)} className="text-center text-[12px] font-medium text-[#6E6E6E] transition-colors hover:underline">Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── conversation history (sidebar) ── */
 const HISTORY = [
   { group: "Today", items: ["Studio plan pricing", "Reset my password"] },
@@ -660,24 +913,25 @@ const HISTORY = [
 ];
 
 type Msg =
-  | { from: "ai"; text: string; chips?: string[]; liveChips?: string[]; stream?: boolean; kind?: "agent" | "plans" | "handoff" | "calendar" | "rating" | "geo" }
+  | { from: "ai"; text: string; chips?: string[]; liveChips?: string[]; /** the option taken — the group stays put, greyed, with this one still filled */ chipsSpent?: string; /** grounding shown under the message */ sources?: Source[]; /** plan cards under the message */ plans?: Plan[]; /** comparison table under the message */ table?: TableData; /** grouped status under the message */ status?: StatusListData; /** photo grid under the message */ gallery?: GalleryData; stream?: boolean; kind?: "agent" | "plans" | "chat" | "pricing" | "table" | "status" | "gallery" | "handoff" | "calendar" | "rating" | "geo" }
   | { from: "user"; text: string; icon?: "calendar" | "location"; stars?: number; check?: boolean };
 
 // chips that lead to a scripted response — others are shown but disabled
-const LIVE_CHIPS = new Set(["What is an AI agent?", "Compare plans", "Product demo", "Pick a time", "Pick a city", "Share location", "Rate us", "Talk to an agent"]);
+const LIVE_CHIPS = new Set(["See how it works", "Chat with us", "How do AI agents work", "What is an AI agent?", "Compare plans", "Product demo", "Pick a time", "Pick a city", "Share location", "Rate us", "Talk to an agent", "Sounds good"]);
 
 // composer demo data — voice transcript + waveform shape
 const DEMO_TRANSCRIPT = "Can you tell me more about the Studio plan?";
-const WAVEFORM_HEIGHTS = Array.from({ length: 26 }, (_, i) => {
+const WAVEFORM_HEIGHTS = Array.from({ length: 60 }, (_, i) => {
   const seed = Math.sin(i * 0.45) * 0.35 + Math.sin(i * 1.7 + 1.2) * 0.45 + 0.55;
   return Math.max(0.18, Math.min(1, seed));
 });
 
 const GREETING: Extract<Msg, { from: "ai" }> = {
   from: "ai",
-  text: "Hi there! I'm Tars, your AI agent. I can show you our product, compare plans, or explain how AI agents work. What can I help you with?",
-  chips: ["Product demo", "Compare plans", "What is an AI agent?"],
-  liveChips: ["What is an AI agent?", "Product demo"],
+  text: "Curious about AI Agents? I can show you what Tars would handle for your sales and support.",
+  chips: ["Schedule a demo", "Chat with us", "How do AI agents work"],
+  /* per-message allowlist wins over LIVE_CHIPS, so live options are named here */
+  liveChips: ["Chat with us", "How do AI agents work"],
 };
 
 export default function WebChat() {
@@ -685,15 +939,18 @@ export default function WebChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pending, setPending] = useState<"simple" | "plans" | null>("simple");
+  const [pending, setPending] = useState<"simple" | "plans" | "chat" | "pricing" | "table" | "status" | "gallery" | null>("simple");
   const [reactions, setReactions] = useState<Record<number, "like" | "dislike">>({});
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  /** The plan taken from the pricing cards — locks the group once chosen. */
+  const [pricingPick, setPricingPick] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [closed, setClosed] = useState(false);
 
   // a widget produced a result → remove the widget, post the result as a user message, then an agent ack
   function pushResult(userMsg: Msg, ack: string) {
@@ -752,6 +1009,8 @@ export default function WebChat() {
     setReactions({});
     setCopiedIdx(null);
     setSpeakingIdx(null);
+    setClosed(false);
+    setSuggestOpen(false);
     setPending("simple");
     setTimeout(() => {
       setPending(null);
@@ -776,29 +1035,80 @@ export default function WebChat() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
 
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, pending]);
+    scrollToBottom();
+    // re-scroll after late-rendering content (widgets, streamed text, CSAT)
+    const t = setTimeout(scrollToBottom, 140);
+    return () => clearTimeout(t);
+  }, [messages, pending, closed, suggestOpen, scrollToBottom]);
 
   // auto-grow composer
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
+    ta.style.height = Math.max(36, Math.min(ta.scrollHeight, 140)) + "px";
   }, [draft]);
 
   function send(text: string) {
     const t = text.trim();
     if (!t && attachments.length === 0) return;
     const userText = t || "📎 Attachment";
-    // drop any pending option chips once the user responds, then add their message
+    /* Options stay where they were offered — marking them spent greys the
+       group and keeps the taken one filled, rather than making the choice
+       vanish from the transcript. */
     setMessages((m) => [
-      ...m.map((msg) => (msg.from === "ai" ? { ...msg, chips: undefined } : msg)),
+      ...m.map((msg) =>
+        msg.from === "ai" && msg.chips && !msg.chipsSpent
+          ? { ...msg, chipsSpent: userText }
+          : msg,
+      ),
       { from: "user", text: userText },
     ]);
     setDraft("");
     setAttachments([]);
+    // a photo grid — reason, then return the gallery
+    if (GALLERY_RE.test(t)) {
+      setPending("gallery");
+      return;
+    }
+    // grouped status — reason, then return the list
+    if (STATUS_RE.test(t)) {
+      setPending("status");
+      return;
+    }
+    // a comparison is a worked answer too — reason, then return the table
+    if (TABLE_RE.test(t)) {
+      setPending("table");
+      return;
+    }
+    /* Pricing is a worked answer: it reasons, then returns cards rather than
+       prose. Matched on intent, so "how much does it cost" lands here too. */
+    if (PRICING_RE.test(t) && t !== "Compare plans") {
+      setPending("pricing");
+      return;
+    }
+    // "See how it works" — a plain answer, but grounded, so it carries sources
+    if (t === "See how it works") {
+      setPending("simple");
+      setTimeout(() => {
+        setPending(null);
+        setMessages((m) => [
+          ...m,
+          { from: "ai", text: SEE_HOW_REPLY, sources: SEE_HOW_SOURCES, stream: true },
+        ]);
+      }, 1500);
+      return;
+    }
+    // "Chat with us" reasons, then answers with its own options
+    if (t === "Chat with us") {
+      setPending("chat");
+      return;
+    }
     // "Compare plans" plays the live reasoning panel, which pushes the message when done
     if (t === "Compare plans") {
       setPending("plans");
@@ -822,6 +1132,7 @@ export default function WebChat() {
     if (t === "Share location") { setMessages((m) => [...m, { from: "ai", kind: "geo", text: "" }]); return; }
     if (t === "Rate us") { setMessages((m) => [...m, { from: "ai", kind: "rating", text: "" }]); return; }
     if (t === "Pick a city") { setSuggestOpen(true); return; }
+    if (t === "Sounds good") { setClosed(true); return; }
     // picking a plan card → offer to email the setup link
     if (PLANS.some((p) => p.title === t)) {
       setPending("simple");
@@ -844,7 +1155,7 @@ export default function WebChat() {
     setPending("simple");
     setTimeout(() => {
       setPending(null);
-      if (t === "What is an AI agent?") {
+      if (t === "How do AI agents work" || t === "What is an AI agent?") {
         setMessages((m) => [
           ...m,
           {
@@ -891,12 +1202,12 @@ export default function WebChat() {
           <div className="flex flex-col gap-1.5 px-3 pb-2">
             <button
               onClick={startConversation}
-              className="flex items-center gap-2 rounded-[10px] bg-[var(--ds-accent)] px-3 py-2 text-[14px] font-medium text-white transition-colors hover:bg-[var(--ds-accent-hover)]"
+              className="flex items-center gap-2 rounded-[10px] border border-[var(--ds-border-line)] bg-[var(--ds-bg-paper)] px-3 py-2 text-[14px] font-medium text-[var(--ds-text-ink)] transition-colors hover:bg-[var(--ds-bg-subtle)]"
             >
               <Plus className="size-4" strokeWidth={2} />
               New chat
             </button>
-            <button className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-[14px] text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)]">
+            <button className="flex items-center gap-2 rounded-[10px] border border-[var(--ds-border-line)] px-3 py-2 text-[14px] text-[var(--ds-text-secondary)] transition-colors hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)]">
               <Search className="size-4" strokeWidth={1.75} />
               Search chats
             </button>
@@ -916,7 +1227,7 @@ export default function WebChat() {
                       key={title}
                       className={`group flex w-full items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px] transition-colors ${
                         active
-                          ? "bg-[var(--ds-accent-soft)] text-[var(--ds-accent-ink)]"
+                          ? "bg-[var(--ds-bg-paper)] text-[var(--ds-text-ink)]"
                           : "text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-subtle)] hover:text-[var(--ds-text-ink)]"
                       }`}
                     >
@@ -927,17 +1238,6 @@ export default function WebChat() {
                 })}
               </div>
             ))}
-          </div>
-
-          {/* account */}
-          <div className="border-t border-[var(--ds-border-line)] p-3">
-            <button className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition-colors hover:bg-[var(--ds-bg-subtle)]">
-              <span className="flex size-7 items-center justify-center rounded-full bg-[var(--ds-accent-soft)] text-[12px] font-semibold text-[var(--ds-accent-ink)]">
-                M
-              </span>
-              <span className="flex-1 truncate text-left text-[13px] font-medium">Mohima</span>
-              <Settings className="size-4 text-[var(--ds-text-muted)]" strokeWidth={1.75} />
-            </button>
           </div>
         </aside>
       )}
@@ -1025,14 +1325,50 @@ export default function WebChat() {
                   <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
                     AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
                   </p>
-                  {m.kind === "plans" && (
+                  {(m.kind === "plans" || m.kind === "chat" || m.kind === "pricing" || m.kind === "table" || m.kind === "status" || m.kind === "gallery") && (
                     <div className="mb-1.5">
-                      <ReasoningChip reasoning={PLANS_REASONING} tools={PLANS_TOOLS} />
+                      <ReasoningChip
+                        reasoning={m.kind === "plans" ? PLANS_REASONING : CHAT_REASONING}
+                        tools={m.kind === "plans" ? PLANS_TOOLS : CHAT_TOOLS}
+                      />
                     </div>
                   )}
-                  <div className="w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-4 py-2.5 text-[14px] leading-[1.7] tracking-[0.005em] whitespace-pre-line text-[#333333]">
+                  <div className="w-fit max-w-full rounded-[16px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] p-3 text-[14px] leading-[1.7] tracking-[0.005em] whitespace-pre-line text-[#333333]">
                     {m.kind === "plans" ? <PlansIntro /> : m.kind === "agent" ? <AgentAnswer /> : m.stream ? <Words text={m.text} /> : m.text}
+                    {m.sources && (
+                      <div className="mt-3 border-t border-[var(--ds-border-line-soft)] pt-2.5">
+                        <Sources sources={m.sources} />
+                      </div>
+                    )}
                   </div>
+                  {m.gallery && (
+                    <div className="mt-2 w-full">
+                      <ImageGallery data={m.gallery} />
+                    </div>
+                  )}
+                  {m.status && (
+                    <div className="mt-2 w-full">
+                      <StatusList data={m.status} />
+                    </div>
+                  )}
+                  {m.table && (
+                    <div className="mt-2 w-full">
+                      <DataTable data={m.table} />
+                    </div>
+                  )}
+                  {m.plans && (
+                    <div className="mt-2 w-full">
+                      <PricingCards
+                        plans={m.plans}
+                        onPick={(p) => {
+                          setPricingPick(p.name);
+                          send(p.name);
+                        }}
+                        spent={!!pricingPick}
+                        chosen={pricingPick}
+                      />
+                    </div>
+                  )}
                   {m.kind === "plans" && (
                     <>
                       <PlanCards
@@ -1042,25 +1378,47 @@ export default function WebChat() {
                           send(title);
                         }}
                       />
-                      <div className="mt-2 w-fit max-w-[90%] rounded-[12px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] px-4 py-2.5 text-[14px] leading-[1.7] tracking-[0.005em] text-[#333333]">
+                      <div className="mt-2 w-fit max-w-full rounded-[16px] rounded-bl-[4px] border border-[#E0DAD3] bg-[#F9F3EA] p-3 text-[14px] leading-[1.7] tracking-[0.005em] text-[#333333]">
                         What scale are you working at?
                       </div>
                     </>
                   )}
                   {m.chips && (
                     <div className="mt-3 flex flex-wrap gap-2 px-1">
-                      {m.chips.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => {
-                            const live = m.liveChips ? m.liveChips.includes(c) : LIVE_CHIPS.has(c);
-                            if (live) send(c);
-                          }}
-                          className="rounded-full border border-[#E0DAD3] bg-[#F9F3EA] px-3.5 py-1.5 text-[14px] text-[#333333] transition-colors hover:border-[#C5A8E0] hover:bg-[#F0E7FA] hover:text-[#4A1F77]"
-                        >
-                          {c}
-                        </button>
-                      ))}
+                      {m.chips.map((c) => {
+                        const spent = !!m.chipsSpent;
+                        const chosen = m.chipsSpent === c;
+                        return (
+                          <button
+                            key={c}
+                            disabled={spent}
+                            onClick={() => {
+                              const live = m.liveChips
+                                ? m.liveChips.includes(c)
+                                : LIVE_CHIPS.has(c);
+                              if (live) send(c);
+                            }}
+                            /* Outlined in the accent rather than filled: on a
+                               thread of paper-filled bubbles a filled chip reads
+                               as another message. Matches the launcher. */
+                            className="rounded-full border border-[#C5A8E0] px-3.5 py-1.5 text-[14px] text-[#4A1F77] transition-colors disabled:cursor-not-allowed"
+                            /* hover is set here, not via a `hover:` class — the
+                               inline backgroundColor below would always win */
+                            onMouseEnter={(e) => {
+                              if (!spent) e.currentTarget.style.backgroundColor = "#F0E7FA";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!spent) e.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                            style={{
+                              backgroundColor: chosen ? "#F0E7FA" : "transparent",
+                              opacity: spent ? 0.5 : 1,
+                            }}
+                          >
+                            {c}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   {/* message toolbar — reveals on hover, like the main app */}
@@ -1129,9 +1487,131 @@ export default function WebChat() {
                 <ThinkingReasoning
                   reasoning={PLANS_REASONING}
                   tools={PLANS_TOOLS}
+                  onAdvance={scrollToBottom}
                   onDone={() => {
                     setPending(null);
                     setMessages((m) => [...m, { from: "ai", kind: "plans", text: "" }]);
+                  }}
+                />
+              </div>
+            ) : pending === "gallery" ? (
+              <div className="flex w-full flex-col items-start">
+                <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                </p>
+                <ThinkingReasoning
+                  reasoning={CHAT_REASONING}
+                  tools={CHAT_TOOLS}
+                  onAdvance={scrollToBottom}
+                  onDone={() => {
+                    setPending(null);
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        from: "ai",
+                        kind: "gallery",
+                        text: GALLERY_REPLY,
+                        gallery: GALLERY,
+                        stream: true,
+                      },
+                    ]);
+                  }}
+                />
+              </div>
+            ) : pending === "status" ? (
+              <div className="flex w-full flex-col items-start">
+                <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                </p>
+                <ThinkingReasoning
+                  reasoning={CHAT_REASONING}
+                  tools={CHAT_TOOLS}
+                  onAdvance={scrollToBottom}
+                  onDone={() => {
+                    setPending(null);
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        from: "ai",
+                        kind: "status",
+                        text: STATUS_REPLY,
+                        status: STATUS,
+                        stream: true,
+                      },
+                    ]);
+                  }}
+                />
+              </div>
+            ) : pending === "table" ? (
+              <div className="flex w-full flex-col items-start">
+                <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                </p>
+                <ThinkingReasoning
+                  reasoning={CHAT_REASONING}
+                  tools={CHAT_TOOLS}
+                  onAdvance={scrollToBottom}
+                  onDone={() => {
+                    setPending(null);
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        from: "ai",
+                        kind: "table",
+                        text: TABLE_REPLY,
+                        table: TABLE,
+                        stream: true,
+                      },
+                    ]);
+                  }}
+                />
+              </div>
+            ) : pending === "pricing" ? (
+              <div className="flex w-full flex-col items-start">
+                <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                </p>
+                <ThinkingReasoning
+                  reasoning={CHAT_REASONING}
+                  tools={CHAT_TOOLS}
+                  onAdvance={scrollToBottom}
+                  onDone={() => {
+                    setPending(null);
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        from: "ai",
+                        kind: "pricing",
+                        text: PRICING_REPLY,
+                        plans: PRICING_PLANS,
+                        stream: true,
+                      },
+                    ]);
+                  }}
+                />
+              </div>
+            ) : pending === "chat" ? (
+              <div className="flex w-full flex-col items-start">
+                <p className="mb-1 ml-1 text-[11px] font-medium tracking-wide text-[#6E6E6E]">
+                  AI Agent <span className="text-[#A8A096]">• 10:24 AM</span>
+                </p>
+                <ThinkingReasoning
+                  reasoning={CHAT_REASONING}
+                  tools={CHAT_TOOLS}
+                  onAdvance={scrollToBottom}
+                  onDone={() => {
+                    setPending(null);
+                    setMessages((m) => [
+                      ...m,
+                      {
+                        from: "ai",
+                        kind: "chat",
+                        text: CHAT_REPLY,
+                        chips: CHAT_CHIPS,
+                        liveChips: CHAT_LIVE_CHIPS,
+                        stream: true,
+                      },
+                    ]);
                   }}
                 />
               </div>
@@ -1140,12 +1620,29 @@ export default function WebChat() {
                 <AiThinking />
               </div>
             ) : null}
+            {closed && (
+              <div className="flex justify-center py-1" style={{ animation: "fade-in 240ms ease-out both" }}>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#6E6E6E]">
+                  <Check className="size-3.5" strokeWidth={2.75} style={{ color: "#16A34A" }} />
+                  This conversation has been closed
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* composer — matches the website widget */}
-        <div className="shrink-0 px-6 pb-1.5">
-          <div className="mx-auto flex max-w-[800px] flex-col">
+        {/* CSAT replaces the composer once the conversation is closed */}
+        {closed ? (
+          <div className="shrink-0 px-6 pb-4">
+            <div className="mx-auto max-w-[800px] border-t border-[var(--ds-border-line)] pt-3">
+              <div className="mx-auto max-w-[460px]">
+                <CsatBar onChatAgain={() => setClosed(false)} />
+              </div>
+            </div>
+          </div>
+        ) : (
+        <div className="shrink-0">
+          <div className="mx-auto flex w-full max-w-[762px] flex-col">
             {/* city suggestions — pops up above the composer */}
             {suggestOpen && (() => {
               const sq = draft.trim().toLowerCase();
@@ -1188,7 +1685,7 @@ export default function WebChat() {
                 to send
               </div>
             )}
-            <div className="flex w-full flex-col gap-2 rounded-[12px] border border-[var(--ds-border-line)] bg-[var(--ds-bg-paper)] px-3 py-2 transition-all duration-200 hover:border-[var(--ds-border-hover)] focus-within:!border-[#632E9A] focus-within:!ring-4 focus-within:!ring-[#632E9A]/15">
+            <div className="flex w-full flex-col gap-2 rounded-[16px] border border-[var(--ds-border-line)] bg-[var(--ds-bg-paper)] px-3 py-2 transition-all duration-200 hover:border-[var(--ds-border-hover)] focus-within:!border-[#632E9A] focus-within:!ring-4 focus-within:!ring-[#632E9A]/15">
               {/* staged files — tray above the input row */}
               {attachments.length > 0 && !recording && (
                 <div className="flex flex-wrap gap-2 px-1 pt-1" style={{ animation: "fade-in 180ms ease-out both" }}>
@@ -1227,7 +1724,9 @@ export default function WebChat() {
                 </div>
               )}
               {/* input row */}
-              <div className={`flex w-full ${composerMultiline ? "flex-wrap items-end gap-x-1.5 gap-y-1" : "items-end gap-2"}`}>
+              {/* single-line: everything on one centre line. multiline keeps
+                  items-end so the controls stay level with the last line. */}
+              <div className={`flex w-full ${composerMultiline ? "flex-wrap items-end gap-x-1.5 gap-y-1" : "items-center gap-2"}`}>
                 {/* left — attach, becomes cancel (X) while recording */}
                 <button
                   aria-label={recording ? "Cancel recording" : "Add attachment"}
@@ -1241,7 +1740,7 @@ export default function WebChat() {
                 {recording ? (
                   <div className="flex min-w-0 flex-1 items-center justify-center gap-[3px] overflow-hidden px-1 py-[5px]" style={{ minHeight: 28 }} aria-hidden>
                     {WAVEFORM_HEIGHTS.map((h, i) => (
-                      <span key={i} className="block w-px origin-center rounded-full" style={{ height: `${Math.round(h * 18)}px`, backgroundColor: "#632E9A", animation: `wave-bar 1.6s ease-in-out ${i * 45}ms infinite` }} />
+                      <span key={i} className="block w-0.5 origin-center rounded-full" style={{ height: `${Math.round(h * 18)}px`, backgroundColor: "#632E9A", animation: `wave-bar 1.6s ease-in-out ${i * 45}ms infinite` }} />
                     ))}
                   </div>
                 ) : (
@@ -1258,8 +1757,11 @@ export default function WebChat() {
                     }}
                     rows={1}
                     placeholder={transcribing ? "Transcribing…" : "Ask me anything..."}
-                    className={`block min-w-0 resize-none bg-transparent text-[14px] leading-[1.5] text-[#333] outline-none placeholder:text-[#555] ${composerMultiline ? "order-1 w-full basis-full px-2 pt-3 pb-1.5" : "flex-1 py-[5px]"}`}
-                    style={{ maxHeight: 140, overflowY: "auto", boxSizing: "border-box" }}
+                    /* py-[7.5px] centres the 21px line inside the 36px floor —
+                       textarea text is top-aligned, so without it the caret
+                       sits high in the taller field */
+                    className={`block min-w-0 resize-none bg-transparent text-[14px] leading-[1.5] text-[#333] outline-none placeholder:text-[#555] ${composerMultiline ? "order-1 w-full basis-full px-2 pt-3 pb-1.5" : "flex-1 py-[7.5px]"}`}
+                    style={{ minHeight: 36, maxHeight: 140, overflowY: "auto", boxSizing: "border-box" }}
                   />
                 )}
                 {/* right — stop / spinner while busy, otherwise mic + send */}
@@ -1296,11 +1798,14 @@ export default function WebChat() {
                 )}
               </div>
             </div>
-            <p className="mt-1.5 text-center text-[11px] text-[var(--ds-text-muted)]">
-              TARS can make mistakes. Check important info.
+            {/* 12px above and below, matching the launcher's footer */}
+            <p className="py-3 text-center text-[12px] leading-4 text-[var(--ds-text-secondary)]">
+              powered by{" "}
+              <span className="font-bold text-[var(--ds-text-ink)]">TARS</span>
             </p>
           </div>
         </div>
+        )}
       </main>
     </div>
   );

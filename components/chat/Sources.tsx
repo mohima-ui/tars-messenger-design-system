@@ -19,7 +19,9 @@ export type Source = {
   url?: string;
 };
 
-const MAX_SHOWN = 3;
+/* Six discs still read as a stack at 18px with a 6px overlap; past that the
+   tail folds into a +N. */
+const MAX_SHOWN = 6;
 
 export function Sources({ sources }: { sources: Source[] }) {
   const shown = sources.slice(0, MAX_SHOWN);

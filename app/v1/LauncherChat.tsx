@@ -26,6 +26,7 @@ import {
   type FormEntry,
 } from "@/components/chat/InlineForm";
 import { ConfirmDialog, type ConfirmData } from "@/components/chat/ConfirmDialog";
+import { Scheduler, type SchedulerData } from "@/components/chat/Scheduler";
 import { PURPLE } from "./ui";
 
 /* The conversation that runs inside the launcher's chatbot.
@@ -74,6 +75,8 @@ type Turn = {
   form?: FormData;
   /** Yes/no confirmations — each pauses the turn until answered. */
   confirms?: ConfirmData[];
+  /** Date + time picker — pauses the turn until a slot is taken. */
+  scheduler?: SchedulerData;
   /** Submitted form, rendered as a recap inside the visitor's bubble. */
   formSummary?: { title: string; entries: FormEntry[] };
 };
@@ -125,6 +128,19 @@ const PRICING_RE = /\b(pricing|plans?|cost|how much)\b/i;
 const TABLE_RE = /\b(data table|table|compare|comparison)\b/i;
 /* \b matters here: without it "stat" matches inside "status" and this
    branch swallows the status list. */
+const SCHEDULE_RE = /\b(calendar|schedule|book|booking|appointment|time slots?|pick a time)\b/i;
+const SCHEDULE_REPLY = "Pick a day that suits you and I'll show what's free.";
+const SLOTS = [
+  "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM",
+];
+const SCHEDULE: SchedulerData = {
+  year: 2026,
+  month: 5, // June
+  availability: Object.fromEntries(
+    [15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30].map((d) => [d, SLOTS]),
+  ),
+};
 const CONFIRM_RE = /\b(confirm|confirmation|dialog|cancel my|are you sure)\b/i;
 const CONFIRM_REPLY = "Just to check before I do it —";
 const CONFIRMS: ConfirmData[] = [
@@ -611,17 +627,19 @@ export function LauncherChat({
     [scripted],
   );
 
-  const confirm = !!asked && CONFIRM_RE.test(asked);
-  const form = !confirm && !!asked && FORM_RE.test(asked);
-  const map = !confirm && !form && !!asked && MAP_RE.test(asked);
-  const faq = !confirm && !form && !map && !!asked && FAQ_RE.test(asked);
-  const timeline = !confirm && !form && !map && !faq && !!asked && TIMELINE_RE.test(asked);
-  const metrics = !confirm && !form && !map && !faq && !timeline && !!asked && METRIC_RE.test(asked);
-  const code = !confirm && !form && !map && !faq && !timeline && !metrics && !!asked && CODE_RE.test(asked);
-  const gallery = !confirm && !form && !map && !faq && !timeline && !metrics && !code && !!asked && GALLERY_RE.test(asked);
-  const progress = !confirm && !form && !map && !faq && !timeline && !metrics && !code && !gallery && !!asked && PROGRESS_RE.test(asked);
-  const charts = !confirm && !form && !map && !faq && !timeline && !metrics && !code && !gallery && !progress && !!asked && CHART_RE.test(asked);
+  const schedule = !!asked && SCHEDULE_RE.test(asked);
+  const confirm = !schedule && !!asked && CONFIRM_RE.test(asked);
+  const form = !schedule && !confirm && !!asked && FORM_RE.test(asked);
+  const map = !schedule && !confirm && !form && !!asked && MAP_RE.test(asked);
+  const faq = !schedule && !confirm && !form && !map && !!asked && FAQ_RE.test(asked);
+  const timeline = !schedule && !confirm && !form && !map && !faq && !!asked && TIMELINE_RE.test(asked);
+  const metrics = !schedule && !confirm && !form && !map && !faq && !timeline && !!asked && METRIC_RE.test(asked);
+  const code = !schedule && !confirm && !form && !map && !faq && !timeline && !metrics && !!asked && CODE_RE.test(asked);
+  const gallery = !schedule && !confirm && !form && !map && !faq && !timeline && !metrics && !code && !!asked && GALLERY_RE.test(asked);
+  const progress = !schedule && !confirm && !form && !map && !faq && !timeline && !metrics && !code && !gallery && !!asked && PROGRESS_RE.test(asked);
+  const charts = !schedule && !confirm && !form && !map && !faq && !timeline && !metrics && !code && !gallery && !progress && !!asked && CHART_RE.test(asked);
   const status =
+    !schedule &&
     !confirm &&
     !form &&
     !map &&
@@ -630,6 +648,7 @@ export function LauncherChat({
     !metrics &&
     !code && !gallery && !progress && !charts && !!asked && STATUS_RE.test(asked);
   const table =
+    !schedule &&
     !confirm &&
     !form &&
     !map &&
@@ -638,6 +657,7 @@ export function LauncherChat({
     !metrics &&
     !code && !gallery && !progress && !charts && !status && !!asked && TABLE_RE.test(asked);
   const pricing =
+    !schedule &&
     !confirm &&
     !form &&
     !map &&
@@ -666,12 +686,15 @@ export function LauncherChat({
     faq ||
     map ||
     form ||
-    confirm;
+    confirm ||
+    schedule;
 
   const replyTurn = useCallback(
     (thoughtSeconds?: number): Turn => ({
       from: "ai",
-      text: confirm
+      text: schedule
+        ? SCHEDULE_REPLY
+        : confirm
         ? CONFIRM_REPLY
         : form
         ? FORM_REPLY
@@ -713,6 +736,7 @@ export function LauncherChat({
       map: map ? MAP : undefined,
       form: form ? FORM : undefined,
       confirms: confirm ? CONFIRMS : undefined,
+      scheduler: schedule ? SCHEDULE : undefined,
       thoughtSeconds,
     }),
     [
@@ -730,6 +754,7 @@ export function LauncherChat({
       map,
       form,
       confirm,
+      schedule,
     ],
   );
 
@@ -848,7 +873,11 @@ export function LauncherChat({
                     turn.sources ? <Sources sources={turn.sources} /> : undefined
                   }
                   afterBubble={
-                    turn.confirms ? (
+                    turn.scheduler ? (
+                      <div className="mt-1 w-full min-w-0">
+                        <Scheduler data={turn.scheduler} onPick={handleSend} />
+                      </div>
+                    ) : turn.confirms ? (
                       <div className="mt-1 flex w-full min-w-0 flex-col gap-2">
                         {turn.confirms.map((c) => (
                           <ConfirmDialog
