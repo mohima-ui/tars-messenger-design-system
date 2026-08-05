@@ -12,8 +12,8 @@ const ANATOMY = [
 const SPECS = [
   { prop: "Panel", value: "400 × 712 · r-40", note: "--bg-surface #FEFCF8" },
   { prop: "Elevation", value: "--ds-shadow-xl", note: "4-layer cast — floating over the host page" },
-  { prop: "Header height", value: "80px", note: "1px #EBE7E3 divider" },
-  { prop: "Avatar", value: "40px · r-10", note: "Tenant agent avatar" },
+  { prop: "Header height", value: "64px", note: "1px #EBE7E3 divider" },
+  { prop: "Avatar", value: "36px · r-10", note: "Tenant agent avatar" },
   { prop: "Composer field", value: "r-16 · paper", note: "--bg-paper #F9F3EA · 1px border-line" },
   { prop: "Placeholder", value: "14px #979797", note: "“Ask me anything...”" },
   { prop: "Powered by", value: "10px/16", note: "MUTED label · “TARS” bold in ink" },

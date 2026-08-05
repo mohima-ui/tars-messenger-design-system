@@ -98,7 +98,8 @@ export function ChatbotShell({
     >
       {/* header */}
       <div
-        className="flex h-20 w-full shrink-0 items-center gap-1 border-b px-4"
+        /* 20px on the right so the close button isn't crowded against the panel edge */
+        className="flex h-16 w-full shrink-0 items-center gap-1 border-b pl-4 pr-5"
         style={{ borderColor: HEADER_LINE }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -115,7 +116,7 @@ export function ChatbotShell({
           <img
             src={avatar}
             alt=""
-            className="ml-0.5 size-10 shrink-0 rounded-[10px] object-cover"
+            className="ml-0.5 size-9 shrink-0 rounded-[10px] object-cover"
           />
           <div className="ml-1.5 min-w-0">
             <p
