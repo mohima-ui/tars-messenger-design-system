@@ -325,7 +325,75 @@ that does not exist on a surface is absent, not zero.
 
 ---
 
-## 14. Where things are
+## 14. Measurements
+
+Every number below is read off `components/launcher/GlassComposer.tsx` — the
+component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
+36px and `gap-2.5` is 10px; the values here are already converted.
+
+### Composer launcher
+
+| | Resting | Expanded |
+|---|---|---|
+| Width | 340 | 600 centred · 400 left/right |
+| Height | 64 (8 + 48 + 8) | 64 |
+| Radius | 32 | 32 — drops to 24 while dictating, when the row wraps |
+| Padding | 10 × 8 | 10 × 8 |
+| Control disc | 48 | 48 |
+
+- **Placeholder**: 16px, weight 300, `--ink-mute`. Accent instead when there is
+  a conversation to resume. 14px inside the messenger.
+- **Mic disc**: 48, filled `var(--brand)`, 20px glyph in white, stroke 1.5.
+- **Suggestion chips**: 14px/400, padding 16 × 8, full radius, fill
+  `color-mix(var(--brand) 14%, white)`, ink
+  `color-mix(var(--brand) 75%, black)`. Hover adds an inset 1.5px ring at 45%.
+- **Travelling highlight**: 2px, one revolution per 5200ms.
+
+### Messenger
+
+| | Centred | Left / right |
+|---|---|---|
+| Width | 600 | 400 |
+| Height | 620 (Brightline 580) | 720 (Brightline 700) |
+| Radius | 40 | 40 |
+| Max height | `calc(100dvh - 120px)` | same |
+
+### Header
+
+| Part | Value |
+|---|---|
+| Row | padding 20 × 13, gap 10, content height 36 |
+| Logomark | 36 circle, brand fill, image fills the disc; monogram fallback 12px bold white |
+| Title | 14px / 18px, semibold, `--ink-soft` |
+| Subtitle | 12px / 14px, `--ink-faint`, 4px under the title |
+| Back · menu · close | 32 buttons, 20px icons, `--ink-mute`, hover fills `--fill` |
+| Right cluster | gap 4, pulled 4px into the row's padding |
+
+### Conversation
+
+| Part | Value |
+|---|---|
+| Thread padding | 20 sides, 16 top, 12 bottom |
+| Gap between turns | 16 |
+| AI message | no width cap — the full column (560 centred, 360 in a corner). 14px / 1.62, weight 300, `--ink-soft` |
+| User bubble | max 80%, radius 20, padding 20 × 12, 14px weight 300 |
+| Action row | 24 buttons, 2 gaps, 14px icons — the speaker is 16 because at a matched box it carries visibly less ink. Row pulled 6px left so the first glyph aligns with the text above it |
+| Suggestion chips | right-aligned, one row, horizontal scroll, gap 8, chip spec as above |
+| Disclaimer | 12px, `--note`, centred, max width 500 centred / 320 in a corner, truncated with the remainder on a hover tail |
+
+### Composer inside the messenger
+
+| Part | Value |
+|---|---|
+| Width | panel − 40 → 560 centred, 360 in a corner |
+| Padding | 10 all round; 12 above, 20 below |
+| Radius | full, → 24 past two lines |
+| Discs | 44 attach and mic/send, 20px glyphs |
+| Ring | inset 1px `brand-lite` at 55%, solid `var(--brand)` on focus |
+
+---
+
+## 15. Where things are
 
 ```
 app/design/page.tsx                     the design tool
