@@ -4,7 +4,7 @@
    demo that happened to be sitting at the root — which meant anyone opening
    the project landed on something that was never part of the handoff and had
    to be told which URL to go to instead. That demo is still here, in
-   _explored/starter. */
+   explored designs/starter. */
 
 import Link from "next/link";
 
@@ -68,7 +68,7 @@ export default function Home() {
         <p className="mt-3 text-[12.5px] leading-relaxed text-[#A1A1AA]">
           Everything tried on the way here is kept in{" "}
           <code className="rounded bg-[#F0F0F3] px-1 py-0.5 text-[11.5px] text-[#52525B]">
-            explored
+            explored designs/
           </code>{" "}
           — out of routing, so it is not built or deployed. Its README says how
           to bring a route back.
