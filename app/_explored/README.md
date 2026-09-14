@@ -15,13 +15,13 @@ showing the eight that were drawn before it.
 
 Rename the folder and the routes return at their old paths:
 
-    mv app/_3-explored app/explored   # everything, at /explored/*
+    mv app/_explored app/explored   # everything, at /explored/*
 
 Or lift out just the one you need:
 
-    mv app/_3-explored/design/unread-lab "app/(1-design)/design/unread-lab"
+    mv app/_explored/design/unread-lab "app/design/unread-lab"
 
-The index at `_3-explored/page.tsx` lists all of it, grouped, with a line on
+The index at `_explored/page.tsx` lists all of it, grouped, with a line on
 what each was trying to answer. Its internal links assume the `/explored`
 prefix, so they work as soon as the folder is un-prefixed.
 
@@ -41,5 +41,5 @@ prefix, so they work as soon as the folder is un-prefixed.
 ## Shared code is not in here
 
 `GlassComposer`, `ConfigurePanel` and `DashboardRails` live in `components/`,
-because the shipping routes import them too. Nothing under `_3-explored` is
+because the shipping routes import them too. Nothing under `_explored` is
 imported by anything that ships.
