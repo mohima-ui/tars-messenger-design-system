@@ -94,6 +94,185 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* The recording light under an open microphone. Scale and fade only, on a
+   disc that already fills its button — so it reads as the control breathing
+   rather than as a halo drawn around it. */
+@keyframes mic-pulse {
+  from { opacity: 0.45; transform: scale(0.85); }
+  to { opacity: 0; transform: scale(1.35); }
+}
+
+/* The sparkle at work.
+
+   A very slow turn with a breath inside it. The turn is slow enough that you
+   can't watch it happen — it reads as the mark being alive rather than as a
+   spinner, which matters because this stands in for something that was never
+   a loading indicator. The breath is what you actually see.
+
+   Rotation and scale in one keyframe rather than two animations on nested
+   elements: two transforms on the same element can't be composed from
+   separate rules, and the last one declared silently wins. */
+@keyframes sparkle-turn {
+  0%   { transform: rotate(0deg) scale(0.94); }
+  50%  { transform: rotate(180deg) scale(1.06); }
+  100% { transform: rotate(360deg) scale(0.94); }
+}
+
+/* The bloom behind it, breathing against the mark rather than with it — they
+   run at different periods, so the glow swells while the star is settling and
+   the two never land on the same beat. In step they'd read as one shape
+   pulsing; out of step, as a light source with something in front of it. */
+@keyframes sparkle-bloom {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  50%      { opacity: 0.7; transform: scale(1.12); }
+}
+
+/* An orbit.
+
+   The dot doesn't move — its track does. Rotating a full-size wrapper with the
+   dot pinned to the top of it gives a perfectly circular path for one
+   transform, where animating the dot's own x and y would need keyframes at
+   every point on the circle and would still be an approximation between them.
+
+   Nothing fades and nothing scales: an orbit is a thing travelling at a
+   constant rate, and any change in the mark itself turns it into a pulse. */
+@keyframes orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* The launcher's attention pulse: in, peak, out, then a rest.
+
+   The rest is the point. Three quarters of the cycle is the swell and its
+   return; the last quarter is nothing at all, which is what makes the loop
+   read as breathing rather than as a pulse meter. */
+@keyframes orbit-breathe {
+  0%   { opacity: 0.4; transform: scale(0.94); }
+  35%  { opacity: 0.85; transform: scale(1.06); }
+  70%  { opacity: 0.4; transform: scale(0.94); }
+  100% { opacity: 0.4; transform: scale(0.94); }
+}
+
+/* The particle ring drawing breath: out, and back in.
+
+   Scaling the group moves every dot along its own radius at once, which is
+   what makes it read as one ring expanding rather than twelve dots each
+   deciding to move. The dots grow slightly with it — a circle scaled is a
+   bigger circle — and that is wanted: nearer things are larger, so the swell
+   reads as the ring coming toward you rather than merely widening. */
+@keyframes orbit-swell {
+  /* Out fast, back slowly, then hold.
+
+     A symmetric in-and-out is a pulse — it has no direction and the eye reads
+     it as a throb. Pushing most of the travel into the first third and letting
+     the return take twice as long makes it a gesture instead: the ring throws
+     itself outward and settles back, which is a thing happening rather than a
+     thing oscillating.
+
+     The easing lives in the keyframes rather than on the animation, because
+     the two halves want different curves — ease-out on the way away, ease-in
+     coming home. One curve for the whole cycle can only describe one of
+     them. */
+  0%   { transform: scale(0.9); opacity: 0.55; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  /* Brightest at full reach. Tying the light to the travel is what turns the
+     swell into a breath being taken rather than a ring changing size — the
+     particles are dimmest when they are gathered against the button and lit
+     when they are furthest from it, so the motion has somewhere to arrive. */
+  30%  { transform: scale(1.16); opacity: 1; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  75%  { transform: scale(0.9); opacity: 0.55; }
+  100% { transform: scale(0.9); opacity: 0.55; }
+}
+
+/* A ring leaving the launcher.
+
+   Scale and fade only, and the fade is front-loaded: half the opacity is gone
+   by the time the ring is a third of the way out. A ring that stays solid to
+   the end of its travel reads as a circle being drawn around the button; one
+   that gives out early reads as something the button emitted.
+
+   No fill change and no blur here — the softness is in the element's own
+   background, so the same keyframe works for a band, an outline or a filled
+   disc. */
+/* A ring leaving the launcher, fading as it goes.
+
+   The fade does the work the stroke can't. These are scaled elements, so the
+   1px border is drawn thicker the further out the ring travels — nothing
+   about the line itself can be made to thin. What can be done is take the
+   light away faster than the ring grows: most of the opacity is gone by the
+   time it is a third of the way out, so the thickening happens to something
+   already close to invisible.
+
+   The tail of the curve matters as much as the start. Holding a little
+   opacity to 60% and then dropping it is what makes the ring dissolve rather
+   than stop. */
+@keyframes pulse-out {
+  /* The line only exists at the start.
+
+     A ring is scaled as it travels, so its 1px border is drawn thicker the
+     further out it gets — the one part of it that should be thinning is the
+     only part that can't. Taking the border to transparent early sidesteps
+     that entirely: the outline is there while the ring is still close to the
+     button, and what carries on outward is the soft fill alone.
+
+     border-color is animatable, which is what makes this possible in the
+     keyframe rather than needing a second element to fade separately. */
+  0%   { transform: scale(1); opacity: 0.85; border-color: rgba(124,58,237,0.55); }
+  18%  { border-color: rgba(124,58,237,0.18); }
+  30%  { opacity: 0.32; border-color: rgba(124,58,237,0); }
+  60%  { opacity: 0.12; }
+  100% { transform: scale(2.3); opacity: 0; border-color: rgba(124,58,237,0); }
+}
+
+@keyframes chip-float {
+  /* Six pixels, and a hair of drift sideways.
+
+     Three was honest and invisible — at that amplitude the movement is
+     smaller than the shadow under the chip and reads as a rendering wobble.
+     Six is enough to see without the chip ever appearing to leave its place
+     on the arc.
+
+     The horizontal component peaks at a different point in the cycle, so the
+     path is a shallow loop rather than a line — a thing moving straight up
+     and down is a mechanism; a thing tracing an oval is floating.
+
+     Half a degree of roll on top of it. Not enough to see as rotation, which
+     is the point: what you notice is that the chip isn't rigid. Any more and
+     it stops being a card resting on air and starts being a sign swinging on
+     a hook. */
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  30%      { transform: translate(-3px, -7px) rotate(-0.5deg); }
+  55%      { transform: translate(1px, -10px) rotate(0.4deg); }
+  80%      { transform: translate(3px, -4px) rotate(0.6deg); }
+}
+
+/* A light breathing under the launcher.
+
+   Opacity and scale on a glow that sits behind the button, never on the
+   button itself — the disc holds still and the light around it moves, which
+   is the difference between a control that is pulsing and a control that is
+   lit. Small numbers on purpose: this runs for as long as the page is open,
+   so it has to survive being in the corner of someone's eye.
+
+   A long rest at the end of each cycle. Without it the loop is a heartbeat
+   and you start counting it; with it, it reads as breathing. */
+@keyframes launcher-breathe {
+  0%   { opacity: 0.25; transform: scale(0.9); }
+  35%  { opacity: 0.6; transform: scale(1.08); }
+  70%  { opacity: 0.25; transform: scale(0.9); }
+  100% { opacity: 0.25; transform: scale(0.9); }
+}
+
+/* The caret on a typewritten launcher prompt.
+
+   Held solid for most of the cycle rather than a even on/off: a caret that
+   spends equal time absent reads as flashing, where one that mostly exists
+   and briefly drops out reads as sitting there waiting. Steps rather than a
+   fade, because a caret that dims is a caret being animated. */
+@keyframes caret-blink {
+  0%, 60%   { opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -155,7 +334,6 @@
   display: none;
 }
 
-
 :root {
   --radius: 0.625rem;
 
@@ -201,4 +379,77 @@
   html {
     @apply font-sans;
   }
+}
+
+/* A starter prompt leaving the launcher.
+
+   Up and out, with the fade at both ends rather than one: in fast, because a
+   prompt that eases into visibility looks like it is loading, and out over
+   the last stretch of the climb.
+
+   Both the travel and the height the fade starts at come in as custom
+   properties, because the two have to agree and the percentage alone cannot
+   express that — the rise is eased, so "62% of the time" is not any
+   particular number of pixels. Pinning the transform at the fade keyframe
+   makes the handover exact whatever the easing does either side of it.
+
+   The scale is small on purpose — a chip that grows as it rises reads as
+   coming toward the viewer, where this should read as drifting away. */
+@keyframes prompt-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(0.94); }
+  10%  { opacity: 1; transform: translateY(calc(var(--rise) * 0.1)) scale(1); }
+  72%  { opacity: 1; transform: translateY(var(--fade)); }
+  100% { opacity: 0; transform: translateY(var(--rise)) scale(0.98); }
+}
+
+/* The launcher's icon picker scrolls horizontally and hides its bar: 272px of
+   settings column cannot spare 15 of it, and a bar under a 52px swatch reads as
+   a divider rather than as a control. Global rather than in the design page's
+   own <style>, because that block lives inside the chat panel and is not in the
+   document while the panel is closed — which is most of the time you are
+   looking at the settings. */
+.icon-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.icon-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* The unread launcher's buzz.
+
+   A handset on a desk, not a pulse: it fires for under a second of every
+   cycle and is still for the rest. A ring that breathes forever is something
+   the eye learns to skip, and the launcher only has to announce once. Chosen
+   over a bigger, redder badge at the 11 Sep review — see /design/unread-lab
+   for the set it came from. */
+@keyframes mark-nudge {
+  /* The still stretch, shortened: the buzz used to be a fifth of the cycle
+     with a long wait either side, which read as the launcher having stopped
+     rather than as something checking back in. It now runs over the last
+     third, and the cycle itself is shorter — roughly a buzz every second and
+     a half. */
+  0%, 62%, 100% { transform: rotate(0deg) scale(1); }
+  /* A wind-up before the swing. Without it the disc starts at its fastest,
+     which the eye reads as a jump rather than as a thing being shaken. */
+  66% { transform: rotate(-6deg) scale(1.04); }
+  71% { transform: rotate(16deg) scale(1.06); }
+  76% { transform: rotate(-14deg) scale(1.05); }
+  81% { transform: rotate(11deg) scale(1.04); }
+  86% { transform: rotate(-8deg) scale(1.02); }
+  91% { transform: rotate(5deg) scale(1.01); }
+  95% { transform: rotate(-2deg) scale(1); }
+}
+
+/* The count, swelling with the buzz.
+
+   12px at rest and 16 while the disc is shaking — the badge grows into the
+   movement rather than sitting through it, which is what makes the pair read
+   as one object being knocked rather than a number stuck to a moving disc.
+   Timed against mark-nudge's own window, so the two have to be given the same
+   duration to stay in step. */
+@keyframes badge-swell {
+  0%, 62%, 100% { transform: scale(1); }
+  67%, 88% { transform: scale(1.333); }
+  95% { transform: scale(1); }
 }

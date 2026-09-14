@@ -43,6 +43,13 @@ export type ChatbotShellProps = {
   poweredBy?: boolean;
   /** Rendered into the message area. */
   children?: ReactNode;
+  /** Covers the whole shell — header, messages and composer alike. For a view
+      that replaces the conversation rather than sitting inside it, such as
+      the conversation list behind the back button. Positioned absolutely
+      against the panel, so it inherits the 40px radius and the clip for
+      free; laid out only when passed, so nothing changes for callers that
+      don't. */
+  overlay?: ReactNode;
   className?: string;
   style?: CSSProperties;
 };
@@ -60,6 +67,7 @@ export function ChatbotShell({
   accent = "var(--ds-accent)",
   poweredBy = true,
   children,
+  overlay,
   className = "",
   style,
 }: ChatbotShellProps) {
@@ -88,7 +96,7 @@ export function ChatbotShell({
     <div
       /* No border — the panel is defined by its elevation alone, which also
          keeps the content box a true 400px (18px gutters → 364px column). */
-      className={`flex flex-col overflow-hidden rounded-[40px] bg-[#FEFCF8] ${className}`}
+      className={`relative flex flex-col overflow-hidden rounded-[40px] bg-[#FEFCF8] ${className}`}
       style={{
         width: 400,
         height: 680,
@@ -248,6 +256,11 @@ export function ChatbotShell({
           </p>
         )}
       </div>
+
+      {/* Last child, so it stacks over the header and composer without either
+          needing a z-index — source order settles it among siblings that all
+          sit in the same stacking context. */}
+      {overlay}
     </div>
   );
 }

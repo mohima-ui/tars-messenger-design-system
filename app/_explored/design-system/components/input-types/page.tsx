@@ -1,0 +1,531 @@
+"use client";
+
+import { useState } from "react";
+import { Star, MapPin, Check, ChevronLeft, ChevronRight, Plus, Mic, ArrowUp } from "lucide-react";
+
+const LINE = "#E0DAD3";
+const CHROME = "#E5E5E5";
+const PAPER = "#F9F3EA";
+const INK = "#333333";
+const MUTED = "#6E6E6E";
+const ACCENT = "#632E9A";
+const ACCENT_SOFT = "#F0E7FA";
+const ACCENT_BORDER = "#C5A8E0";
+const ACCENT_INK = "#4A1F77";
+
+/* ── Buttons ── */
+/* Quick-reply pill — suggestion chip; quiet by default, accent on hover. */
+function Chip({ label, state }: { label: string; state: "default" | "hover" }) {
+  const hover = state === "hover";
+  return (
+    <button
+      type="button"
+      className="rounded-full border px-3.5 py-1.5 text-[14px] whitespace-nowrap"
+      style={{
+        backgroundColor: hover ? ACCENT_SOFT : PAPER,
+        borderColor: hover ? ACCENT_BORDER : LINE,
+        color: hover ? ACCENT_INK : INK,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+const BUTTON_STATES = ["default", "hover"] as const;
+
+function ButtonsDemo() {
+  return (
+    <div className="flex flex-wrap gap-8">
+      {BUTTON_STATES.map((s) => (
+        <div key={s} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>
+            {s}
+          </span>
+          <Chip label="Compare plans" state={s} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Cards (inline card) ── */
+function InlineCard({ state }: { state: "default" | "hover" | "selected" }) {
+  const hover = state === "hover";
+  const selected = state === "selected";
+  const borderColor = selected ? ACCENT : hover ? ACCENT_BORDER : LINE;
+  return (
+    <div
+      className="w-[260px] rounded-[12px] border bg-white p-2 transition-all"
+      style={{
+        borderColor,
+        boxShadow: selected
+          ? `inset 0 0 0 1px ${ACCENT}`
+          : hover
+            ? `0 0 0 3px ${ACCENT_SOFT}`
+            : undefined,
+      }}
+    >
+      {/* product image — placeholder */}
+      <div
+        className="relative flex h-[104px] w-full items-center justify-center rounded-[8px] border"
+        style={{
+          borderColor: LINE,
+          backgroundColor: "#F4EEE3",
+          backgroundImage:
+            "repeating-linear-gradient(135deg, rgba(140,131,120,0.16) 0px, rgba(140,131,120,0.16) 1.5px, transparent 1.5px, transparent 12px)",
+        }}
+      >
+        <span className="font-mono text-[9px] tracking-wider uppercase" style={{ color: MUTED }}>
+          Product image
+        </span>
+        {selected && (
+          <span
+            className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full"
+            style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+          >
+            <Check className="size-3" strokeWidth={3} />
+          </span>
+        )}
+      </div>
+      {/* body */}
+      <div className="px-1 pt-2.5">
+        <p className="font-mono text-[9px] tracking-wider uppercase" style={{ color: MUTED }}>
+          Recommended
+        </p>
+        <p className="mt-1 text-[14px] font-semibold" style={{ color: selected ? ACCENT_INK : INK }}>
+          Pro Plan · 14-day trial
+        </p>
+        <p className="mt-1 text-[12px] leading-snug" style={{ color: MUTED }}>
+          The full Tars stack — AI, voice, advanced routing, unlimited handoffs.
+        </p>
+        <div className="mt-2.5">
+          <span className="text-[14px] font-semibold" style={{ color: INK }}>
+            $49/mo
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CARD_STATES = ["default", "hover", "selected"] as const;
+
+function CardsDemo() {
+  return (
+    <div className="flex w-full flex-wrap gap-5">
+      {CARD_STATES.map((s) => (
+        <div key={s} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>
+            {s}
+          </span>
+          <InlineCard state={s} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Calendar (date + time picker) ── */
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+// June 2026 starts on Monday → one leading cell (May 31), then 1–30, then trailing (Jul 1–4)
+const CAL_CELLS: { label: number; current: boolean }[] = [
+  { label: 31, current: false },
+  ...Array.from({ length: 30 }, (_, i) => ({ label: i + 1, current: true })),
+  ...[1, 2, 3, 4].map((n) => ({ label: n, current: false })),
+];
+// weekdays with availability
+const SLOTS = ["9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "1:00 PM", "1:30 PM", "2:00 PM"];
+const AVAILABLE_DAYS: Record<number, string[]> = Object.fromEntries(
+  [15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30].map((d) => [d, SLOTS]),
+);
+const WEEKDAY_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function SchedView({ day, time }: { day: number | null; time: string | null }) {
+  const slots = day !== null ? AVAILABLE_DAYS[day] : null;
+  return (
+    <div className="w-[440px] max-w-full overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE }}>
+      <div className="relative">
+        {/* calendar — drives the card height */}
+        <div className="border-r p-3.5" style={{ width: "calc(100% - 160px)", borderColor: LINE }}>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex size-6 items-center justify-center" style={{ color: MUTED }}><ChevronLeft className="size-4" strokeWidth={2} /></span>
+            <span className="text-[13px] font-semibold" style={{ color: INK }}>June 2026</span>
+            <span className="flex size-6 items-center justify-center" style={{ color: MUTED }}><ChevronRight className="size-4" strokeWidth={2} /></span>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {WEEKDAYS.map((d, i) => (
+              <span key={i} className="flex h-6 items-center justify-center text-[10px] font-medium" style={{ color: "#A8A096" }}>{d}</span>
+            ))}
+            {CAL_CELLS.map((cell, i) => {
+              if (!cell.current) {
+                return <span key={`x${i}`} className="flex h-8 items-center justify-center text-[12px]" style={{ color: "#D9D2C7" }}>{cell.label}</span>;
+              }
+              const available = cell.label in AVAILABLE_DAYS;
+              if (!available) {
+                return <span key={cell.label} className="flex h-8 items-center justify-center text-[12px]" style={{ color: "#C4B9A8" }}>{cell.label}</span>;
+              }
+              const selected = day === cell.label;
+              return (
+                <span
+                  key={cell.label}
+                  className="flex h-8 items-center justify-center rounded-[7px] text-[12px] font-medium"
+                  style={{ backgroundColor: selected ? ACCENT : "#F0EBE0", color: selected ? "#FFFFFF" : INK }}
+                >
+                  {cell.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        {/* right panel — pinned to the calendar height; times scroll within */}
+        <div className="absolute inset-y-0 right-0 flex w-[160px] flex-col p-3.5">
+          {day === null ? (
+            <>
+              <span className="text-[13px] font-semibold" style={{ color: INK }}>Please select a date</span>
+              <div className="flex flex-1 items-center justify-center py-8">
+                <span className="text-[12px]" style={{ color: MUTED }}>No availability to show</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-[13px] font-semibold" style={{ color: INK }}>{WEEKDAY_FULL[day % 7]}, June {day}</span>
+              <div className="scrollbar-subtle mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                {(slots ?? []).map((t) => {
+                  const on = time === t;
+                  return (
+                    <span
+                      key={t}
+                      className="rounded-[8px] border py-1.5 text-center text-[12px] font-medium"
+                      style={{ borderColor: on ? ACCENT : LINE, backgroundColor: on ? ACCENT : "#FFFFFF", color: on ? "#FFFFFF" : INK }}
+                    >
+                      {t}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SCHED_STATES: { state: string; day: number | null; time: string | null }[] = [
+  { state: "default", day: null, time: null },
+  { state: "selected", day: 17, time: "10:00 AM" },
+];
+
+function CalendarDemo() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {SCHED_STATES.map(({ state, day, time }) => (
+        <div key={state} className="flex flex-col gap-2">
+          <span className="font-mono text-[10px] tracking-wider uppercase" style={{ color: MUTED }}>{state}</span>
+          <SchedView day={day} time={time} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Auto suggestion (composer-driven suggestions popup) ── */
+const PLACES = [
+  { city: "San Francisco", region: "California, USA" },
+  { city: "San Jose", region: "California, USA" },
+  { city: "San Diego", region: "California, USA" },
+  { city: "San Antonio", region: "Texas, USA" },
+  { city: "Santa Fe", region: "New Mexico, USA" },
+  { city: "Seattle", region: "Washington, USA" },
+  { city: "Singapore", region: "Singapore" },
+  { city: "Sydney", region: "New South Wales, Australia" },
+];
+
+function AutoSuggestDemo() {
+  const [query, setQuery] = useState("San");
+  const [open, setOpen] = useState(true);
+  const q = query.trim().toLowerCase();
+  const results = q ? PLACES.filter((p) => p.city.toLowerCase().includes(q) || p.region.toLowerCase().includes(q)) : PLACES;
+  return (
+    <div className="w-full max-w-[360px]">
+      {/* suggestions — pops above the composer as you type */}
+      {open && (
+        <div className="mb-2 overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: LINE, boxShadow: "0 4px 14px -3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)" }}>
+          <div className="scrollbar-subtle max-h-[228px] overflow-y-auto">
+            {results.length > 0 ? (
+              results.map((p, i) => (
+                <button
+                  key={p.city}
+                  type="button"
+                  onClick={() => { setQuery(`${p.city}, ${p.region}`); setOpen(false); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                  style={{ borderTop: i === 0 ? "none" : `1px solid ${LINE}` }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = ACCENT_SOFT)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <MapPin className="size-4 shrink-0" strokeWidth={2} style={{ color: MUTED }} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px]" style={{ color: INK }}>{p.city}</span>
+                    <span className="block truncate text-[11px]" style={{ color: MUTED }}>{p.region}</span>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-center text-[12px]" style={{ color: MUTED }}>No matches</div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* composer — matches the app's message composer */}
+      <div className="flex w-full items-center gap-2 rounded-[12px] border px-3 py-2 transition-all" style={{ borderColor: LINE, backgroundColor: PAPER }}>
+        <button type="button" aria-label="Add attachment" className="flex size-7 shrink-0 items-center justify-center rounded-[6px] transition-colors" style={{ color: MUTED }}>
+          <Plus className="size-4" strokeWidth={1.5} />
+        </button>
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          placeholder="Ask me anything..."
+          className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#A8A096]"
+          style={{ color: INK }}
+        />
+        <button type="button" aria-label="Voice input" className="flex size-7 shrink-0 items-center justify-center rounded-full transition-colors" style={{ color: MUTED }}>
+          <Mic className="size-4" strokeWidth={1.5} />
+        </button>
+        <button type="button" aria-label="Send" className="flex size-7 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: ACCENT }}>
+          <ArrowUp className="size-4" strokeWidth={2} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Star rating ── */
+function StarRatingDemo() {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const active = hover || rating;
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <div className="flex gap-1" onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => {
+          const filled = n <= active;
+          return (
+            <button
+              key={n}
+              type="button"
+              aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              onMouseEnter={() => setHover(n)}
+              onClick={() => setRating(n)}
+              className="transition-transform hover:scale-110"
+            >
+              <Star
+                className="size-7"
+                strokeWidth={1.75}
+                style={{ color: filled ? ACCENT : LINE, fill: filled ? ACCENT : "transparent" }}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px]" style={{ color: MUTED }}>{active ? `${active}/5` : "Tap a star to rate"}</p>
+    </div>
+  );
+}
+
+/* ── Geo-location ── */
+function GeoLocationDemo() {
+  const [shared, setShared] = useState(false);
+  return (
+    <div className="flex flex-col items-start gap-2.5">
+      {!shared ? (
+        <button
+          type="button"
+          onClick={() => setShared(true)}
+          className="inline-flex items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-[14px] font-medium transition-colors"
+          style={{ borderColor: LINE, backgroundColor: PAPER, color: INK }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = ACCENT_SOFT; e.currentTarget.style.borderColor = ACCENT_BORDER; e.currentTarget.style.color = ACCENT_INK; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PAPER; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = INK; }}
+        >
+          <MapPin className="size-4" strokeWidth={2} />
+          Share my location
+        </button>
+      ) : (
+        <div className="inline-flex items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-[13px]" style={{ borderColor: LINE, backgroundColor: "#FFFFFF", color: INK }}>
+          <MapPin className="size-4 shrink-0" strokeWidth={2} style={{ color: ACCENT }} />
+          <span>San Francisco, CA</span>
+          <Check className="size-3.5" strokeWidth={2.5} style={{ color: "#16A34A" }} />
+        </div>
+      )}
+      <p className="text-[11px]" style={{ color: MUTED }}>{shared ? "Location shared with the agent." : "Asks the browser for the user's location."}</p>
+    </div>
+  );
+}
+
+const SPECS = [
+  { prop: "Radius (control)", value: "rounded-[10px]", note: "Buttons, inputs, geo" },
+  { prop: "Radius (card / calendar)", value: "rounded-[12px]", note: "Selectable cards, date grid" },
+  { prop: "Border (rest)", value: "1px #E0DAD3", note: "--border-line" },
+  { prop: "Selected border", value: "1px #C5A8E0", note: "--accent-border" },
+  { prop: "Selected fill", value: "#F0E7FA", note: "--accent-soft" },
+  { prop: "Primary fill", value: "#632E9A", note: "--accent (filled buttons, selected day)" },
+  { prop: "Selected text", value: "#4A1F77", note: "--accent-ink" },
+  { prop: "Body text", value: "#333333", note: "--text-ink" },
+  { prop: "Muted text", value: "#6E6E6E", note: "--text-secondary" },
+];
+
+const TYPES = [
+  { name: "Buttons", desc: "Quick-reply chips for short, verb-led choices — quiet paper pills (14px) that lift to accent-soft fill + accent-ink text on hover. Stack vertically below the bubble." },
+  { name: "Cards", desc: "An inline card — product image, eyebrow label, title, description, price, and a CTA button. A product, an article, or a form embedded without breaking the conversation." },
+  { name: "Calendar", desc: "Inline date + time picker for scheduling — a month grid beside a scrollable time list. Selected day and time fill with accent." },
+  { name: "Auto suggestion", desc: "As the user types in the composer, a Suggestions panel pops up above it with matching results (e.g. cities) — pin icon, primary + secondary line. Tapping one fills the composer to send." },
+  { name: "Star rating", desc: "Five-star input for quick CSAT. Hover and selection fill with accent." },
+  { name: "Geo-location", desc: "A single share button that resolves to a confirmed location chip once granted." },
+];
+
+const DOS = [
+  "Use buttons for 2–4 short, mutually exclusive choices; cards when each option needs detail.",
+  "Keep one accent-filled primary per group — everything else is outlined.",
+  "Echo the chosen value back as a user bubble after selection.",
+  "Pre-highlight the most likely auto-suggestion row.",
+];
+
+const DONTS = [
+  "Don't mix more than one input type in a single prompt.",
+  "Don't fill every button with accent — it removes the visual hierarchy.",
+  "Don't ask for geo-location without explaining why it's needed.",
+  "Don't leave a rating or calendar without a confirmation state.",
+];
+
+function Demo({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <p className="mb-1 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">{title}</p>
+      <p className="mb-3 max-w-[560px] text-[13px] leading-relaxed text-[#555]">{desc}</p>
+      <div className="flex justify-center rounded-[14px] border bg-white p-8" style={{ borderColor: CHROME }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+export default function InputTypesPage() {
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-10 border-b border-[#E5E5E5] bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1080px] items-center justify-between px-8 py-4">
+          <div className="flex items-baseline gap-3">
+            <a href="/explored/design-system" className="text-[12px] text-[#6E6E6E] transition-colors hover:text-[#333333]">
+              ← Foundation
+            </a>
+            <span className="text-[#D4D4D4]">/</span>
+            <span className="text-[12px] font-medium text-[#333333]">Components</span>
+            <span className="text-[#D4D4D4]">/</span>
+            <span className="text-[12px] font-semibold text-[#333333]">Input Types</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1080px] px-8 py-12">
+        <div className="mb-12 max-w-[640px]">
+          <p className="text-[11px] font-medium tracking-wider text-[#6E6E6E] uppercase">Component</p>
+          <h1 className="mt-2 text-[32px] leading-tight font-semibold tracking-tight text-[#333333]">
+            Input Types
+          </h1>
+          <p className="mt-3 text-[14px] leading-relaxed text-[#555]">
+            Structured ways to collect a reply when free text is the slow path. Each type
+            scaffolds the answer — a tap, a date, a rating — and shares the same beige
+            surface, neutral borders, and single-accent selection treatment.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-12">
+          <Demo title="Buttons" desc="Quick-reply suggestion chips — quiet paper pills that lift to accent-soft fill + accent-ink text on hover.">
+            <ButtonsDemo />
+          </Demo>
+
+          <Demo title="Cards" desc="An inline card — product image, eyebrow, title, description, price, and a CTA. Embedded without breaking the conversation.">
+            <CardsDemo />
+          </Demo>
+
+          <Demo title="Calendar" desc="Inline date + time picker — pick a day on the month grid and a slot from the scrollable time list.">
+            <CalendarDemo />
+          </Demo>
+
+          <Demo title="Auto suggestion" desc="Type in the composer to surface matching questions above it. Tap one to fill the composer, or dismiss with ×.">
+            <AutoSuggestDemo />
+          </Demo>
+
+          <Demo title="Star rating" desc="Five-star input for quick satisfaction capture. Hover and tap to set.">
+            <StarRatingDemo />
+          </Demo>
+
+          <Demo title="Geo-location" desc="A single share button that resolves into a confirmed location chip. Click to share.">
+            <GeoLocationDemo />
+          </Demo>
+
+          {/* Types overview */}
+          <section>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Types</p>
+            <div className="divide-y rounded-[12px] border bg-white px-4 py-2" style={{ borderColor: CHROME }}>
+              {TYPES.map((t) => (
+                <div key={t.name} className="flex items-baseline gap-4 py-2.5">
+                  <span className="w-36 shrink-0 text-[12px] font-semibold text-[#333333]">{t.name}</span>
+                  <p className="text-[12px] leading-relaxed text-[#6E6E6E]">{t.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Specs */}
+          <section>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Specs</p>
+            <div className="flex flex-col divide-y overflow-hidden rounded-[12px] border bg-white" style={{ borderColor: CHROME }}>
+              {SPECS.map((s) => (
+                <div key={s.prop} className="flex items-baseline gap-4 px-4 py-3">
+                  <span className="w-56 shrink-0 text-[12px] font-semibold text-[#333333]">{s.prop}</span>
+                  <code className="w-48 shrink-0 font-mono text-[11px] text-[#333333]">{s.value}</code>
+                  <span className="text-[11px] text-[#6E6E6E]">{s.note}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Do / Don't */}
+          <section>
+            <p className="mb-3 text-[11px] font-semibold tracking-wider text-[#6E6E6E] uppercase">Guidance</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#E8F5EC] text-[11px] font-bold text-[#0F7A38]">✓</span>
+                  <p className="text-[12px] font-semibold text-[#333333]">Do</p>
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {DOS.map((t) => (
+                    <li key={t} className="text-[12px] leading-relaxed text-[#555]">{t}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-[12px] border bg-white p-4" style={{ borderColor: CHROME }}>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#FEE2E2] text-[11px] font-bold text-[#991B1B]">✕</span>
+                  <p className="text-[12px] font-semibold text-[#333333]">Don&apos;t</p>
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {DONTS.map((t) => (
+                    <li key={t} className="text-[12px] leading-relaxed text-[#555]">{t}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer className="mt-20 flex items-center justify-between border-t pt-8 pb-12 text-[12px] text-[#979797]" style={{ borderColor: CHROME }}>
+          <a href="/explored/design-system/components/handoff" className="transition-colors hover:text-[#333333]">← Human Handoff</a>
+          <a href="/explored/design-system/components/composer" className="transition-colors hover:text-[#333333]">Message Composer →</a>
+        </footer>
+      </main>
+    </div>
+  );
+}
