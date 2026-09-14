@@ -11,12 +11,12 @@ import Link from "next/link";
 const ROUTES = [
   {
     href: "/design",
-    name: "Design",
+    name: "Design section",
     note: "The design tool. Both launcher styles, three placements, six visitor states, three devices — this is the design being handed over.",
   },
   {
     href: "/brightline",
-    name: "Brightline",
+    name: "Brightline demo",
     note: "The same launcher on a customer's own site, screen-captured. What a tenant looks like in practice: one accent, one content pack.",
   },
 ];
@@ -68,7 +68,7 @@ export default function Home() {
         <p className="mt-3 text-[12.5px] leading-relaxed text-[#A1A1AA]">
           Everything tried on the way here is kept in{" "}
           <code className="rounded bg-[#F0F0F3] px-1 py-0.5 text-[11.5px] text-[#52525B]">
-            app/_explored
+            explored
           </code>{" "}
           — out of routing, so it is not built or deployed. Its README says how
           to bring a route back.

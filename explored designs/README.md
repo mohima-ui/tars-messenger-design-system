@@ -15,11 +15,11 @@ showing the eight that were drawn before it.
 
 Rename the folder and the routes return at their old paths:
 
-    mv app/_explored app/explored   # everything, at /explored/*
+    mv "explored designs" app/explored   # everything back, at /explored/*
 
 Or lift out just the one you need:
 
-    mv app/_explored/design/unread-lab "app/design/unread-lab"
+    mv explored designs/design/unread-lab "app/design/unread-lab"
 
 The index at `_explored/page.tsx` lists all of it, grouped, with a line on
 what each was trying to answer. Its internal links assume the `/explored`
