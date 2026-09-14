@@ -3,7 +3,8 @@
 Everything that was tried on the way to Messenger 3.0, kept out of the build.
 
 The underscore is what does it: Next opts a `_folder` and everything under it
-out of routing entirely, so nothing in here is built, bundled or deployed —
+out of routing entirely — and the `3` in front only sorts it below the two
+shipping sections in a file listing, so nothing in here is built, bundled or deployed —
 and none of it is deleted either. It stays in the repo as the record of how
 the shipping design was arrived at, because the questions come back. Someone
 asks why the launcher is a composer rather than a button, or why the unread
@@ -14,13 +15,13 @@ showing the eight that were drawn before it.
 
 Rename the folder and the routes return at their old paths:
 
-    mv app/_explored app/explored     # everything, at /explored/*
+    mv app/_3-explored app/explored   # everything, at /explored/*
 
 Or lift out just the one you need:
 
-    mv app/_explored/design/unread-lab app/design/unread-lab   # /design/unread-lab
+    mv app/_3-explored/design/unread-lab "app/(1-design)/design/unread-lab"
 
-The index at `_explored/page.tsx` lists all of it, grouped, with a line on
+The index at `_3-explored/page.tsx` lists all of it, grouped, with a line on
 what each was trying to answer. Its internal links assume the `/explored`
 prefix, so they work as soon as the folder is un-prefixed.
 
@@ -40,5 +41,5 @@ prefix, so they work as soon as the folder is un-prefixed.
 ## Shared code is not in here
 
 `GlassComposer`, `ConfigurePanel` and `DashboardRails` live in `components/`,
-because the shipping routes import them too. Nothing under `_explored` is
+because the shipping routes import them too. Nothing under `_3-explored` is
 imported by anything that ships.
