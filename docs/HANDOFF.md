@@ -11,6 +11,27 @@ open — they are at the end, and the first of them blocks the event schema.
 
 ---
 
+## 0. Start here
+
+1. Run it — `npm install && npm run dev`, then open `/design`. Both launcher
+   styles, three placements, six visitor states, three devices. Clicking
+   through it is faster than reading about it.
+2. **The lifecycle is §5.** Six states, when each applies, what the launcher
+   shows, what opening lands on, and the priority order when more than one is
+   true at once.
+3. **The specs are §2–§11.** Geometry, motion, theming, every number.
+4. **Build from `components/launcher/GlassComposer.tsx`** — the working
+   launcher and messenger, and what `/brightline` runs.
+
+Two implementations exist and it matters: `GlassComposer` is the component
+that ships, and `app/design/page.tsx` is a preview of it with its own copy of
+the UI so the settings panel can drive it. Where they disagree, this document
+is the tiebreak; where this document is wrong too, the component wins.
+
+§12 is four decisions still open. The first one blocks the event schema.
+
+---
+
 ## 1. What ships
 
 | Route | What it is |
