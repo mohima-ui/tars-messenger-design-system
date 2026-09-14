@@ -56,7 +56,16 @@ export default function Home() {
             this repo will find a folder of thirty routes that do not build,
             and the useful thing is knowing on the first screen that it is
             deliberate. */}
-        <p className="mt-8 text-[12.5px] leading-relaxed text-[#A1A1AA]">
+        <p className="mt-8 text-[12.5px] leading-relaxed text-[#71717A]">
+          Every spec and rule behind the two — geometry, states, motion,
+          theming, the event schema, and the four decisions still open — is in{" "}
+          <code className="rounded bg-[#F0F0F3] px-1 py-0.5 text-[11.5px] text-[#52525B]">
+            docs/HANDOFF.md
+          </code>
+          .
+        </p>
+
+        <p className="mt-3 text-[12.5px] leading-relaxed text-[#A1A1AA]">
           Everything tried on the way here is kept in{" "}
           <code className="rounded bg-[#F0F0F3] px-1 py-0.5 text-[11.5px] text-[#52525B]">
             app/_explored
