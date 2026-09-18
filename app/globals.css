@@ -9,7 +9,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -289,8 +289,22 @@
   0% { background-position: 150% 0; }
   100% { background-position: -50% 0; }
 }
+/* Both ends are derived from the tenant's accent rather than written down,
+   so re-theming a tenant is still one value: --brand is set wherever the
+   sparkle is (it reads the same variable), and the label sweeps in that
+   brand's own dark and light rather than in violet. The fallback is the
+   platform default, for the few places that render outside a brand scope. */
 .ai-shimmer {
-  background-image: linear-gradient(90deg, #4A1F77 0%, #4A1F77 40%, #B794D8 50%, #4A1F77 60%, #4A1F77 100%);
+  --shimmer-ink: color-mix(in oklab, var(--brand, #632E9A) 78%, black);
+  --shimmer-shine: color-mix(in oklab, var(--brand, #632E9A) 45%, white);
+  background-image: linear-gradient(
+    90deg,
+    var(--shimmer-ink) 0%,
+    var(--shimmer-ink) 40%,
+    var(--shimmer-shine) 50%,
+    var(--shimmer-ink) 60%,
+    var(--shimmer-ink) 100%
+  );
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;

@@ -5,11 +5,17 @@ import {
   type SuggestionState,
 } from "@/components/configure/ConfigurePanel";
 import { DashboardRails } from "@/components/dashboard/DashboardRails";
+import {
+  SEARCH_DOCS_INPUT,
+  SEARCH_DOCS_OUTPUT,
+  type Json,
+} from "./trace-fixtures";
 
 import {
   useMemo,
   useState,
   useEffect,
+  useId,
   useRef,
   useCallback,
   createElement,
@@ -20,6 +26,7 @@ import { Button } from "@/components/ui/button";
 /* the composer's own mark, so the thinking state here and in the real
    product are the same object rather than two similar stars */
 import { AccentSparkle } from "@/components/launcher/GlassComposer";
+import { ThinkingOrb } from "thinking-orbs";
 import {
   Check,
   RotateCcw,
@@ -59,6 +66,8 @@ import {
   BookOpen,
   MoreHorizontal,
   Pencil,
+  Wrench,
+  CornerDownRight,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -189,17 +198,48 @@ const V6 = {
   radius: 32,
   pad: 8,
   sendPx: 44,
-  ink: "#16181D",
-  inkSoft: "#2B2F36",
-  inkMute: "#6B7280",
-  disc: "rgba(15,17,26,0.055)",
-  discHover: "rgba(15,17,26,0.11)",
+  /* The light-mode elevation, kept here because it is the shape of the
+     launcher's lift rather than a colour decision — launcherInk picks it up
+     for light and draws dark's differently. The inks that used to sit beside
+     it have gone there too. */
   ring: "inset 0 0 0 1px rgba(15,17,26,0.06), 0 1px 2px rgba(15,17,26,0.10), 0 6px 16px rgba(15,17,26,0.12), 0 16px 40px rgba(15,17,26,0.18), 0 32px 80px rgba(15,17,26,0.12)",
   panelMs: 280,
   panelEase: "cubic-bezier(0.16, 1, 0.3, 1)",
   ringMs: 5200,
   ringPx: 2,
 };
+
+/* V6 above holds the launcher's geometry and timing, which do not change with
+   the mode. Its inks did not either, and that was the bug: the composer drew
+   itself in a fixed near-black on a fixed white however the palette was set,
+   so switching the agent to dark themed the messenger and left the launcher
+   behind — one product, two minds about what colour it was.
+
+   These come off the palette instead. Only the two that cannot be a neutral
+   are computed here: a disc is a wash of the surface's own ink, which flips
+   direction in dark, and a drop shadow is a light-mode idea — on a dark page
+   there is nothing darker to cast, so the elevation is carried by a hairline
+   and a deeper, softer pool instead. */
+function launcherInk(theme: ReturnType<typeof useTheme>) {
+  const n = theme.neutral;
+  const dark = theme.mode === "dark";
+  return {
+    surface: n.surface,
+    ink: n.ink,
+    inkMute: n.muted,
+    /* The cycling line in the pill. In light it is a hint and takes the muted
+       grey, like any placeholder. In dark that grey sits close enough to the
+       surface to read as switched off — so it takes the ink, and the weight
+       carries what the colour used to: the hint stays light, a draft or a
+       resume offer comes in at normal. */
+    hint: dark ? n.ink : n.muted,
+    disc: dark ? "rgba(255,255,255,0.08)" : "rgba(15,17,26,0.055)",
+    discHover: dark ? "rgba(255,255,255,0.16)" : "rgba(15,17,26,0.11)",
+    ring: dark
+      ? `inset 0 0 0 1px ${n.line}, 0 6px 16px rgba(0,0,0,0.30), 0 16px 40px rgba(0,0,0,0.38), 0 32px 80px rgba(0,0,0,0.30)`
+      : V6.ring,
+  };
+}
 
 /* Typing cadence, copied from the original. The hold is derived from the
    question's word count rather than fixed, so a long line gets the time it
@@ -219,6 +259,10 @@ const LOCAL_SITES: { match: RegExp; src: string }[] = [
 ];
 const localSiteFor = (origin: string) =>
   LOCAL_SITES.find((s) => s.match.test(origin)) ?? null;
+
+/* An uploaded page, carrying its filename so the control can name what is in
+   it without re-reading the file. */
+type SiteShot = { src: string; name: string };
 
 /* thum.io renders a public page to an image. `fullpage` returns the whole
    document rather than a viewport crop, which is what makes the preview
@@ -909,10 +953,17 @@ function deriveShades(accent: string, mode: "light" | "dark" = "light") {
   const valid = /^#[0-9a-fA-F]{6}$/.test(accent);
   const { L, C, H } = hexToOklch(valid ? accent : "#632E9A");
   if (mode === "dark") {
+    /* These were tuned against a near-black canvas. Once the dark neutrals
+       were lifted to a charcoal, a fill at L 0.30 was sitting at the same
+       lightness as the surface under it — which is why an accent-tinted chip
+       read as a dull rectangle rather than as a raised one. The fill now
+       clears the paper it sits on, the edge clears the fill, and the ink
+       comes up with them; the chroma caps rise a little too, since a tint
+       this light can carry more colour before it starts shouting. */
     return {
-      soft: oklchToHex(0.3, Math.min(0.07, C), H),
-      border: oklchToHex(0.42, Math.min(0.1, C), H),
-      ink: oklchToHex(0.88, Math.min(0.06, C), H),
+      soft: oklchToHex(0.4, Math.min(0.08, C), H),
+      border: oklchToHex(0.51, Math.min(0.11, C), H),
+      ink: oklchToHex(0.93, Math.min(0.05, C), H),
     };
   }
   return {
@@ -977,14 +1028,20 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       secondary: "#6B7280",
       muted: "#9CA3AF",
     },
+    /* Not black. A near-black panel on somebody's page reads as a hole cut in
+       it, and every surface above the canvas has to be even blacker to sit
+       under the one before it — which is where the ramp ran out. Lifted to a
+       charcoal instead: the same achromatic hue, ten or so points of lightness
+       up, so canvas → surface → paper still separate but none of the three is
+       trying to be the absence of light. */
     dark: {
-      canvas: "#0F0F10",
-      surface: "#161617",
-      paper: "#1D1D1F",
-      line: "#2B2B2D",
-      ink: "#F4F4F5",
-      secondary: "#A6A6A9",
-      muted: "#78787C",
+      canvas: "#242427",
+      surface: "#2C2C30",
+      paper: "#36363B",
+      line: "#45454B",
+      ink: "#EFEFF1",
+      secondary: "#B4B4B9",
+      muted: "#8B8B92",
     },
   },
   slate: {
@@ -1124,10 +1181,27 @@ export default function DesignPage() {
   const themeKey: ThemeKey = "light";
   const [mode, setMode] = useState<Mode>("light");
   const [font, setFont] = useState("Poppins");
+  /* What the agent looks and sounds like while it is working. Two settings
+     rather than one, because they answer different questions: the mark says
+     who is thinking and the line says what about. */
+  const [thinkMark, setThinkMark] = useState<ThinkingMark>("sparkle");
+  /* The uploaded mark, held whether or not it is the one selected: switching
+     to the sparkle to compare and back again should not cost the upload. */
+  const [thinkMarkSrc, setThinkMarkSrc] = useState<string | null>(null);
+  /* Empty means the platform's own rotation. A tenant writing one line here
+     is choosing to say the same thing every time, which is a different
+     decision from wanting different words — so it is the presence of a value
+     that switches the behaviour, not a second toggle beside it. */
+  const [thinkLabel, setThinkLabel] = useState("");
 
   // preview-only, so deliberately outside the saved config — pointing the
   // preview at a site isn't a change to the customer's launcher
   const [siteUrl, setSiteUrl] = useState("");
+  /* The other way to point it: a picture of a page the capture service can't
+     reach — anything behind a login, a staging build, a page that isn't
+     published yet. Held beside the URL rather than instead of it, so removing
+     the upload falls back to whatever was typed. */
+  const [siteShot, setSiteShot] = useState<SiteShot | null>(null);
 
   const [launcher, setLauncher] = useState<LauncherSettings>(DEFAULT_LAUNCHER);
   const patchLauncher = useCallback(
@@ -1152,6 +1226,9 @@ export default function DesignPage() {
       themeKey,
       mode,
       font,
+      thinkMark,
+      thinkMarkSrc,
+      thinkLabel,
       launcher,
     }),
     [
@@ -1166,6 +1243,9 @@ export default function DesignPage() {
       themeKey,
       mode,
       font,
+      thinkMark,
+      thinkMarkSrc,
+      thinkLabel,
       launcher,
     ],
   );
@@ -1189,6 +1269,9 @@ export default function DesignPage() {
     setAccent(saved.accent);
     setMode(saved.mode);
     setFont(saved.font);
+    setThinkMark(saved.thinkMark);
+    setThinkMarkSrc(saved.thinkMarkSrc);
+    setThinkLabel(saved.thinkLabel);
     setLauncher(saved.launcher);
   };
 
@@ -1379,6 +1462,8 @@ export default function DesignPage() {
                   set={patchLauncher}
                   siteUrl={siteUrl}
                   setSiteUrl={setSiteUrl}
+                  siteShot={siteShot}
+                  setSiteShot={setSiteShot}
                   device={device}
                   accent={accent}
                 />
@@ -1406,6 +1491,12 @@ export default function DesignPage() {
                   setMode={setMode}
                   font={font}
                   setFont={setFont}
+                  thinkMark={thinkMark}
+                  setThinkMark={setThinkMark}
+                  thinkMarkSrc={thinkMarkSrc}
+                  setThinkMarkSrc={setThinkMarkSrc}
+                  thinkLabel={thinkLabel}
+                  setThinkLabel={setThinkLabel}
                 />
               )}
             </div>
@@ -1423,6 +1514,10 @@ export default function DesignPage() {
                   theme={t}
                   settings={launcher}
                   siteUrl={siteUrl}
+                  siteShot={siteShot}
+                  thinkMark={thinkMark}
+                  thinkMarkSrc={thinkMarkSrc}
+                  thinkLabel={thinkLabel}
                   device={device}
                   name={name}
                   subtitle={subtitle}
@@ -1454,6 +1549,9 @@ export default function DesignPage() {
                   avatar={avatar}
                   logoOnly={logoOnly}
                   accent={accent}
+                  thinkMark={thinkMark}
+                  thinkMarkSrc={thinkMarkSrc}
+                  thinkLabel={thinkLabel}
                   device={device}
                 />
               )}
@@ -1572,6 +1670,97 @@ function Group({
       </div>
       {open && <div className="pb-1">{children}</div>}
     </section>
+  );
+}
+
+/* One cell of the thinking-mark row. Segmented's look without Segmented's
+   shape: the row has an upload in it, and an upload is not an option with an
+   icon — it is a place to put a file that then becomes one. */
+function MarkCell({
+  on,
+  onClick,
+  label,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={`flex flex-1 flex-col items-center gap-1 rounded-lg border py-2 transition-colors ${
+        on
+          ? "border-[#C4A9E8] bg-[#F8F4FF] text-[#6D33AA]"
+          : "border-[#E5E5E5] text-[#8A8A8A] hover:border-[#D5D5D5] hover:text-[#555]"
+      }`}
+    >
+      {children}
+      <span className="text-[11px] font-medium">{label}</span>
+    </button>
+  );
+}
+
+const MAX_MARK_BYTES = 1024 * 1024;
+
+/* The upload cell. Empty it is a target; filled it is the mark itself, which
+   is the only preview of it worth having — a filename would say less about a
+   16px glyph than the glyph does. */
+function MarkUploadCell({
+  on,
+  src,
+  onPick,
+  onClear,
+}: {
+  on: boolean;
+  src: string | null;
+  onPick: (src: string) => void;
+  onClear: () => void;
+}) {
+  const read = (file: File | undefined) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    if (file.size > MAX_MARK_BYTES) return;
+    const reader = new FileReader();
+    reader.onload = () => onPick(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div className="relative flex-1">
+      <label
+        className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border py-2 transition-colors ${
+          on
+            ? "border-[#C4A9E8] bg-[#F8F4FF] text-[#6D33AA]"
+            : "border-dashed border-[#DADADA] text-[#8A8A8A] hover:border-[#C0C0C0] hover:text-[#555]"
+        }`}
+      >
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" className="size-4 rounded-full object-cover" />
+        ) : (
+          <ImagePlus className="size-4" strokeWidth={1.8} />
+        )}
+        <span className="text-[11px] font-medium">
+          {src ? "Custom" : "Upload"}
+        </span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          className="hidden"
+          onChange={(e) => read(e.target.files?.[0])}
+        />
+      </label>
+      {src && (
+        <button
+          onClick={onClear}
+          aria-label="Remove custom mark"
+          className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-white text-[#A8A8A8] shadow-sm ring-1 ring-black/5 transition-colors hover:text-[#555]"
+        >
+          <X className="size-2.5" strokeWidth={2.5} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -1761,6 +1950,8 @@ function LauncherControls({
   set,
   siteUrl,
   setSiteUrl,
+  siteShot,
+  setSiteShot,
   device,
   accent,
 }: {
@@ -1768,6 +1959,8 @@ function LauncherControls({
   set: (patch: Partial<LauncherSettings>) => void;
   siteUrl: string;
   setSiteUrl: (v: string) => void;
+  siteShot: SiteShot | null;
+  setSiteShot: (v: SiteShot | null) => void;
   device: Device;
   /* the swatches draw themselves in the tenant's own colour, so picking a style
      shows what it will actually look like rather than a generic purple */
@@ -1784,6 +1977,14 @@ function LauncherControls({
     reader.readAsDataURL(file);
   };
 
+  const readShot = (file: File | undefined) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      setSiteShot({ src: reader.result as string, name: file.name });
+    reader.readAsDataURL(file);
+  };
+
   // the button launcher has no centre position — fall back to right
   const setType = (type: LauncherType) =>
     set({
@@ -1797,27 +1998,71 @@ function LauncherControls({
 
   return (
     <div>
-      {/* ── PREVIEW ON YOUR SITE — a lens on the preview, not a setting ── */}
+      {/* ── PREVIEW ON YOUR SITE — a lens on the preview, not a setting ──
+             Two sources, one field. A URL is what nearly everyone uses; an
+             upload is the fallback for a page the capture service can’t
+             reach, so it lives in the field’s trailing slot rather than as a
+             second labelled sub-section with a dropzone of its own. Picking a
+             file replaces the field with the file; removing it gives the URL
+             back. */}
       <Group title="Preview on your site">
-        <div className="group relative mb-1.5 flex items-center gap-1.5">
-          <span className="text-[12px] font-medium text-[#555]">
-            Website URL
-          </span>
-          <Info
-            className="size-3.5 cursor-help text-[#B8B8B8]"
-            strokeWidth={2}
-          />
-          <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 w-[240px] rounded-md bg-[#333] px-2 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100">
-            Previews the launcher over a snapshot of your own pages, one per
-            page rule. Some protected sites won’t capture.
-          </span>
-        </div>
-        <input
-          value={siteUrl}
-          onChange={(e) => setSiteUrl(e.target.value)}
-          placeholder="yourcompany.com"
-          className="h-9 w-full rounded-lg border border-[#E5E5E5] px-3 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
-        />
+        {siteShot ? (
+          <div className="flex h-9 items-center gap-2 rounded-lg border border-[#E5E5E5] pl-1.5 pr-1">
+            <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded bg-[#F2EEFA]">
+              {/* the page itself, not an icon standing in for it */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={siteShot.src}
+                alt=""
+                className="size-full object-cover object-top"
+              />
+            </span>
+            <span
+              className="min-w-0 flex-1 truncate text-[12px] text-[#333]"
+              title={siteShot.name}
+            >
+              {siteShot.name}
+            </span>
+            <button
+              onClick={() => setSiteShot(null)}
+              aria-label="Remove screenshot"
+              className="grid size-6 shrink-0 place-items-center rounded text-[#A8A8A8] transition-colors hover:bg-[#F5F5F5] hover:text-[#555]"
+            >
+              <X className="size-3.5" strokeWidth={2} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-9 items-center rounded-lg border border-[#E5E5E5] pl-2.5 pr-1 transition-colors focus-within:border-[#C9C9C9]">
+            <LinkIcon
+              className="size-3.5 shrink-0 text-[#B8B8B8]"
+              strokeWidth={2}
+            />
+            <input
+              value={siteUrl}
+              onChange={(e) => setSiteUrl(e.target.value)}
+              placeholder="yourcompany.com"
+              className="h-full min-w-0 flex-1 bg-transparent px-2 text-[13px] text-[#333] outline-none placeholder:text-[#B0B0B0]"
+            />
+            <span className="mr-1 h-4 w-px bg-[#EAEAEA]" />
+            <label
+              title="Upload a screenshot instead"
+              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-[#8A8A8A] transition-colors hover:bg-[#F5F5F5] hover:text-[#555]"
+            >
+              <ImagePlus className="size-4" strokeWidth={1.8} />
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => readShot(e.target.files?.[0])}
+              />
+            </label>
+          </div>
+        )}
+        {/* the tooltip’s sentence, said out loud — it is short enough that
+            hiding it behind an ⓘ cost more room than printing it */}
+        <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+          A URL, or upload a screenshot. Some protected sites won’t capture.
+        </p>
       </Group>
 
       {/* ── TYPE — the choice everything else hangs off ── */}
@@ -2235,6 +2480,12 @@ function AppearanceControls({
   setMode,
   font,
   setFont,
+  thinkMark,
+  setThinkMark,
+  thinkMarkSrc,
+  setThinkMarkSrc,
+  thinkLabel,
+  setThinkLabel,
 }: {
   name: string;
   setName: (v: string) => void;
@@ -2256,6 +2507,12 @@ function AppearanceControls({
   setMode: (v: Mode) => void;
   font: string;
   setFont: (v: string) => void;
+  thinkMark: ThinkingMark;
+  setThinkMark: (v: ThinkingMark) => void;
+  thinkMarkSrc: string | null;
+  setThinkMarkSrc: (v: string | null) => void;
+  thinkLabel: string;
+  setThinkLabel: (v: string) => void;
 }) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -2515,6 +2772,64 @@ function AppearanceControls({
             { v: "dark" as Mode, label: "Dark", Icon: Moon },
           ]}
         />
+      </Group>
+
+      {/* ── THINKING ── the one moment the agent is visibly working, and the
+             only part of the transcript it writes before it has anything to
+             say. Two settings, because they answer different questions: the
+             mark says who is working and the line says what about. */}
+      <Group title="Thinking">
+        <FieldLabel>Mark</FieldLabel>
+        <div className="flex gap-1.5">
+          {/* The upload leads. It is the only cell with anything to receive,
+              and a tenant who has their own mark is here for that one — the
+              two platform marks are already in the room. */}
+          <MarkUploadCell
+            on={thinkMark === "custom"}
+            src={thinkMarkSrc}
+            onPick={(src) => {
+              setThinkMarkSrc(src);
+              /* Uploading is choosing. Landing an image in a cell that then
+                 sits unselected beside the one still in use is a second
+                 press for a decision already made. */
+              setThinkMark("custom");
+            }}
+            onClear={() => {
+              setThinkMarkSrc(null);
+              if (thinkMark === "custom") setThinkMark("sparkle");
+            }}
+          />
+          <MarkCell
+            on={thinkMark === "sparkle"}
+            onClick={() => setThinkMark("sparkle")}
+            label="Sparkle"
+          >
+            <Sparkles className="size-4" strokeWidth={1.8} />
+          </MarkCell>
+          <MarkCell
+            on={thinkMark === "orb"}
+            onClick={() => setThinkMark("orb")}
+            label="Orb"
+          >
+            <Circle className="size-4" strokeWidth={1.8} />
+          </MarkCell>
+        </div>
+        <div className="mb-4" />
+        <FieldLabel>Label</FieldLabel>
+        <input
+          value={thinkLabel}
+          onChange={(e) => setThinkLabel(e.target.value)}
+          /* The placeholder is the first line of the rotation, so an empty
+             field shows what leaving it empty gets you rather than inviting
+             a word for it. */
+          placeholder={THINKING_PHRASES[0]}
+          className="h-9 w-full rounded-lg border border-[#E5E5E5] px-3 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
+        />
+        <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+          {thinkLabel.trim()
+            ? "Shown every time the agent is working."
+            : `Empty cycles the default four — “${THINKING_PHRASES[0]}”, then “${THINKING_PHRASES[1]}”, and so on.`}
+        </p>
       </Group>
 
       {/* ── MESSAGES ── */}
@@ -2865,19 +3180,36 @@ function ThoughtTrace({
   secs,
   steps,
   accent,
+  dark,
+  mark = "sparkle",
+  markSrc = null,
   neutral,
   streaming,
 }: {
   secs: number;
-  steps: string[];
+  steps: TraceStep[];
   accent: string;
+  dark?: boolean;
+  mark?: ThinkingMark;
+  markSrc?: string | null;
   neutral: Record<string, string>;
   streaming: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  /* The accent as a foreground, which is a different question from the accent
+     as a fill. On white the brand reads as given; on charcoal a mid-dark brand
+     is a smudge, so dark takes its lighter partner — the same one the sparkle
+     and the chip ring already switch to, so the trace agrees with everything
+     else on the surface rather than being the one thing still in the base
+     colour. */
+  const ink = dark ? liteOf(accent) : accent;
   return (
     <div
-      className="mb-2"
+      /* w-full because the turn above is `items-start`, which shrinks every
+         child to its own content — without it the trace is only as wide as
+         its longest sentence, and the tool block's measure is computed
+         against that rather than against the reply. */
+      className="mb-2 w-full"
       /* the sparkle reads its colours off these, so it carries the tenant's
          accent rather than the composer's default violet */
       style={
@@ -2889,10 +3221,20 @@ function ThoughtTrace({
     >
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-full py-0.5 pr-2 text-[13px] transition-colors"
-        style={{ color: open ? accent : neutral.secondary }}
+        className="flex w-fit items-center gap-2 rounded-full py-0.5 pr-2 text-[13px] transition-colors"
+        style={{ color: open ? ink : neutral.secondary }}
       >
-        <AccentSparkle size={SPARKLE_PX} paused={!streaming} />
+        {/* The configured mark, not the platform sparkle. The row that says
+            what the agent did should be wearing the same face it wore while
+            doing it — a mark that changes at the handover reads as two
+            different things having happened. */}
+        <ThinkingMarkView
+          mark={mark}
+          src={markSrc}
+          dark={!!dark}
+          accent={accent}
+          paused={!streaming}
+        />
         Thought for {secs}s
         <ChevronDown
           className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
@@ -2901,23 +3243,248 @@ function ThoughtTrace({
       </button>
       {open && (
         <ul className="mt-1.5 ml-1 flex flex-col gap-1">
-          {steps.map((st) => (
-            <li
-              key={st}
-              className="flex items-center gap-2 text-[13px]"
-              style={{ color: neutral.secondary }}
-            >
-              <Check
-                className="size-3.5 shrink-0"
-                strokeWidth={2.5}
-                style={{ color: accent }}
+          {steps.map((st, i) =>
+            isToolCall(st) ? (
+              <ToolCallStep
+                key={st.tool + i}
+                call={st}
+                accent={ink}
+                neutral={neutral}
               />
-              {st}
-            </li>
-          ))}
+            ) : (
+              <li
+                key={st}
+                className="flex items-center gap-2 text-[13px]"
+                style={{ color: neutral.secondary }}
+              >
+                <Check
+                  className="size-3.5 shrink-0"
+                  strokeWidth={2.5}
+                  style={{ color: ink }}
+                />
+                {st}
+              </li>
+            ),
+          )}
         </ul>
       )}
     </div>
+  );
+}
+
+/* One tool call in the trace.
+
+   It sits at the same indent as the sentences around it and reads as one of
+   them — the name of the thing that ran, in the type the arguments are
+   actually written in. Closed, that is all it says: the fact that a tool ran
+   belongs in the sequence, and what it was handed does not.
+
+   Opening it is the second question. Input and output are stacked rather than
+   side by side, because the panel is 380px on a phone and two columns of code
+   at that width is one character per line. */
+function ToolCallStep({
+  call,
+  accent,
+  neutral,
+}: {
+  call: ToolCall;
+  accent: string;
+  neutral: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-fit items-center gap-2 text-left text-[13px] transition-colors"
+        style={{ color: open ? neutral.ink : neutral.secondary }}
+      >
+        <Wrench
+          className="size-3.5 shrink-0"
+          strokeWidth={2.5}
+          style={{ color: accent }}
+        />
+        <span className="font-mono text-[12px]">{call.tool}</span>
+        <ChevronDown
+          className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          strokeWidth={2.5}
+          style={{ color: neutral.muted }}
+        />
+      </button>
+      {open && (
+        /* The reply's own measure — the same 90% the AI bubble is capped at,
+           so the trace and the answer it belongs to share one right edge
+           instead of the trace running wider than the message that produced
+           it. No left indent: that was costing 22px off every line of an
+           input already the narrowest thing in the panel, and the row above
+           says what the block belongs to.
+
+           One scroll region rather than one per half: two boxes each with
+           their own bar, inside a transcript that also scrolls, is three
+           things to get lost in. The call scrolls as the single thing it
+           is. */
+        <div
+          className="scrollbar-subtle mt-1.5 flex max-h-[250px] w-full max-w-[90%] flex-col gap-2 overflow-y-auto rounded-lg p-2.5"
+          style={{ background: neutral.paper }}
+        >
+          <TraceIO label="Input" value={call.input} neutral={neutral} />
+          <TraceIO
+            label="Output"
+            value={call.output}
+            neutral={neutral}
+            accent={accent}
+          />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/* Either half of a tool call, printed as the JSON it is.
+
+   Not flattened into rows: a payload is nested, and the nesting is part of
+   what someone opening this is checking. The block wraps rather than scrolls
+   sideways — a 380px panel and a 400-character content string only agree
+   with each other if the lines break — and it caps its height, because a
+   five-result response is taller than the transcript it sits in. */
+function TraceIO({
+  label,
+  value,
+  neutral,
+  accent,
+}: {
+  label: string;
+  value: Json;
+  neutral: Record<string, string>;
+  /* Only the output is marked, and only with the arrow — this is the half
+     that came back. */
+  accent?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1">
+        {accent && (
+          <CornerDownRight
+            className="size-3 shrink-0"
+            strokeWidth={2.5}
+            style={{ color: accent }}
+          />
+        )}
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: neutral.muted }}
+        >
+          {label}
+        </span>
+        {/* Against the right edge, on the line that names what it copies —
+            a payload is the one thing in a transcript nobody retypes. */}
+        <CopyJson value={value} neutral={neutral} />
+      </div>
+      <JsonBlock value={value} neutral={neutral} accent={accent} />
+    </div>
+  );
+}
+
+/* How long "Copied" stands before the control goes back to offering. Long
+   enough to be read as an answer to the press, short enough that a second
+   copy doesn't have to wait for it. */
+const COPIED_MS = 1200;
+
+function CopyJson({
+  value,
+  neutral,
+}: {
+  value: Json;
+  neutral: Record<string, string>;
+}) {
+  const [done, setDone] = useState(false);
+  /* Held so a press that lands while the last one is still showing restarts
+     the window rather than cutting it short, and so a block collapsed
+     mid-window doesn't set state on something that has gone. */
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const copy = () => {
+    navigator.clipboard?.writeText(JSON.stringify(value, null, 2));
+    setDone(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDone(false), COPIED_MS);
+  };
+  return (
+    <button
+      onClick={copy}
+      aria-label={done ? "Copied" : "Copy"}
+      className="ml-auto flex shrink-0 items-center gap-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors hover:bg-[color-mix(in_oklab,currentColor_10%,transparent)]"
+      style={{ color: neutral.muted }}
+    >
+      {done ? (
+        <Check className="size-3" strokeWidth={2.5} />
+      ) : (
+        <Copy className="size-3" strokeWidth={2} />
+      )}
+      {done ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+/* Tokens worth colouring, in one pass over the stringified payload: a quoted
+   run followed by a colon is a key, any other quoted run is a string, and the
+   bare words are the literals. Everything the regex skips — braces, brackets,
+   commas, indentation — falls through as punctuation and takes the faint ink,
+   which is what lets the structure sit behind the content instead of in front
+   of it. */
+const JSON_TOKENS =
+  '("(?:\\\\.|[^"\\\\])*")(\\s*:)|("(?:\\\\.|[^"\\\\])*")|\\b(true|false|null)\\b|(-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)';
+
+function JsonBlock({
+  value,
+  neutral,
+  accent,
+}: {
+  value: Json;
+  neutral: Record<string, string>;
+  accent?: string;
+}) {
+  const text = JSON.stringify(value, null, 2);
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  /* Built per call rather than shared: a global regex carries `lastIndex`
+     between uses, and two blocks open at once would each start scanning
+     wherever the other one stopped. */
+  const scan = new RegExp(JSON_TOKENS, "g");
+  while ((m = scan.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const [, key, colon, str, lit, num] = m;
+    const tint = key
+      ? neutral.secondary
+      : str
+        ? neutral.ink
+        : (accent ?? neutral.ink);
+    out.push(
+      <span key={m.index} style={{ color: tint }}>
+        {key ?? str ?? lit ?? num}
+      </span>,
+    );
+    if (colon) out.push(colon);
+    last = m.index + m[0].length;
+  }
+  out.push(text.slice(last));
+  return (
+    <pre
+      /* 12px rather than the 11 the rest of the small print runs at: this is
+         the one block in the panel meant to be read character by character,
+         and a monospace face at 11 gives up more than the line it saves.
+         No scroll of its own — the block it sits in owns that. */
+      className="whitespace-pre-wrap break-words font-mono text-[12px] leading-[1.65]"
+      style={{ color: neutral.muted }}
+    >
+      {out}
+    </pre>
   );
 }
 
@@ -3006,7 +3573,7 @@ function AiToolbar({
           <Copy className="size-3" strokeWidth={1.5} />
         </button>
         <span
-          className="ml-1.5 text-[11px] tabular-nums"
+          className="ml-1.5 text-[12px] tabular-nums"
           style={{ color: neutral.muted }}
         >
           {time}
@@ -3049,13 +3616,30 @@ type Source = { name: string; url: string };
 
    `sources` back the [n] citations in the text; `steps` is what the agent did
    before answering, shown behind the "Thought for Ns" disclosure. */
+/* A line of the trace. Most are a sentence about something the agent did and
+   need nothing more than to be read. A tool call is the exception: what went
+   in and what came back are the whole point of showing it, so it carries them
+   and opens to say so. Kept as a union rather than a second list, because the
+   order the two happened in is the one thing the trace is actually for. */
+type ToolCall = {
+  tool: string;
+  /* Whatever the tool was actually handed and actually returned — nested
+     objects, arrays, the lot. Printed as JSON rather than flattened into
+     rows: the shape is part of what you are checking, and a list of
+     key/value pairs quietly throws it away. */
+  input: Json;
+  output: Json;
+};
+type TraceStep = string | ToolCall;
+const isToolCall = (s: TraceStep): s is ToolCall => typeof s !== "string";
+
 type Msg = {
   from: "ai" | "user";
   text: string;
   buttons?: string[];
   followUps?: string[];
   sources?: Source[];
-  steps?: string[];
+  steps?: TraceStep[];
   thoughtSecs?: number;
   /* A label drawn above this message, dividing what came before from what
      comes after — "Earlier today" over a resumed thread. Carried on the
@@ -3104,6 +3688,36 @@ const STICK_PX = 80;
 /* The composer field at rest — both styles are 64px. Half of it is how far
    the notice surface comes down behind it. */
 const FIELD_H = 64;
+
+/* A suggestion's hover, which is one thing in light and needs to be two in
+   dark.
+
+   In light the chip is a pale fill on a white panel and an accent ring at 45%
+   is plenty — there is nothing else near that colour. In dark the chip is
+   already a dark fill on a dark panel, and a half-transparent accent laid over
+   it lands within a few points of the surface it is meant to be lifting off:
+   the ring is technically there and effectively invisible. So dark gets the
+   accent's lighter partner at close to full strength, and a wash over the
+   whole chip as well — because at that contrast one hairline is a smaller
+   signal than the same hairline is on white, and the fill makes up the
+   difference. */
+function chipHover(accent: string, dark: boolean) {
+  return {
+    stroke: dark
+      ? `color-mix(in oklab, ${liteOf(accent)} 88%, transparent)`
+      : `color-mix(in srgb, ${accent} 45%, transparent)`,
+    /* Painted as an inset spread rather than a background, so it layers over
+       whatever fill the chip was given instead of competing with an inline
+       style for the same property. Transparent in light: the ring alone is
+       already the clearest thing on a white panel. */
+    wash: dark ? "rgba(255,255,255,0.07)" : "transparent",
+  };
+}
+
+/* The mark beside the thinking line: the tenant's own image, the platform
+   sparkle, or a live orb. The upload comes first because it is the only one
+   that needs somewhere to put something — the other two are already here. */
+type ThinkingMark = "custom" | "sparkle" | "orb";
 
 const THINKING_PHRASES = [
   "AI is thinking…",
@@ -3372,7 +3986,7 @@ function HistoryRow({
               }}
               hidden={swipe}
               aria-label={`Options for ${item.title}`}
-              className={`absolute -right-1 -top-1 grid size-6 place-items-center rounded-full transition-opacity hover:bg-black/5 ${
+              className={`absolute -right-1 -top-1 grid size-6 place-items-center rounded-full transition-opacity hover:bg-[color-mix(in_oklab,currentColor_10%,transparent)] ${
                 menuOpen
                   ? "opacity-100"
                   : "opacity-0 group-hover/row:opacity-100"
@@ -3393,7 +4007,7 @@ function HistoryRow({
               >
                 <button
                   onClick={() => onRename(item.title)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                  className="flex items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                   style={{ color: neutral.ink }}
                 >
                   <Pencil className="size-3.5" strokeWidth={2} />
@@ -3401,7 +4015,7 @@ function HistoryRow({
                 </button>
                 <button
                   onClick={onDelete}
-                  className="flex items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                  className="flex items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                   style={{ color: "#D03A3A" }}
                 >
                   <Trash2 className="size-3.5" strokeWidth={2} />
@@ -3526,7 +4140,7 @@ function HistoryList({
           has come for. */}
       <button
         onClick={onOpen}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03]"
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[color-mix(in_oklab,currentColor_10%,transparent)]"
       >
         <span
           className="grid size-9 shrink-0 place-items-center rounded-full text-white"
@@ -3585,31 +4199,280 @@ function HistoryList({
   );
 }
 
-function AiThinking({ accent }: { accent: string }) {
+function AiThinking({
+  accent,
+  mark = "sparkle",
+  markSrc = null,
+  label = "",
+  steps = [],
+  neutral,
+  dark = false,
+}: {
+  accent: string;
+  mark?: ThinkingMark;
+  markSrc?: string | null;
+  /* The opening line. Empty takes the platform's own. */
+  label?: string;
+  /* The trace of the turn being produced. The row narrates it rather than a
+     generic rotation: what the agent is doing is the most specific thing it
+     could be saying while it does it, and it is already known — the reply is
+     decided before the row goes up. */
+  steps?: TraceStep[];
+  neutral?: Record<string, string>;
+  dark?: boolean;
+}) {
   const [i, setI] = useState(0);
+
+  /* The opening line, then the work. A tool call narrates as the tool it
+     called — the name is what ran, and a sentence about it would be inventing
+     copy the trace does not carry. */
+  const lines = useMemo(() => {
+    const first = label.trim() || THINKING_PHRASES[0];
+    const work = steps.map((st) => (isToolCall(st) ? st.tool : st));
+    if (work.length) return [first, ...work];
+    /* Nothing to narrate: a custom line stands alone, and the platform's
+       rotation is what is left otherwise. */
+    return label.trim() ? [first] : THINKING_PHRASES;
+  }, [label, steps]);
+
+  /* No reset needed when a turn changes: the row is only mounted while
+     something is in flight, so every narration starts on a fresh component. */
+
   useEffect(() => {
-    const id = setInterval(
-      () => setI((p) => (p + 1) % THINKING_PHRASES.length),
-      850,
+    if (lines.length < 2) return;
+    /* Each line is held for as long as it takes to read — a three-word step
+       and a nine-word one do not deserve the same beat, and a fixed interval
+       gave the long ones no chance. Wraps to 1 rather than 0: the opening
+       line is how the row starts, not something it keeps coming back to. */
+    const hold = Math.min(1500, 520 + wordCount(lines[i] ?? "") * 190);
+    const id = setTimeout(
+      () => setI((p) => (p + 1 >= lines.length ? 1 : p + 1)),
+      hold,
     );
-    return () => clearInterval(id);
-  }, []);
+    return () => clearTimeout(id);
+  }, [i, lines]);
   return (
     <div
-      className="flex items-center gap-2 text-[14px] font-medium text-[#333333]"
+      className="flex items-center gap-2 text-[14px] font-medium"
       /* the sparkle takes its gradient from these, so it is the tenant's
          accent rather than the composer's default violet */
       style={
         {
           "--brand": accent,
           "--brand-lite": liteOf(accent),
+          color: neutral?.ink ?? "#333333",
         } as CSSProperties
       }
     >
-      <AccentSparkle size={SPARKLE_PX} />
-      <span className="ai-shimmer">{THINKING_PHRASES[i]}</span>
+      <ThinkingMarkView
+        mark={mark}
+        src={markSrc}
+        dark={dark}
+        accent={accent}
+      />
+      <span
+        className="ai-shimmer"
+        /* The sweep's two ends are mixed toward black in the stylesheet, which
+           is the right direction on a white panel and exactly the wrong one on
+           a charcoal: the brand pulled 78% into black is a line you have to
+           look for. In dark it goes the other way — the accent lifted into
+           white for the body, and white itself for the shine. Set here rather
+           than in globals because the element carries its own class rule, and
+           only an inline value on the same element outranks it. */
+        style={
+          dark
+            ? ({
+                "--shimmer-ink":
+                  "color-mix(in oklab, var(--brand, #632E9A) 45%, white)",
+                "--shimmer-shine": "#FFFFFF",
+              } as CSSProperties)
+            : undefined
+        }
+      >
+        {lines[i] ?? lines[0]}
+      </span>
     </div>
   );
+}
+
+/* The thinking row's mark box, matching SPARKLE_PX — the sparkle is the mark
+   the row was built around, so it is the one the others are measured against
+   rather than all three meeting at some smaller number. */
+const ORB_MARK_PX = 28;
+
+/* The orb's ink, as numbers an SVG filter can eat.
+
+   The component paints monochrome — light ink or dark ink, chosen by its
+   theme prop — and takes no colour. CSS variables do not reach a canvas
+   either. So the tint is applied after the fact: a flat colour matrix that
+   throws away whatever RGB the canvas painted and replaces it with the
+   accent, keeping only the alpha, which is where the constellation actually
+   lives. The 1.6 on alpha is GlassComposer's own value for the same move —
+   the dots are drawn faint enough that a straight copy comes out weaker than
+   the mark beside it. */
+/* Fattening every dot turned the constellation into a blob: at 28px the gaps
+   between nodes are smaller than the nodes, so growing all of them closes the
+   gaps and what is left is a disc. Only the front few get fattened instead.
+
+   The pick is GlassComposer's: a steep alpha ramp that passes nothing under
+   about 0.97 and everything above it, which isolates the two or three dots
+   nearest the viewer — the orb draws depth as opacity, so "brightest" and
+   "frontmost" are the same set. Those are dilated; the rest are merged back
+   underneath at the size they were drawn. The result reads as a few lit nodes
+   in a field of faint ones, which is what the 64px design looks like before
+   it is shrunk. */
+/* Growing the alpha with a blur, then bringing it back with a gain.
+
+   Not feMorphology: SVG's dilate walks a *box* kernel, so everything it grows
+   comes out with the kernel's corners — which is why the dots were square. A
+   Gaussian is round.
+
+   And a gain rather than a threshold. Thresholding was the second mistake: a
+   blur spreads a hairline's alpha thin, so a ramp steep enough to re-harden
+   the edge cut the line off entirely and left a ghost. Multiplying the alpha
+   instead can only ever make something more visible — the blur decides how far
+   it reaches, the gain decides how solid it comes back, and nothing is
+   discarded on the way. */
+const ORB_DOT = { soft: 1, gain: 6 };
+const ORB_LINE = { soft: 0.3, gain: 3.4 };
+/* Where the field stops and the subject begins. The orb draws depth as
+   opacity, so this cut is really "how far forward does a node have to be to
+   count as one of the lit ones" — at 0.97 a third of the constellation
+   qualified and the mark had no subject at all. 0.985 leaves four or five. */
+const ORB_PICK = { slope: 70, intercept: -68.9 };
+
+function orbInk(hex: string, alpha = 1) {
+  const h = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#632E9A";
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const f = (n: number) => n.toFixed(3);
+  return `0 0 0 0 ${f(r)} 0 0 0 0 ${f(g)} 0 0 0 0 ${f(b)} 0 0 0 ${f(alpha)} 0`;
+}
+
+/* The mark, at the size the sparkle already occupies so the three are
+   interchangeable rather than three different row heights. */
+function ThinkingMarkView({
+  mark,
+  src,
+  dark,
+  accent,
+  paused = false,
+}: {
+  mark: ThinkingMark;
+  src?: string | null;
+  dark: boolean;
+  accent: string;
+  /* Frozen rather than swapped for something else once the work is done: the
+     same object that was moving while the agent worked is the one sitting
+     still under the finished answer, so the animation stopping is what
+     reports the work finishing. */
+  paused?: boolean;
+}) {
+  /* Scoped to this instance: two orbs on screen with the same filter id is one
+     filter, and the second one to mount wins. */
+  const tintId = useId().replace(/:/g, "");
+  if (mark === "orb") {
+    return (
+      /* Connecting — the constellation wiring itself, the same state the
+         composer's own orb runs.
+
+         The 64 preset scaled down rather than the 20 lifted up, which is the
+         finding GlassComposer already arrived at: connecting is built from
+         nodes and edges, and the sparse 20 design has too few of either to
+         read as a constellation once it is small. The box is 22 and the canvas
+         inside it is scaled to fit, so the row keeps the height every other
+         mark has. */
+      <span
+        className="flex shrink-0 items-center justify-center overflow-hidden"
+        style={{
+          width: ORB_MARK_PX,
+          height: ORB_MARK_PX,
+          /* Its own layer, so the canvas rasterises at one scale wherever the
+             row appears — the shimmering label beside it is enough to change
+             the compositor's mind otherwise. */
+          transform: "translateZ(0)",
+          filter: `url(#${tintId})`,
+        }}
+      >
+        <svg width="0" height="0" className="absolute" aria-hidden>
+          <filter
+            id={tintId}
+            colorInterpolationFilters="sRGB"
+            /* Room for the dilate to grow into — at the default region a
+               fattened dot on the edge is cut in half by the filter box. */
+            x="-30%"
+            y="-30%"
+            width="160%"
+            height="160%"
+          >
+            {/* the whole drawing, edges included, thickened a little — this
+                is the field, not the subject, so it stays under full strength.
+                The accent on a light panel; its lighter partner on a dark one,
+                which is the same swap the sparkle, the chip ring and the
+                trace's ticks already make. */}
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={ORB_LINE.soft}
+              result="lineSpread"
+            />
+            <feColorMatrix
+              in="lineSpread"
+              type="matrix"
+              values={orbInk(dark ? liteOf(accent) : accent, ORB_LINE.gain)}
+              result="base"
+            />
+            {/* the front few, picked off the alpha and grown round */}
+            <feComponentTransfer in="SourceGraphic" result="picked">
+              <feFuncA
+                type="linear"
+                slope={ORB_PICK.slope}
+                intercept={ORB_PICK.intercept}
+              />
+            </feComponentTransfer>
+            <feGaussianBlur
+              in="picked"
+              stdDeviation={ORB_DOT.soft}
+              result="dotSpread"
+            />
+            <feColorMatrix
+              in="dotSpread"
+              type="matrix"
+              values={orbInk(dark ? liteOf(accent) : accent, ORB_DOT.gain)}
+              result="fat"
+            />
+            <feMerge>
+              <feMergeNode in="base" />
+              <feMergeNode in="fat" />
+            </feMerge>
+          </filter>
+        </svg>
+        <span style={{ transform: `scale(${ORB_MARK_PX / 64})` }}>
+          {/* Always the light-ink source: the matrix replaces its colour
+              outright, so what matters is that the alpha profile is the same
+              in both modes rather than which monochrome it started as. */}
+          <ThinkingOrb
+            state="connecting"
+            size={64}
+            speed={1.5}
+            theme="dark"
+            paused={paused}
+          />
+        </span>
+      </span>
+    );
+  }
+  /* An upload chosen and then cleared leaves the setting pointing at nothing,
+     so the sparkle is what "custom" degrades to rather than a gap in the row. */
+  if (mark === "custom" && src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className="size-[22px] shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return <AccentSparkle size={SPARKLE_PX} paused={paused} />;
 }
 
 /* canned demo replies so the preview feels live */
@@ -3631,7 +4494,15 @@ const SUPPORT_REPLY: Omit<Msg, "from"> = {
     { name: "Online payments", url: "globalpayments.com/online" },
     { name: "Talking to a person", url: "globalpayments.com/support" },
   ],
-  steps: ["Searched the pricing guide", "Read 3 sources", "Called check_rates"],
+  steps: [
+    "Searched the pricing guide",
+    "Read 3 sources",
+    {
+      tool: "check_rates",
+      input: { product: "card_present", region: "UK", monthly_volume: 50000 },
+      output: { rate: "1.5% + 20p", settlement: "next day", contract: "none" },
+    },
+  ],
   thoughtSecs: 8,
   /* The message ends on a question — "What's going on?" — so each of these
      answers it, in the visitor's voice, one per route the answer named. Third
@@ -4002,6 +4873,11 @@ const SCRIPT: Msg[] = [
     ],
     steps: [
       "Matched “accept payments online”",
+      {
+        tool: "search_docs",
+        input: SEARCH_DOCS_INPUT,
+        output: SEARCH_DOCS_OUTPUT,
+      },
       "Read the online payments guide",
       "Checked integration options",
     ],
@@ -4097,7 +4973,12 @@ const SCRIPT: Msg[] = [
     steps: [
       "Reviewed the whole conversation",
       "Matched it to ecommerce solutions",
-      "Checked where we operate",
+      {
+        tool: "check_coverage",
+        input: { product: "ecommerce", markets: "worldwide" },
+        output:
+          "38 markets supported, 120+ currencies, local methods in 24 of them.",
+      },
     ],
     followUps: [
       "Explore ecommerce solutions",
@@ -4247,6 +5128,9 @@ function AgentPreview({
   avatar,
   logoOnly,
   accent,
+  thinkMark = "sparkle",
+  thinkMarkSrc = null,
+  thinkLabel = "",
   device,
   width,
   height = 680,
@@ -4268,6 +5152,9 @@ function AgentPreview({
   avatar: string | null;
   logoOnly: boolean;
   accent: string;
+  thinkMark?: ThinkingMark;
+  thinkMarkSrc?: string | null;
+  thinkLabel?: string;
   device: Device;
   width?: number;
   height?: number;
@@ -4289,6 +5176,22 @@ function AgentPreview({
   suggestions: string[];
 }) {
   const { neutral } = theme;
+  /* Two things a light palette gets for free and a dark one does not.
+
+     A hover wash has to come from whichever end of the palette the surface is
+     not — black at 4% over white is a shade; over near-black it is nothing.
+     And a drop shadow is a light-mode idea: on a dark surface there is no
+     darker to cast, so what carries a popover off the panel is a hairline in
+     the palette's own line colour with a deeper, softer pool under it. */
+  const isDark = theme.mode === "dark";
+  /* One hover for every suggestion in the panel, so the picked chips and the
+     quick replies cannot drift apart. Memoised because the compiler otherwise
+     gives up optimising the whole component around it. */
+  const chip = useMemo(() => chipHover(accent, isDark), [accent, isDark]);
+  const wash = isDark ? "rgba(255,255,255,0.07)" : "rgba(15,17,26,0.04)";
+  const popShadow = isDark
+    ? `0 12px 30px -10px rgba(0,0,0,0.42), 0 0 0 1px ${neutral.line}`
+    : "0 12px 30px -10px rgba(15,17,26,0.26), 0 0 0 1px rgba(15,17,26,0.07)";
   const aiBubble: CSSProperties = {
     background: neutral.paper,
     borderColor: neutral.line,
@@ -4319,6 +5222,10 @@ function AgentPreview({
      field the one place in the product where the microphone was decoration. */
   const mic = useDictation(setDraft);
   const [thinking, setThinking] = useState(false);
+  /* The steps of the turn currently being produced — empty until there is one
+     in flight, which is also what the row falls back on when a reply has no
+     trace of its own. */
+  const [pending, setPending] = useState<TraceStep[]>([]);
   /* Only the newest turn can still be arriving, so one flag is enough. It ends
      the sparkle: the mark turns while the answer is being written and settles
      when the last word lands. */
@@ -4597,8 +5504,12 @@ function AgentPreview({
           : {}),
       },
     ]);
-    setThinking(true);
     const reply = scriptedReply(msg) ?? cannedReply(msg);
+    /* What the row will narrate. Taken from the reply that is already decided
+       rather than from a generic list, so the line running while the agent
+       works and the trace it leaves behind are the same three things. */
+    setPending(reply.steps ?? []);
+    setThinking(true);
     // think-time derived from reply length — long enough to cycle phrases
     const delay = Math.min(
       3200,
@@ -4745,18 +5656,20 @@ function AgentPreview({
                       />
                       <span
                         className="absolute right-0 top-10 z-40 flex w-[214px] flex-col overflow-hidden rounded-xl py-1"
-                        style={{
-                          background: neutral.surface,
-                          boxShadow:
-                            "0 12px 30px -10px rgba(15,17,26,0.26), 0 0 0 1px rgba(15,17,26,0.07)",
-                        }}
+                        style={
+                          {
+                            background: neutral.surface,
+                            boxShadow: popShadow,
+                            "--wash": wash,
+                          } as CSSProperties
+                        }
                       >
                         <button
                           onClick={() => {
                             restart();
                             setHeaderMenu(false);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <RotateCcw
@@ -4770,7 +5683,7 @@ function AgentPreview({
                             downloadTranscript();
                             setHeaderMenu(false);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <Download
@@ -4783,7 +5696,7 @@ function AgentPreview({
                             menu on a switch hides the state you just changed. */}
                         <button
                           onClick={() => setAutoRead(!autoRead)}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <Volume2
@@ -4912,18 +5825,20 @@ function AgentPreview({
                       />
                       <span
                         className="absolute right-0 top-10 z-40 flex w-[214px] flex-col overflow-hidden rounded-xl py-1"
-                        style={{
-                          background: neutral.surface,
-                          boxShadow:
-                            "0 12px 30px -10px rgba(15,17,26,0.26), 0 0 0 1px rgba(15,17,26,0.07)",
-                        }}
+                        style={
+                          {
+                            background: neutral.surface,
+                            boxShadow: popShadow,
+                            "--wash": wash,
+                          } as CSSProperties
+                        }
                       >
                         <button
                           onClick={() => {
                             restart();
                             setHeaderMenu(false);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <RotateCcw
@@ -4937,7 +5852,7 @@ function AgentPreview({
                             downloadTranscript();
                             setHeaderMenu(false);
                           }}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <Download
@@ -4950,7 +5865,7 @@ function AgentPreview({
                             menu on a switch hides the state you just changed. */}
                         <button
                           onClick={() => setAutoRead(!autoRead)}
-                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/[0.04]"
+                          className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--wash)]"
                           style={{ color: neutral.ink }}
                         >
                           <Volume2
@@ -5133,6 +6048,9 @@ function AgentPreview({
                         secs={m.thoughtSecs ?? traceSecs(m.text)}
                         steps={m.steps}
                         accent={accent}
+                        dark={isDark}
+                        mark={thinkMark}
+                        markSrc={thinkMarkSrc}
                         neutral={neutral}
                         streaming={streaming && i === convo.length - 1}
                       />
@@ -5183,11 +6101,12 @@ function AgentPreview({
                               style={{
                                 color: theme.bubbleInk,
                                 backgroundColor: theme.bubbleFill,
-                                ["--chip-stroke" as string]: `color-mix(in srgb, ${accent} 45%, transparent)`,
+                                ["--chip-stroke" as string]: chip.stroke,
+                                ["--chip-wash" as string]: chip.wash,
                                 // the one taken holds the hover outline for good
                                 boxShadow:
                                   picked[i] === b
-                                    ? `inset 0 0 0 1px color-mix(in srgb, ${accent} 45%, transparent)`
+                                    ? `inset 0 0 0 1px ${chip.stroke}`
                                     : undefined,
                               }}
                             >
@@ -5215,7 +6134,15 @@ function AgentPreview({
             {/* thinking indicator — sparkle + cycling shimmer phrase */}
             {thinking && (
               <div style={{ animation: "fade-in 200ms ease-out both" }}>
-                <AiThinking accent={accent} />
+                <AiThinking
+                  accent={accent}
+                  mark={thinkMark}
+                  markSrc={thinkMarkSrc}
+                  label={thinkLabel}
+                  steps={pending}
+                  neutral={neutral}
+                  dark={theme.mode === "dark"}
+                />
               </div>
             )}
             {quickReplies && quickReplies.length > 0 && (
@@ -5284,7 +6211,8 @@ function AgentPreview({
                     style={{
                       color: theme.bubbleInk,
                       backgroundColor: theme.bubbleFill,
-                      ["--chip-stroke" as string]: `color-mix(in srgb, ${accent} 45%, transparent)`,
+                      ["--chip-stroke" as string]: chip.stroke,
+                      ["--chip-wash" as string]: chip.wash,
                       /* The step is the whole run divided by the set, so three
                      arrive in the same time four would — the sequence keeps its
                      length instead of growing with the number of options. */
@@ -5360,8 +6288,11 @@ function AgentPreview({
           .starter-chip {
             box-shadow: var(--chip-shadow, 0 0 #0000);
           }
+          /* Ring first so it paints above the wash; the wash is a full-bleed
+             inset spread, which tints the chip without touching the fill it
+             was given inline. */
           .starter-chip:hover {
-            box-shadow: inset 0 0 0 1.5px var(--chip-stroke), var(--chip-shadow, 0 0 #0000);
+            box-shadow: inset 0 0 0 1.5px var(--chip-stroke), inset 0 0 0 999px var(--chip-wash, transparent), var(--chip-shadow, 0 0 #0000);
           }
           /* Each suggestion rises a little as it fades, and they arrive in
              order rather than as a block. A set appearing all at once reads as
@@ -5523,7 +6454,15 @@ function AgentPreview({
                     {noticeCut && (
                       <span
                         role="tooltip"
-                        className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 max-w-[280px] rounded-md bg-[#333] px-2 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-md transition-opacity group-hover/notice:opacity-100"
+                        /* A tooltip is the palette inverted — near-black on a
+                           light panel, near-white on a dark one. A fixed #333
+                           read as a slightly different panel once the panel
+                           went dark. */
+                        style={{
+                          background: isDark ? neutral.ink : "#333333",
+                          color: isDark ? neutral.canvas : "#FFFFFF",
+                        }}
+                        className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 max-w-[280px] rounded-md px-2 py-1.5 text-[11px] leading-snug opacity-0 shadow-md transition-opacity group-hover/notice:opacity-100"
                       >
                         {noticeFull}
                       </span>
@@ -5711,8 +6650,11 @@ function AgentPreview({
                       }
                     }}
                     placeholder={placeholder}
-                    className="block w-full resize-none bg-transparent px-2 pb-2 pt-1.5 text-[14px] leading-[1.5] tracking-tight outline-none placeholder:text-[#979797]"
+                    className="block w-full resize-none bg-transparent px-2 pb-2 pt-1.5 text-[14px] leading-[1.5] tracking-tight outline-none placeholder:text-[var(--ph)]"
                     style={{
+                      /* the palette's own muted rather than a fixed grey, which
+                         was a light-mode value sitting on a dark field */
+                      ["--ph" as string]: neutral.muted,
                       color: neutral.ink,
                       maxHeight: 140,
                       overflowY: "auto",
@@ -5829,7 +6771,7 @@ function AgentPreview({
                    textarea carries no padding of its own and is centred as a
                    flex item — its box is then the line of text itself, which is
                    what the icons either side are centred against. */
-                    className={`block min-w-0 resize-none bg-transparent text-[14px] leading-[1.5] tracking-tight outline-none placeholder:text-[#979797] ${
+                    className={`block min-w-0 resize-none bg-transparent text-[14px] leading-[1.5] tracking-tight outline-none placeholder:text-[var(--ph)] ${
                       isMultiline
                         ? "order-1 w-full basis-full py-1"
                         : theme.outlineComposer
@@ -5837,6 +6779,7 @@ function AgentPreview({
                           : "flex-1 py-[5px]"
                     }`}
                     style={{
+                      ["--ph" as string]: neutral.muted,
                       color: neutral.ink,
                       maxHeight: 140,
                       overflowY: "auto",
@@ -6073,15 +7016,25 @@ const CARD_SHADOW = [
   "0 32px 56px -20px rgba(18,21,33,0.10)",
 ].join(", ");
 
-function clusterGlass() {
+/* The cluster's cards take no colour of their own, which used to mean white.
+   It means the palette's surface now: these are the agent talking on somebody
+   else's page, and an agent set to dark that keeps posting white cards is
+   half-themed. The page behind them stays whatever it is — that part is not
+   ours to invert. */
+function clusterGlass(theme: ReturnType<typeof useTheme>) {
+  const n = theme.neutral;
+  const dark = theme.mode === "dark";
   return {
-    background: "#FFFFFF",
-    color: "#16181D",
+    background: n.surface,
+    color: n.ink,
     /* A hairline inside the edge before the ramp begins. It is what keeps the
        card from dissolving into a white page, where the shadow alone would
-       leave the top edge with nothing to draw it. */
-    shadow: `inset 0 0 0 1px rgba(18,21,33,0.06), ${CARD_SHADOW}`,
-    markRing: "#FFFFFF",
+       leave the top edge with nothing to draw it — and in dark it is the
+       whole job, since a shadow on a dark page has nothing to darken. */
+    shadow: dark
+      ? `inset 0 0 0 1px ${n.line}, 0 10px 30px rgba(0,0,0,0.34), 0 28px 60px -20px rgba(0,0,0,0.38)`
+      : `inset 0 0 0 1px rgba(18,21,33,0.06), ${CARD_SHADOW}`,
+    markRing: n.surface,
   };
 }
 
@@ -6448,6 +7401,7 @@ function ButtonSuggestions({
   accentLite,
   recall,
   compact,
+  wash,
   onOpen,
   onStart,
   onDismiss,
@@ -6496,6 +7450,8 @@ function ButtonSuggestions({
   fill: string;
   ink: string;
   stroke: string;
+  /* Dark only — see chipHover. Absent in light, where the ring alone reads. */
+  wash?: string;
   accent: string;
   accentLite: string;
   /* The last exchange, shown in place of the suggestions. Someone coming back
@@ -6636,6 +7592,7 @@ function ButtonSuggestions({
                was a dark translucent body and invisible the moment it became a
                white card. */
             ["--chip-stroke" as string]: stroke,
+            ["--chip-wash" as string]: wash ?? "transparent",
             ["--chip-shadow" as string]: glass?.shadow ?? BUTTON_SHADOW,
             /* Stepped by position on the way in, so the set eases in
                    one after the other. The step is the whole run divided
@@ -6735,7 +7692,13 @@ function ButtonSuggestions({
               different sizes, which is a wall rather than an exchange. */}
           <span
             className="truncate border-l-2 pl-2.5 text-[13px]"
-            style={{ borderColor: accentLite, color: V6.inkMute }}
+            /* The card's own ink at reduced strength rather than a named grey:
+               on a glass or accent-filled card that grey was a light-mode
+               assumption printed on top of a coloured surface. */
+            style={{
+              borderColor: accentLite,
+              color: "color-mix(in oklab, currentColor 62%, transparent)",
+            }}
           >
             {recall.ask}
           </span>
@@ -6993,6 +7956,10 @@ function LauncherPreview({
   theme,
   settings: s,
   siteUrl,
+  siteShot,
+  thinkMark,
+  thinkMarkSrc,
+  thinkLabel,
   device,
   name,
   subtitle,
@@ -7007,6 +7974,15 @@ function LauncherPreview({
   theme: ReturnType<typeof useTheme>;
   settings: LauncherSettings;
   siteUrl: string;
+  /* An uploaded page outranks the URL: it is the more deliberate of the two,
+     and it is usually there because the capture could not reach the site. */
+  siteShot: SiteShot | null;
+  /* Configured on the messenger side, but the launcher opens the same agent —
+     a thinking mark that changed depending on which preview you were looking
+     at would be describing two different products. */
+  thinkMark: ThinkingMark;
+  thinkMarkSrc: string | null;
+  thinkLabel: string;
   device: Device;
   /* who is arriving — a first-timer or someone coming back, and how long they
      were gone. Drives the resting launcher and what the panel opens on. */
@@ -7166,11 +8142,18 @@ function LauncherPreview({
   const looksLikeUrl = !!origin && /\.[a-z]{2,}/i.test(origin);
   const [failedShots, setFailedShots] = useState<string[]>([]);
   const [loadedShots, setLoadedShots] = useState<string[]>([]);
-  const localSite = looksLikeUrl ? localSiteFor(origin) : null;
+  /* An upload is a picture we already hold, so it takes the same path as a
+     checked-in shot: straight into the frame, no capture, no failure state. */
+  const localSite = siteShot
+    ? { src: siteShot.src }
+    : looksLikeUrl
+      ? localSiteFor(origin)
+      : null;
   /* The frame is a viewport and the page scrolls inside it, so a shot taller
      than the frame is browsed rather than cropped or squeezed. */
   const frameHeight = fills ? measured.h : 680;
-  const shot = looksLikeUrl && !localSite ? shotUrl(origin, activePath) : "";
+  const shot =
+    looksLikeUrl && !localSite && !siteShot ? shotUrl(origin, activePath) : "";
   const showSite = !!shot && !failedShots.includes(shot);
   const shotReady = showSite && loadedShots.includes(shot);
   const host = looksLikeUrl
@@ -7722,10 +8705,14 @@ function LauncherPreview({
      doesn't suffer the greying that mixing toward white does — and at 1px the
      accent at 45% reads more definite over the tint than the engine's own
      border shade, which is tuned for a larger area. */
-  const chipStroke = `color-mix(in srgb, ${accent} 45%, transparent)`;
+  const chip = chipHover(accent, theme.mode === "dark");
+  const chipStroke = chip.stroke;
   // the composer's travelling edge, derived rather than a second brand colour
   const accentLite = liteOf(accent);
   const spec = styleSpec(s.style, accent, accentLite);
+  /* The launcher's own surface and inks for whichever mode is on — see
+     launcherInk. V6 still owns the geometry. */
+  const L = launcherInk(theme);
   /* geometry, which is the shape's business rather than the style's */
   const isChip = s.shape === "chip";
   const buttonPx = sizePx(isMobile ? s.sizeMobile : s.size);
@@ -7741,6 +8728,9 @@ function LauncherPreview({
     avatar,
     logoOnly,
     accent,
+    thinkMark,
+    thinkMarkSrc,
+    thinkLabel,
     placeholder: s.placeholder,
     suggestions: prompts,
   };
@@ -7773,7 +8763,7 @@ function LauncherPreview({
           box-shadow: var(--chip-shadow, 0 0 #0000);
         }
         .starter-chip:hover {
-          box-shadow: inset 0 0 0 1.5px var(--chip-stroke), var(--chip-shadow, 0 0 #0000);
+          box-shadow: inset 0 0 0 1.5px var(--chip-stroke), inset 0 0 0 999px var(--chip-wash, transparent), var(--chip-shadow, 0 0 #0000);
         }
         @keyframes halo {
           0%   { box-shadow: 0 0 0 0 var(--halo); }
@@ -8057,7 +9047,7 @@ function LauncherPreview({
               onMouseLeave={
                 floating || isTouch ? undefined : () => setHoverOpen(false)
               }
-              className="relative overflow-hidden bg-white"
+              className="relative overflow-hidden"
               style={{
                 /* One source for the width, so the box and the offset that
                    centres it can never disagree — they did, and the launcher
@@ -8080,7 +9070,8 @@ function LauncherPreview({
                    notification, when what actually happened is that the
                    launcher is holding one. The travelling hairline is already
                    the accent and already moving — it does not need help. */
-                boxShadow: V6.ring,
+                background: L.surface,
+                boxShadow: L.ring,
                 transition: `width ${V6.panelMs}ms ${V6.panelEase}`,
               }}
             >
@@ -8167,7 +9158,7 @@ function LauncherPreview({
                         className="truncate border-l-2 pl-2.5 text-[13px]"
                         style={{
                           borderColor: accentLite,
-                          color: V6.inkMute,
+                          color: L.inkMute,
                         }}
                       >
                         {recallAsk(session)}
@@ -8180,7 +9171,7 @@ function LauncherPreview({
                           only needs one of them labelled. */}
                       <span
                         className="line-clamp-2 text-[14px] leading-snug"
-                        style={{ color: V6.ink }}
+                        style={{ color: L.ink }}
                       >
                         {recallReply(session)}
                       </span>
@@ -8243,7 +9234,7 @@ function LauncherPreview({
                         className={`line-clamp-2 whitespace-pre-line leading-snug ${
                           isMobile ? "text-[14px]" : "text-[15px]"
                         }`}
-                        style={{ color: V6.ink }}
+                        style={{ color: L.ink }}
                       >
                         {INBOUND}
                       </span>
@@ -8292,6 +9283,7 @@ function LauncherPreview({
                             color: theme.bubbleInk,
                             backgroundColor: theme.bubbleFill,
                             ["--chip-stroke" as string]: chipStroke,
+                            ["--chip-wash" as string]: chip.wash,
                           }}
                         >
                           {p}
@@ -8357,7 +9349,7 @@ function LauncherPreview({
                     placeholder={s.placeholder}
                     aria-label="Message"
                     className="block min-w-0 flex-1 resize-none bg-transparent px-3 text-[14px] font-light leading-[1.5] tracking-[0.01em] outline-none"
-                    style={{ color: V6.ink, maxHeight: 120, overflowY: "auto" }}
+                    style={{ color: L.ink, maxHeight: 120, overflowY: "auto" }}
                   />
                   {/* The control row. In one line it is just the disc on the
                       right of the field; in two it is a row of its own, with
@@ -8378,8 +9370,8 @@ function LauncherPreview({
                       style={{
                         width: pill.sendPx,
                         height: pill.sendPx,
-                        background: V6.disc,
-                        color: V6.ink,
+                        background: L.disc,
+                        color: L.ink,
                       }}
                     >
                       <Plus className={isMobile ? "size-4" : "size-5"} strokeWidth={1.5} />
@@ -8490,8 +9482,8 @@ function LauncherPreview({
                         onGreeting || onResume
                           ? accent
                           : hasDraft
-                            ? V6.ink
-                            : V6.inkMute,
+                            ? L.ink
+                            : L.hint,
                     }}
                   >
                     {placeholderText || " "}
@@ -8739,7 +9731,7 @@ function LauncherPreview({
               /* White frosted glass — see clusterGlass. It takes no colour of
                  its own, so the cluster sits on the customer's page rather than
                  painting over it. */
-              glass={clusterGlass()}
+              glass={clusterGlass(theme)}
               greeting={
                 /* Nothing. The floating messenger puts the message on the page
                    above the launcher — see FloatingColumn — so a card saying the
@@ -8777,6 +9769,7 @@ function LauncherPreview({
               fill={theme.neutral.surface}
               ink={theme.neutral.ink}
               stroke={chipStroke}
+              wash={chip.wash}
               accent={accent}
               accentLite={accentLite}
               compact={isMobile}
