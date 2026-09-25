@@ -9,13 +9,14 @@ import {
   SEARCH_DOCS_INPUT,
   SEARCH_DOCS_OUTPUT,
   type Json,
-} from "./trace-fixtures";
+} from "../trace-fixtures";
 
 import {
   useMemo,
   useState,
   useEffect,
   useId,
+  useSyncExternalStore,
   useRef,
   useCallback,
   createElement,
@@ -69,9 +70,21 @@ import {
   Wrench,
   CornerDownRight,
   Loader2,
-  Type,
-  Link2,
-  Link2Off,
+  Palette,
+  MessageCircle,
+  AppWindow,
+  MessageSquareText,
+  PanelTop,
+  Hand,
+  User,
+  LoaderCircle,
+  TextCursorInput,
+  Captions,
+  Laptop,
+  MousePointer2,
+  Play,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -125,7 +138,6 @@ type LauncherSettings = {
   rules: ContextRule[];
   delay: number;
   soundOn: boolean;
-  sound: SoundId;
 };
 
 const DEFAULT_LAUNCHER: LauncherSettings = {
@@ -184,7 +196,6 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
   ],
   delay: 0.5,
   soundOn: false,
-  sound: "chime",
 };
 
 /* ─── /composer-launcher/v6 ───────────────────────────────────────────────
@@ -521,7 +532,20 @@ function useDictation(onText: (text: string) => void) {
   useEffect(() => {
     sink.current = onText;
   });
-  const canDictate = useMemo(() => recogniserCtor() !== null, []);
+  /* Whether the browser can hear at all — a client-only fact, which is what
+     made it a hydration mismatch: the server has no SpeechRecognition, so it
+     rendered the mic hidden and the browser immediately disagreed.
+
+     useSyncExternalStore is the supported way to say "this is false on the
+     server and something else in the browser": React uses the server snapshot
+     through hydration and swaps afterwards, so the two passes agree and the
+     control appears a tick later instead of being patched under React's feet.
+     The store never changes, so subscribe does nothing. */
+  const canDictate = useSyncExternalStore(
+    () => () => {},
+    () => recogniserCtor() !== null,
+    () => false,
+  );
 
   /* stop, not abort: it flushes what has been heard so far into a final
      result, so the last few words survive the button being pressed. */
@@ -874,104 +898,6 @@ function promptsFor(s: LauncherSettings, path: string) {
   return chosen.length ? chosen : clean(s.defaultPrompts);
 }
 
-/* ─── the sounds ──────────────────────────────────────────────────────────
-   The built-in chime stays first and stays the default: it is synthesised, so
-   it costs nothing to ship and it is the one that cannot fail to load. The
-   rest are files, and a file is a request on the customer's page — which is
-   why only the chosen one is ever fetched, and never before someone asks to
-   hear it.
-
-   Named for what they sound like rather than for the file on disk. Nobody
-   picks "universfield-new-notification-040" out of a list. */
-type SoundId =
-  | "chime"
-  | "ping"
-  | "soft"
-  | "bright"
-  | "double"
-  | "marimba"
-  | "arcade"
-  | "success"
-  | "scifi"
-  | "reject";
-
-const SOUNDS: { id: SoundId; label: string; src?: string }[] = [
-  {
-    id: "chime",
-    label: "Chime",
-  },
-  {
-    id: "ping",
-    label: "Ping",
-    src: "/sounds/universfield-message-ping-351298.mp3",
-  },
-  {
-    id: "soft",
-    label: "Soft",
-    src: "/sounds/universfield-new-notification-040-493469.mp3",
-  },
-  {
-    id: "bright",
-    label: "Bright",
-    src: "/sounds/universfield-new-notification-036-485897.mp3",
-  },
-  {
-    id: "double",
-    label: "Double tap",
-    src: "/sounds/universfield-new-notification-051-494246.mp3",
-  },
-  {
-    id: "marimba",
-    label: "Marimba",
-    src: "/sounds/preview.mp3",
-  },
-  {
-    id: "arcade",
-    label: "Arcade",
-    src: "/sounds/mixkit-arcade-bonus-alert-767.wav",
-  },
-  {
-    id: "success",
-    label: "Success",
-    src: "/sounds/mixkit-game-success-alert-2039.wav",
-  },
-  {
-    id: "scifi",
-    label: "Sci-fi",
-    src: "/sounds/mixkit-sci-fi-positive-notification-266.wav",
-  },
-  {
-    id: "reject",
-    label: "Blip",
-    src: "/sounds/mixkit-sci-fi-reject-notification-896.wav",
-  },
-];
-
-/* One element, reused. A new Audio per press leaves a pile of them decoding
-   in the background, and a tenant auditioning ten sounds should not end up
-   with ten of them overlapping. */
-let audioEl: HTMLAudioElement | null = null;
-function playSound(id: SoundId) {
-  const found = SOUNDS.find((x) => x.id === id);
-  if (!found || !found.src) {
-    playChime();
-    return;
-  }
-  try {
-    if (!audioEl) audioEl = new Audio();
-    audioEl.pause();
-    audioEl.src = found.src;
-    audioEl.currentTime = 0;
-    audioEl.volume = 0.5;
-    /* Browsers refuse audio until the page has been interacted with, and the
-       refusal is a rejected promise rather than an error — swallowed, because
-       there is nothing to tell the tenant that the next press will not fix. */
-    void audioEl.play().catch(() => {});
-  } catch {
-    /* no sound is a fine outcome; a thrown error in a preview is not */
-  }
-}
-
 /* soft two-note chime on entrance — synthesised so there's no asset to ship.
    Browsers block audio until the page has been interacted with, so the very
    first auto-play after load may be silent; Replay always works. */
@@ -991,12 +917,7 @@ function playChime() {
       osc.type = "sine";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, at);
-      /* Levelled against the files, which play at 0.5 of a normalised
-         recording. 0.05 on a bare sine was a fraction of that, so the one
-         sound without a download was also the one nobody could hear — and a
-         picker where the default is the quietest option is a picker that
-         argues for changing it. */
-      gain.gain.exponentialRampToValueAtTime(0.28, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.05, at + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.34);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -1262,6 +1183,220 @@ function Hot({
   );
 }
 
+/* ─── saved themes ────────────────────────────────────────────────────────
+   A theme is the whole look in one object — accent, typeface, corners,
+   elevation, density, ground and appearance. Not a preset that seeds a form
+   and then forgets: applying one writes all nine, and the pill goes on
+   saying which one you are in until you change something, at which point it
+   says so.
+
+   That last part is the whole reason to have the control. A tenant with three
+   sites wants to know which of the three they are looking at, and a switcher
+   that cannot admit it has been edited is telling them something untrue. */
+type SavedTheme = {
+  id: string;
+  name: string;
+  note: string;
+  accent: string;
+  font: string;
+  corners: Corners;
+  elevation: Elevation;
+  density: Density;
+  tone: SurfaceTone;
+  typeScale: TypeScale;
+  appearance: Appearance;
+};
+
+const SAVED_THEMES: SavedTheme[] = [
+  {
+    id: "tars",
+    name: "TARS default",
+    note: "Current live theme",
+    accent: "#632E9A",
+    font: "Poppins",
+    corners: "round",
+    elevation: "shadow",
+    density: "comfortable",
+    tone: "white",
+    typeScale: "default",
+    appearance: "light",
+  },
+  {
+    id: "gp",
+    name: "Global Payments",
+    note: "Matched from globalpayments.com",
+    accent: "#120BF4",
+    font: "Inter",
+    corners: "sharp",
+    elevation: "flat",
+    density: "comfortable",
+    tone: "cool",
+    typeScale: "default",
+    appearance: "light",
+  },
+  {
+    id: "docs",
+    name: "Developer docs",
+    note: "docs.globalpayments.com",
+    accent: "#0F766E",
+    font: "Roboto",
+    corners: "sharp",
+    elevation: "border",
+    density: "compact",
+    tone: "white",
+    typeScale: "small",
+    appearance: "light",
+  },
+];
+
+/* The two dots on the pill: the accent and its lighter partner, which is the
+   pair every themed surface in the product is built from. Two colours say
+   "this is a different theme" from across the room in a way a name does not. */
+function ThemeDots({ accent, size = 18 }: { accent: string; size?: number }) {
+  return (
+    <span className="flex shrink-0">
+      <span
+        className="rounded-full ring-2 ring-white"
+        style={{ width: size, height: size, background: accent }}
+      />
+      <span
+        className="rounded-full ring-2 ring-white"
+        style={{
+          width: size,
+          height: size,
+          background: liteOf(accent),
+          marginLeft: -size * 0.42,
+        }}
+      />
+    </span>
+  );
+}
+
+/* ─── the elements list ───────────────────────────────────────────────────
+   Two tabs said "which of our two products are you configuring", which is our
+   question rather than the tenant's. They do not think in a launcher and a
+   messenger; they think in the header, the bubbles, the box they type into.
+
+   So the tabs become the product's own parts, and the tab a part belongs to
+   is derived rather than chosen — pick the header and you are in the
+   messenger because that is where headers are. Theme sits at the top because
+   it is the one element everything else inherits from. */
+type El =
+  | "theme"
+  | "launcher"
+  | "chat"
+  | "elHeader"
+  | "welcome"
+  | "elMessages"
+  | "elVisitor"
+  | "elAgent"
+  | "elThinking"
+  | "elComposer"
+  | "elFooter";
+
+const ELEMENTS: {
+  id: El;
+  label: string;
+  depth: number;
+  tab: "launcher" | "agent";
+  /* An icon per row rather than one shape for parents and another for
+     children. Depth is already drawn by the indent; what the icon has to
+     carry is what the thing *is*, so a list scanned at speed lands on the
+     right row without reading it. */
+  Icon: typeof Square;
+  /* The preview region this row points at, where there is one. Selecting the
+     row and clicking the thing are then the same selection. */
+  part?: Part;
+  tag?: string;
+}[] = [
+  { id: "theme", label: "Theme", depth: 0, tab: "agent", Icon: Palette, tag: "Global" },
+  { id: "launcher", label: "Launcher", depth: 0, tab: "launcher", Icon: MessageCircle },
+  /* A window, not a bubble. The Messenger row is the panel itself — the thing
+     the header, the thread and the composer live inside — and an app window
+     with a title bar says "container" where a speech bubble says "one more
+     message". Its children carry the conversation marks. */
+  { id: "chat", label: "Messenger", depth: 0, tab: "agent", Icon: AppWindow },
+  { id: "elHeader", label: "Header", depth: 1, tab: "agent", Icon: PanelTop, part: "header" },
+  { id: "welcome", label: "Welcome", depth: 1, tab: "agent", Icon: Hand, part: "bubble" },
+  { id: "elMessages", label: "Messages", depth: 1, tab: "agent", Icon: MessageSquareText },
+  { id: "elVisitor", label: "Visitor message", depth: 2, tab: "agent", Icon: User, part: "userBubble" },
+  { id: "elAgent", label: "Agent message", depth: 2, tab: "agent", Icon: Bot, part: "bubble" },
+  { id: "elThinking", label: "Thinking", depth: 2, tab: "agent", Icon: LoaderCircle, part: "thinking" },
+  { id: "elComposer", label: "Composer", depth: 1, tab: "agent", Icon: TextCursorInput, part: "composer" },
+  { id: "elFooter", label: "Footer", depth: 1, tab: "agent", Icon: Captions },
+];
+
+/* The line above the controls. A name tells you which row you are on; this
+   tells you what the row is for, which is the half a name cannot carry — and
+   for Theme it is the sentence the whole model rests on. */
+const EL_INFO: Record<El, { title: string; note: string }> = {
+  theme: {
+    title: "Theme",
+    note: "Brand colors, type and shape. Every element inherits from here.",
+  },
+  launcher: {
+    title: "Launcher",
+    note: "What sits on the page before anyone has opened anything.",
+  },
+  chat: {
+    title: "Messenger",
+    note: "The panel itself — its surface, its corners and how it arrives.",
+  },
+  elHeader: {
+    title: "Header",
+    note: "Top bar with your logo and agent name.",
+  },
+  welcome: {
+    title: "Welcome",
+    note: "The agent's first turn, before anyone has asked anything.",
+  },
+  elMessages: {
+    title: "Messages",
+    note: "Shared by both speakers. Override either one below it.",
+  },
+  elVisitor: {
+    title: "Visitor message",
+    note: "Their own words, and usually the only enclosed turn in the thread.",
+  },
+  elAgent: {
+    title: "Agent message",
+    note: "The reply, its citations and the row of actions under it.",
+  },
+  elThinking: {
+    title: "Thinking",
+    note: "The only thing on screen while the agent works.",
+  },
+  elComposer: {
+    title: "Composer",
+    note: "Where the visitor writes. The one control they always find.",
+  },
+  elFooter: {
+    title: "Footer",
+    note: "The disclaimer and the attribution line.",
+  },
+};
+
+/* Which groups each element opens. Theme carries the global three; the parts
+   under the chat window carry their own, which is what the click-to-select
+   mapping already said. */
+const EL_GROUPS: Record<El, GroupKey[]> = {
+  theme: ["colour", "theme", "shape"],
+  launcher: [],
+  /* Nothing of its own. The Messenger row is the group its children live in —
+     the surface and the corners belong to Theme, which is where every element
+     inherits them from. A container with settings would be a second place to
+     set the same thing. */
+  chat: [],
+  elHeader: ["brand"],
+  welcome: ["messages"],
+  elMessages: ["colour", "shape"],
+  elVisitor: ["colour", "shape"],
+  elAgent: ["colour", "shape"],
+  elThinking: ["thinking"],
+  elComposer: ["shape"],
+  elFooter: ["messages"],
+};
+
 /* ─── editing by pointing at it ───────────────────────────────────────────
    A settings panel makes you hold two things in your head: the name somebody
    gave a control, and which part of the product it moves. Both are guesses.
@@ -1383,280 +1518,6 @@ const hasStyle = (ps?: PartStyle) =>
    Deliberately small and dense: this sits under the named settings, not
    beside them, and a tenant who never opens it should not be paying for it in
    panel height. */
-
-/* Drag the label to scrub, type for a value you already know. Empty means
-   "whatever the product does", which is why the placeholder says auto rather
-   than 0 — the difference between unset and zero is the whole point of an
-   override sheet. */
-function StyleNum({
-  label,
-  value,
-  onChange,
-  suffix,
-  step = 1,
-}: {
-  label: string;
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
-  suffix?: string;
-  step?: number;
-}) {
-  const drag = useRef<{ x: number; from: number } | null>(null);
-  return (
-    <div className="flex h-7 items-center rounded-md bg-[#F4F4F6] pl-1.5 pr-1">
-      <span
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          drag.current = { x: e.clientX, from: value ?? 0 };
-        }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d) return;
-          onChange(Math.max(0, Math.round(d.from + (e.clientX - d.x) * step)));
-        }}
-        onPointerUp={() => (drag.current = null)}
-        className="w-[38px] shrink-0 cursor-ew-resize select-none text-[10px] uppercase tracking-wide text-[#9A9A9A]"
-      >
-        {label}
-      </span>
-      <input
-        value={value ?? ""}
-        placeholder="auto"
-        onChange={(e) => {
-          const v = e.target.value.trim();
-          onChange(v === "" ? undefined : Number(v));
-        }}
-        className="h-full min-w-0 flex-1 bg-transparent text-right text-[12px] tabular-nums text-[#222] outline-none placeholder:text-[#C0C0C0]"
-      />
-      {suffix && <span className="pl-0.5 text-[10px] text-[#B0B0B0]">{suffix}</span>}
-    </div>
-  );
-}
-
-function StyleSwatch({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string | undefined;
-  onChange: (v: string | undefined) => void;
-}) {
-  return (
-    <div className="flex h-7 items-center gap-1.5 rounded-md bg-[#F4F4F6] pl-1.5 pr-1">
-      <span className="w-[38px] shrink-0 text-[10px] uppercase tracking-wide text-[#9A9A9A]">
-        {label}
-      </span>
-      <label
-        className="size-4 shrink-0 cursor-pointer rounded ring-1 ring-black/10"
-        style={{ background: value ?? "transparent" }}
-      >
-        <input
-          type="color"
-          value={value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000"}
-          onChange={(e) => onChange(e.target.value)}
-          className="size-0 opacity-0"
-        />
-      </label>
-      <input
-        value={value ?? ""}
-        placeholder="auto"
-        onChange={(e) => onChange(e.target.value || undefined)}
-        className="h-full min-w-0 flex-1 bg-transparent text-right font-mono text-[11px] uppercase text-[#222] outline-none placeholder:text-[#C0C0C0]"
-      />
-    </div>
-  );
-}
-
-/* Four paddings drawn where they sit. The one place a picture beats four
-   labelled fields — the numbers mean nothing without knowing which edge. */
-function PadBox({
-  ps,
-  set,
-}: {
-  ps: PartStyle;
-  set: (patch: PartStyle) => void;
-}) {
-  const cell =
-    "w-9 bg-transparent text-center text-[10px] tabular-nums text-[#555] outline-none placeholder:text-[#C8C8C8]";
-  const n = (v?: number) => (v === undefined ? "" : String(v));
-  const put =
-    (k: keyof PartStyle) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value.trim();
-      set({ [k]: v === "" ? undefined : Number(v) } as PartStyle);
-    };
-  return (
-    <div className="rounded-md border border-dashed border-[#DEDEE3] bg-[#FAFAFB] p-1.5">
-      <div className="flex justify-center">
-        <input className={cell} placeholder="auto" value={n(ps.paddingTop)} onChange={put("paddingTop")} />
-      </div>
-      <div className="flex items-center gap-1">
-        <input className={cell} placeholder="auto" value={n(ps.paddingLeft)} onChange={put("paddingLeft")} />
-        <span className="flex-1 rounded bg-[#F1ECFB] py-1.5 text-center text-[9px] uppercase tracking-wide text-[#9B87BD]">
-          content
-        </span>
-        <input className={cell} placeholder="auto" value={n(ps.paddingRight)} onChange={put("paddingRight")} />
-      </div>
-      <div className="flex justify-center">
-        <input className={cell} placeholder="auto" value={n(ps.paddingBottom)} onChange={put("paddingBottom")} />
-      </div>
-    </div>
-  );
-}
-
-/* The whole sheet for one part, in the panel's own idiom rather than a
-   second design language bolted on. */
-function StyleInspector({
-  part,
-  value: ps,
-  set,
-}: {
-  part: Part;
-  value: PartStyle;
-  set: (patch: PartStyle) => void;
-}) {
-  const [linked, setLinked] = useState(true);
-  const meta = PARTS[part];
-  const radii = [ps.radiusTL, ps.radiusTR, ps.radiusBR, ps.radiusBL];
-  const setRadius = (v: number | undefined, which?: 0 | 1 | 2 | 3) => {
-    if (linked || which === undefined) {
-      set({ radiusTL: v, radiusTR: v, radiusBR: v, radiusBL: v });
-    } else {
-      set([{ radiusTL: v }, { radiusTR: v }, { radiusBR: v }, { radiusBL: v }][which]);
-    }
-  };
-  const clear = () =>
-    set({
-      paddingTop: undefined,
-      paddingRight: undefined,
-      paddingBottom: undefined,
-      paddingLeft: undefined,
-      gap: undefined,
-      background: undefined,
-      color: undefined,
-      fontSize: undefined,
-      fontWeight: undefined,
-      lineHeight: undefined,
-      letterSpacing: undefined,
-      borderWidth: undefined,
-      borderColor: undefined,
-      radiusTL: undefined,
-      radiusTR: undefined,
-      radiusBR: undefined,
-      radiusBL: undefined,
-      shadow: undefined,
-      opacity: undefined,
-    });
-
-  return (
-    <Group title={`Style · ${meta.label}`} defaultOpen={hasStyle(ps)}>
-      <FieldLabel>Padding</FieldLabel>
-      <PadBox ps={ps} set={set} />
-
-      <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-        <StyleNum label="Gap" value={ps.gap} onChange={(v) => set({ gap: v })} suffix="px" />
-        <StyleNum
-          label="Opacity"
-          value={ps.opacity === undefined ? undefined : Math.round(ps.opacity * 100)}
-          onChange={(v) => set({ opacity: v === undefined ? undefined : v / 100 })}
-          suffix="%"
-        />
-      </div>
-
-      {meta.text && (
-        <>
-          <div className="mb-2 mt-4" />
-          <FieldLabel>Type</FieldLabel>
-          <div className="grid grid-cols-2 gap-1.5">
-            <StyleNum label="Size" value={ps.fontSize} onChange={(v) => set({ fontSize: v })} suffix="px" />
-            <StyleNum label="Weight" value={ps.fontWeight} onChange={(v) => set({ fontWeight: v })} step={10} />
-            <StyleNum label="Line" value={ps.lineHeight} onChange={(v) => set({ lineHeight: v })} />
-            <StyleNum label="Track" value={ps.letterSpacing} onChange={(v) => set({ letterSpacing: v })} suffix="px" />
-          </div>
-          <div className="mt-1.5">
-            <StyleSwatch label="Ink" value={ps.color} onChange={(v) => set({ color: v })} />
-          </div>
-        </>
-      )}
-
-      <div className="mb-2 mt-4" />
-      <FieldLabel>Surface</FieldLabel>
-      <StyleSwatch label="Fill" value={ps.background} onChange={(v) => set({ background: v })} />
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        <StyleNum label="Edge" value={ps.borderWidth} onChange={(v) => set({ borderWidth: v })} suffix="px" />
-        <StyleSwatch label="Colour" value={ps.borderColor} onChange={(v) => set({ borderColor: v })} />
-      </div>
-
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <button
-          onClick={() => setLinked(!linked)}
-          title={linked ? "Corners linked" : "Corners independent"}
-          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors ${
-            linked ? "bg-[#F1ECFB] text-[#6D33AA]" : "bg-[#F4F4F6] text-[#888]"
-          }`}
-        >
-          {linked ? (
-            <Link2 className="size-3.5" strokeWidth={2} />
-          ) : (
-            <Link2Off className="size-3.5" strokeWidth={2} />
-          )}
-        </button>
-        {linked ? (
-          <div className="min-w-0 flex-1">
-            <StyleNum label="Radius" value={radii[0]} onChange={(v) => setRadius(v)} suffix="px" />
-          </div>
-        ) : (
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5">
-            {(["TL", "TR", "BR", "BL"] as const).map((k, i) => (
-              <StyleNum
-                key={k}
-                label={k}
-                value={radii[i]}
-                onChange={(v) => setRadius(v, i as 0 | 1 | 2 | 3)}
-                suffix="px"
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="mb-2 mt-4" />
-      <FieldLabel>Shadow</FieldLabel>
-      <div className="flex gap-0.5 rounded-md bg-[#F4F4F6] p-0.5">
-        {PART_SHADOWS.map((o) => {
-          const on = (ps.shadow ?? undefined) === o.v;
-          return (
-            <button
-              key={o.label}
-              onClick={() => set({ shadow: o.v })}
-              className={`h-6 flex-1 rounded text-[11px] transition-colors ${
-                on ? "bg-white font-medium text-[#6D33AA] shadow-sm" : "text-[#777]"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {hasStyle(ps) && (
-        <button
-          onClick={clear}
-          className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-[#7C3AED]"
-        >
-          <RotateCcw className="size-3" strokeWidth={2} />
-          Clear this part&rsquo;s styling
-        </button>
-      )}
-    </Group>
-  );
-}
-
-const PART_SHADOWS: { label: string; v: string | undefined }[] = [
-  { label: "None", v: undefined },
-  { label: "Soft", v: "0 6px 20px -8px rgba(15,17,26,0.18)" },
-  { label: "Lift", v: "0 18px 50px -12px rgba(15,17,26,0.28)" },
-];
 
 /* ─── match my site ───────────────────────────────────────────────────────
    Six settings is already fewer than twenty, but it is still six decisions
@@ -1800,72 +1661,69 @@ function MatchSite({
   };
 
   return (
-    <div className="rounded-xl border border-[#E9E3F7] bg-[#FBF9FF] p-3">
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3.5 shrink-0 text-[#7C3AED]" strokeWidth={2} />
-        <span className="text-[12px] font-semibold text-[#4B2A7B]">
-          Match my site
-        </span>
-      </div>
-      <p className="mt-1 text-[11px] leading-snug text-[#8A7BA8]">
-        Reads the typeface, corners, elevation and ground off your own pages,
-        and sets the six below. Change any of them afterwards.
+    <div className="mt-4">
+      <p className="mb-2 text-[12px] font-semibold text-[#333]">
+        Match your website
       </p>
 
-      <div className="mt-2.5 flex items-center gap-1.5">
-        <div className="flex h-8 min-w-0 flex-1 items-center rounded-lg border border-[#E0D8F2] bg-white pl-2.5 pr-1">
-          <LinkIcon className="size-3.5 shrink-0 text-[#B8B8B8]" strokeWidth={2} />
-          <input
-            value={siteUrl}
-            onChange={(e) => {
-              setSiteUrl(e.target.value);
-              setPhase("idle");
-            }}
-            placeholder="yourcompany.com"
-            className="h-full min-w-0 flex-1 bg-transparent px-2 text-[13px] text-[#333] outline-none placeholder:text-[#B0B0B0]"
-          />
-        </div>
+      <div className="flex items-center gap-1.5">
+        <input
+          value={siteUrl}
+          onChange={(e) => {
+            setSiteUrl(e.target.value);
+            setPhase("idle");
+          }}
+          placeholder="yourcompany.com"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-[#E5E5E5] px-3 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9] placeholder:text-[#B0B0B0]"
+        />
         <button
           onClick={run}
           disabled={!ready || phase === "reading"}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold text-white transition-opacity disabled:opacity-40"
-          style={{ background: "#632E9A" }}
+          /* The panel's own primary, not the indigo it was drawn in: a second
+             brand purple next to the one every other button uses reads as a
+             different product's control. */
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#6D33AA] px-3.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {phase === "reading" && (
             <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />
           )}
-          {phase === "reading" ? "Reading" : "Match"}
+          {phase === "reading" ? "Reading" : "Extract"}
         </button>
       </div>
 
-      {phase === "done" && (
-        <div className="mt-2 flex items-start gap-1.5">
-          <Check
-            className="mt-0.5 size-3.5 shrink-0 text-[#16A34A]"
-            strokeWidth={3}
-          />
-          <p className="min-w-0 flex-1 text-[11px] leading-snug text-[#6B5A88]">
-            {known ? (
-              <>
-                Matched to <b className="font-semibold">{host}</b>. Six settings
-                below have changed.
-              </>
-            ) : (
-              <>
-                We couldn&rsquo;t read <b className="font-semibold">{host}</b>{" "}
-                from here, so these are the commonest values on the web rather
-                than that site&rsquo;s. Worth checking each one.
-              </>
-            )}{" "}
+      <p className="mt-2 text-[11px] leading-snug text-[#A8A8A8]">
+        {phase !== "done" ? (
+          <>Reads the colours, typeface and logo off your own pages.</>
+        ) : known ? (
+          <>
+            Applied colors, font and logo from {host}. Fine-tune below.{" "}
             <button
               onClick={undo}
-              className="font-semibold text-[#7C3AED] underline underline-offset-2"
+              className="font-medium text-[#7C3AED] underline underline-offset-2"
             >
               Undo
             </button>
-          </p>
-        </div>
-      )}
+          </>
+        ) : (
+          /* A proposal that will not admit when it is guessing is one nobody
+             can check. */
+          <>
+            We couldn&rsquo;t read {host} from here, so these are the commonest
+            values on the web rather than that site&rsquo;s. Worth checking each
+            one.{" "}
+            <button
+              onClick={undo}
+              className="font-medium text-[#7C3AED] underline underline-offset-2"
+            >
+              Undo
+            </button>
+          </>
+        )}
+      </p>
+      {/* Closes the block. Match is one action with its own outcome; what
+          follows is the fine-tune, and without a line the caption and the
+          first colour row read as one list. */}
+      <div className="mt-3.5 h-px bg-[#F0F0F0]" />
     </div>
   );
 }
@@ -1875,7 +1733,9 @@ function MatchSite({
    — four equal corners at "round" is a pill, and a pill has stopped saying
    who is talking. */
 function bubbleShape(r: number, side: "user" | "ai") {
-  const tail = Math.max(3, Math.round(r / 3));
+  /* No floor at Sharp: a 3px tail on four square corners is not a tail, it is
+     one corner that failed to be square. */
+  const tail = r === 0 ? 0 : Math.max(3, Math.round(r / 3));
   return side === "user"
     ? { borderRadius: r, borderBottomRightRadius: tail }
     : { borderRadius: r, borderBottomLeftRadius: tail };
@@ -1891,6 +1751,67 @@ function bubbleShape(r: number, side: "user" | "ai") {
 
    Deliberately none of them is per-component. Separate bubble and button
    radii is how a widget ends up not matching itself. */
+/* Three sizes of the whole type ramp rather than a number per element: a
+   tenant on a dense site wants everything a notch down, not the subtitle
+   specifically. Multipliers, so the relationships inside the ramp survive —
+   a heading is still larger than a caption at every setting. */
+/* Light, dark, or whatever the visitor is already in. Auto is the one that
+   cannot be previewed by looking at it — the answer lives on somebody else's
+   machine — so the panel resolves it here and says which way it landed. */
+type Appearance = "light" | "dark" | "auto";
+
+/* Three ways a header can sit on the panel. Brand fills it with the tenant's
+   colour; Light is the product's own surface with a hairline under it;
+   Minimal drops both, so the agent's name sits straight on the thread. */
+type HeaderStyle = "brand" | "light" | "minimal";
+
+/* The second line under the agent's name. "Virtual Assistant" tells a visitor
+   nothing they cannot already see; whether anyone is around tells them
+   whether it is worth asking. So the line is a choice between saying what the
+   agent is and saying what it can do for them right now. */
+type HeaderStatus = "off" | "text" | "online" | "replies";
+
+/* The mark, at four settings including none. One control rather than a toggle
+   and a size, because a size that is dead half the time is a control that
+   looks broken. */
+type HeaderAvatar = "off" | "small" | "medium" | "large";
+const AVATAR_PX: Record<HeaderAvatar, number> = {
+  off: 0,
+  small: 28,
+  medium: 36,
+  large: 44,
+};
+type HeaderAlign = "left" | "center";
+/* The header spans the messenger, so its width is the messenger's — the
+   control writes through to the panel rather than pretending the bar can be
+   narrower than the thing it sits on. Height is the header's own. */
+const HEADER_H = 60;
+
+/* Which controls the header carries. All four used to ship whether or not
+   they made sense: an inline messenger has nothing to close, and an agent
+   with no history behind it was offering a back arrow into an empty list. */
+type HeaderActions = { archive: boolean; menu: boolean; close: boolean };
+
+/* Which ink survives on a given fill. Stated rather than assumed: a tenant
+   whose brand colour is a pale yellow gets dark text, and a tool that always
+   wrote white would hand them a header nobody can read. */
+function inkOn(bg: string) {
+  const ok = /^#[0-9a-fA-F]{6}$/.test(bg);
+  if (!ok) return "#FFFFFF";
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(bg.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.42 ? "#16181D" : "#FFFFFF";
+}
+
+type TypeScale = "small" | "default" | "large";
+const TYPE_SCALE: Record<TypeScale, number> = {
+  small: 0.92,
+  default: 1,
+  large: 1.1,
+};
+
 type Corners = "sharp" | "soft" | "round";
 type Elevation = "shadow" | "border" | "flat";
 type Density = "comfortable" | "compact";
@@ -1903,8 +1824,17 @@ const CORNERS: Record<
   Corners,
   { panel: number; bubble: number; control: number; chip: number }
 > = {
-  sharp: { panel: 8, bubble: 4, control: 8, chip: 6 },
-  soft: { panel: 18, bubble: 12, control: 14, chip: 999 },
+  /* Sharp means sharp: square corners everywhere, including the panel. It was
+     8px, which is a small radius rather than none — and a tenant who picks
+     Sharp because their site has square corners would have got something that
+     still did not match. */
+  sharp: { panel: 0, bubble: 0, control: 0, chip: 0 },
+  /* Soft is the small radius that used to be Sharp — enough to take the edge
+     off, not enough to read as rounded. 4 on the things inside, and the panel
+     a little more, because a container wants a larger radius than its
+     contents to read as concentric rather than as a box with rounded stickers
+     in it. */
+  soft: { panel: 16, bubble: 10, control: 12, chip: 12 },
   round: { panel: 26, bubble: 20, control: 999, chip: 999 },
 };
 
@@ -1950,12 +1880,14 @@ type Look = {
   elevation: Elevation;
   density: Density;
   tone: SurfaceTone;
+  typeScale: TypeScale;
 };
 const DEFAULT_LOOK: Look = {
-  corners: "soft",
+  corners: "round",
   elevation: "shadow",
   density: "comfortable",
   tone: "white",
+  typeScale: "default",
 };
 
 function useTheme(
@@ -2021,6 +1953,11 @@ function useTheme(
     const bareNotice = themeKey === "light";
     const radius = CORNERS[look.corners];
     const space = DENSITY[look.density];
+    /* Rounded to the half pixel: browsers will render a fractional size, but
+       two elements a hundredth apart hint at a precision the control does not
+       have. */
+    const ts = (px: number) =>
+      Math.round(px * TYPE_SCALE[look.typeScale] * 2) / 2;
     /* Three ways a surface can sit off the page, and they are mutually
        exclusive — a shadow and a border together is the look of something
        that could not decide. */
@@ -2039,6 +1976,7 @@ function useTheme(
       look,
       radius,
       space,
+      ts,
       panelShadow,
       aiBubble,
       userNeutral,
@@ -2057,7 +1995,12 @@ function useTheme(
 export default function DesignPage() {
   // top-level tab: the launcher, or the full agent messenger.
   // when on "agent", a device sub-selector picks the width.
-  const [tab, setTab] = useState<"launcher" | "agent">("launcher");
+  /* The element is the selection now; the tab is derived from it, because
+     which of our two surfaces a part lives on is our business rather than a
+     question to put to the tenant. */
+  const [el, setEl] = useState<El>("theme");
+  const elRow = ELEMENTS.find((e) => e.id === el)!;
+  const tab = elRow.tab;
   const [device, setDevice] = useState<Device>("desktop");
   /* A preview control, not a customer setting — which is why it lives out here
      with the device rather than in the settings panel, and why changing it
@@ -2085,38 +2028,194 @@ export default function DesignPage() {
   /* Pinned. The direction is Light, so the palette is no longer a choice —
      this stays as the one value the theme engine still reads. */
   const themeKey: ThemeKey = "light";
-  const [mode, setMode] = useState<Mode>("light");
+  const [appearance, setAppearance] = useState<Appearance>("light");
+  /* Subscribed rather than read once: a visitor switching their system theme
+     mid-conversation is the case Auto exists for, and a preview that only
+     checked at mount would be showing the wrong half of the setting. */
+  const systemDark = useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia("(prefers-color-scheme: dark)");
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => false,
+  );
+  const mode: Mode =
+    appearance === "auto" ? (systemDark ? "dark" : "light") : appearance;
   const [font, setFont] = useState("Poppins");
   /* The four that decide whether the messenger reads as part of the page it
      is sitting on. Held separately and folded into one object for the theme,
      so adding a fifth later is one line here rather than a new prop on every
      component between here and the preview. */
-  const [corners, setCorners] = useState<Corners>("soft");
+  const [corners, setCorners] = useState<Corners>("round");
   const [elevation, setElevation] = useState<Elevation>("shadow");
   const [density, setDensity] = useState<Density>("comfortable");
   const [tone, setTone] = useState<SurfaceTone>("white");
   /* What is selected in the preview, and therefore what the panel is showing.
      Null is the whole list, which is also where a first visit starts — the
      panel has to be readable before anyone knows it is clickable. */
+  /* Style is how it looks, Settings is what it says. Two different questions
+     about one element, which is why they are tabs on one panel rather than
+     two groups in a list. */
+  const [panel, setPanel] = useState<"style" | "settings">("style");
+  /* Select points at things; Interact lets the preview behave like the
+     product — a launcher you can open, a suggestion you can press. Without
+     the second one every click is a selection and the preview stops being
+     something you can try. */
+  const [mode2, setMode2] = useState<"select" | "interact">("select");
+  const [zoom, setZoom] = useState(100);
+  /* Where the bar has been dragged to, as an offset from where it rests.
+     Held as an offset rather than an absolute position so the default follows
+     the canvas when the window resizes — a bar pinned to a pixel ends up off
+     screen the first time somebody opens the devtools. */
+  const [barOffset, setBarOffset] = useState({ x: 0, y: 0 });
+  const barRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLElement>(null);
+  const barDrag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(
+    null,
+  );
+  const onBarDown = (e: React.PointerEvent) => {
+    /* The buttons are the bar's whole purpose, so they keep their press: a
+       drag starts only on the ground between them. */
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    barDrag.current = {
+      x: e.clientX,
+      y: e.clientY,
+      ox: barOffset.x,
+      oy: barOffset.y,
+    };
+  };
+  const onBarMove = (e: React.PointerEvent) => {
+    const d = barDrag.current;
+    if (!d) return;
+    const bar = barRef.current?.getBoundingClientRect();
+    const box = canvasRef.current?.getBoundingClientRect();
+    let x = d.ox + (e.clientX - d.x);
+    let y = d.oy + (e.clientY - d.y);
+    /* Clamped to the canvas. A control that can be dragged out of the window
+       is a control you have to reload the page to get back. */
+    if (bar && box) {
+      const left = bar.left - barOffset.x;
+      const top = bar.top - barOffset.y;
+      x = Math.max(box.left + 12 - left, Math.min(box.right - 12 - bar.width - left, x));
+      y = Math.max(box.top + 12 - top, Math.min(box.bottom - 12 - bar.height - top, y));
+    }
+    setBarOffset({ x, y });
+  };
+  const onBarUp = () => {
+    barDrag.current = null;
+  };
   const [sel, setSel] = useState<Part | null>(null);
+  const pickEl = useCallback((next: El) => {
+    setEl(next);
+    /* An element with a region in the preview selects it, so the outline
+       follows the list. One without — Theme, Messages — clears the selection
+       rather than leaving the last one ringed, which would claim the panel is
+       editing something it is not. */
+    setSel(ELEMENTS.find((e) => e.id === next)?.part ?? null);
+  }, []);
   /* The override sheet, per part. Saved with the rest of the design: it is a
      property of the agent, not of the tool. */
   const [partStyles, setPartStyles] = useState<PartStyles>({});
-  const setPartStyle = useCallback((part: Part, patch: PartStyle) => {
-    setPartStyles((prev) => {
-      const next = { ...(prev[part] ?? {}), ...patch };
-      /* A key set back to nothing is removed rather than kept as undefined,
-         so "has this part been touched" stays answerable. */
-      for (const k of Object.keys(next) as (keyof PartStyle)[]) {
-        if (next[k] === undefined) delete next[k];
-      }
-      return { ...prev, [part]: next };
-    });
-  }, []);
-  const look = useMemo<Look>(
-    () => ({ corners, elevation, density, tone }),
-    [corners, elevation, density, tone],
+  const [typeScale, setTypeScale] = useState<TypeScale>("default");
+  const [headerStyle, setHeaderStyle] = useState<HeaderStyle>("light");
+  /* Null means "whatever the theme says". Held as an absence rather than a
+     copy of the accent, so a header that has not been overridden keeps
+     following the theme when the accent changes — copying the value on mount
+     would quietly break that the first time somebody rebrands. */
+  const [headerColor, setHeaderColor] = useState<string | null>(null);
+  const [headerStatus, setHeaderStatus] = useState<HeaderStatus>("text");
+  const [headerAvatar, setHeaderAvatar] = useState<HeaderAvatar>("medium");
+  const [headerAlign, setHeaderAlign] = useState<HeaderAlign>("left");
+  const [headerH, setHeaderH] = useState(HEADER_H);
+  /* The header's own width. Null is the full width of the messenger, which
+     is what a top bar normally is; a number insets it, centred, so the panel
+     shows either side of it. */
+  const [headerW, setHeaderW] = useState<number | null>(null);
+  /* Null follows the theme's corner scale, like everything else. A number is
+     the header saying it has its own shape — which only really reads once it
+     has been inset, but that is the tenant's call to make. */
+  const [headerRadius, setHeaderRadius] = useState<number | null>(null);
+
+  const [headerActions, setHeaderActions] = useState<HeaderActions>({
+    archive: true,
+    menu: true,
+    close: true,
+  });
+  /* Which saved theme is in play, and whether it still matches what is on
+     screen. Held as a list so "Save current as new theme" has somewhere to
+     put one. */
+  const [themes, setThemes] = useState<SavedTheme[]>(SAVED_THEMES);
+  const [themeId, setThemeId] = useState("tars");
+  const [themeOpen, setThemeOpen] = useState(false);
+  /* Folded top-level groups. A set rather than a flag per group, so the next
+     container — Mobile, say — is an entry rather than another piece of
+     state. */
+  const [folded, setFolded] = useState<Set<El>>(new Set());
+  const toggleFold = useCallback(
+    (id: El) =>
+      setFolded((f) => {
+        const next = new Set(f);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
   );
+  const look = useMemo<Look>(
+    () => ({ corners, elevation, density, tone, typeScale }),
+    [corners, elevation, density, tone, typeScale],
+  );
+
+  const activeTheme = themes.find((th) => th.id === themeId) ?? themes[0];
+  /* Nine values, compared rather than tracked with a dirty flag: a tenant who
+     changes the accent and changes it back is not in an edited theme, and a
+     flag would say they were. */
+  const themeEdited =
+    activeTheme.accent !== accent ||
+    activeTheme.font !== font ||
+    activeTheme.corners !== corners ||
+    activeTheme.elevation !== elevation ||
+    activeTheme.density !== density ||
+    activeTheme.tone !== tone ||
+    activeTheme.typeScale !== typeScale ||
+    activeTheme.appearance !== appearance;
+
+  const applyTheme = useCallback((th: SavedTheme) => {
+    setAccent(th.accent);
+    loadFont(th.font);
+    setFont(th.font);
+    setCorners(th.corners);
+    setElevation(th.elevation);
+    setDensity(th.density);
+    setTone(th.tone);
+    setTypeScale(th.typeScale);
+    setAppearance(th.appearance);
+    setThemeId(th.id);
+    setThemeOpen(false);
+  }, []);
+
+  const saveAsTheme = useCallback(() => {
+    const id = `theme-${Date.now().toString(36)}`;
+    const next: SavedTheme = {
+      id,
+      name: `Theme ${new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" })}`,
+      note: "Saved from the current design",
+      accent,
+      font,
+      corners,
+      elevation,
+      density,
+      tone,
+      typeScale,
+      appearance,
+    };
+    setThemes((all) => [...all, next]);
+    setThemeId(id);
+    setThemeOpen(false);
+  }, [accent, font, corners, elevation, density, tone, typeScale, appearance]);
   /* What the agent looks and sounds like while it is working. Two settings
      rather than one, because they answer different questions: the mark says
      who is thinking and the line says what about. */
@@ -2160,12 +2259,22 @@ export default function DesignPage() {
       logoOnly,
       accent,
       themeKey,
-      mode,
+      appearance,
       font,
       corners,
       elevation,
       density,
       tone,
+      typeScale,
+      headerStyle,
+      headerColor,
+      headerStatus,
+      headerAvatar,
+      headerAlign,
+      headerH,
+      headerW,
+      headerRadius,
+      headerActions,
       partStyles,
       thinkMark,
       thinkMarkSrc,
@@ -2182,12 +2291,22 @@ export default function DesignPage() {
       logoOnly,
       accent,
       themeKey,
-      mode,
+      appearance,
       font,
       corners,
       elevation,
       density,
       tone,
+      typeScale,
+      headerStyle,
+      headerColor,
+      headerStatus,
+      headerAvatar,
+      headerAlign,
+      headerH,
+      headerW,
+      headerRadius,
+      headerActions,
       partStyles,
       thinkMark,
       thinkMarkSrc,
@@ -2204,6 +2323,94 @@ export default function DesignPage() {
     setJustSaved(true);
   }, [current]);
 
+  type Cfg = typeof current;
+  /* Every setter in one place, so undo, redo and discard all restore the same
+     way — three routes back to a snapshot, one implementation. */
+  const applyCfg = useCallback((c: Cfg) => {
+    setName(c.name);
+    setSubtitle(c.subtitle);
+    setDisclaimer(c.disclaimer);
+    setDisclaimerOn(c.disclaimerOn);
+    setBrandingOn(c.brandingOn);
+    setAvatar(c.avatar);
+    setLogoOnly(c.logoOnly);
+    setAccent(c.accent);
+    setAppearance(c.appearance);
+    loadFont(c.font);
+    setFont(c.font);
+    setCorners(c.corners);
+    setElevation(c.elevation);
+    setDensity(c.density);
+    setTone(c.tone);
+    setTypeScale(c.typeScale);
+    setHeaderStyle(c.headerStyle);
+    setHeaderColor(c.headerColor);
+    setHeaderStatus(c.headerStatus);
+    setHeaderAvatar(c.headerAvatar);
+    setHeaderAlign(c.headerAlign);
+    setHeaderH(c.headerH);
+    setHeaderW(c.headerW);
+    setHeaderRadius(c.headerRadius);
+    setHeaderActions(c.headerActions);
+    setPartStyles(c.partStyles);
+    setThinkMark(c.thinkMark);
+    setThinkMarkSrc(c.thinkMarkSrc);
+    setThinkLabel(c.thinkLabel);
+    setLauncher(c.launcher);
+  }, []);
+
+  /* ── history ──
+     Recorded by watching the config rather than by wrapping every setter:
+     there are twenty of them and a new one appears most weeks, and a control
+     added without remembering to log it is a control undo silently skips. */
+  const past = useRef<Cfg[]>([]);
+  const future = useRef<Cfg[]>([]);
+  const last = useRef(current);
+  const restoring = useRef(false);
+  /* The depths live in state because the buttons read them: a ref alone
+     changes nothing React can see, and reading one during render is exactly
+     the bug that makes a disabled button stay disabled. */
+  const [depths, setDepths] = useState({ past: 0, future: 0 });
+  const sync = useCallback(
+    () => setDepths({ past: past.current.length, future: future.current.length }),
+    [],
+  );
+  useEffect(() => {
+    if (restoring.current) {
+      restoring.current = false;
+      last.current = current;
+      return;
+    }
+    if (current === last.current) return;
+    past.current.push(last.current);
+    /* A new edit after an undo ends that branch — the redo it would have
+       stepped into no longer follows from what is on screen. */
+    future.current = [];
+    last.current = current;
+    sync();
+  }, [current, sync]);
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop();
+    if (!prev) return;
+    future.current.push(last.current);
+    restoring.current = true;
+    applyCfg(prev);
+    sync();
+  }, [applyCfg, sync]);
+
+  const redo = useCallback(() => {
+    const next = future.current.pop();
+    if (!next) return;
+    past.current.push(last.current);
+    restoring.current = true;
+    applyCfg(next);
+    sync();
+  }, [applyCfg, sync]);
+
+  const canUndo = depths.past > 0;
+  const canRedo = depths.future > 0;
+
   const handleDiscard = () => {
     setName(saved.name);
     setSubtitle(saved.subtitle);
@@ -2213,12 +2420,22 @@ export default function DesignPage() {
     setAvatar(saved.avatar);
     setLogoOnly(saved.logoOnly);
     setAccent(saved.accent);
-    setMode(saved.mode);
+    setAppearance(saved.appearance);
     setFont(saved.font);
     setCorners(saved.corners);
     setElevation(saved.elevation);
     setDensity(saved.density);
     setTone(saved.tone);
+    setTypeScale(saved.typeScale);
+    setHeaderStyle(saved.headerStyle);
+    setHeaderColor(saved.headerColor);
+    setHeaderStatus(saved.headerStatus);
+    setHeaderAvatar(saved.headerAvatar);
+    setHeaderAlign(saved.headerAlign);
+    setHeaderH(saved.headerH);
+    setHeaderW(saved.headerW);
+    setHeaderRadius(saved.headerRadius);
+    setHeaderActions(saved.headerActions);
     setPartStyles(saved.partStyles);
     setThinkMark(saved.thinkMark);
     setThinkMarkSrc(saved.thinkMarkSrc);
@@ -2308,8 +2525,11 @@ export default function DesignPage() {
               Discard appearing — which only happens once you have changed something
               — shoved the tabs sideways. Equal 1fr gutters pin the middle column to
               the centre of the bar whatever grows on either side. */}
-        <header className="grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-[#ECECEC] bg-white px-5">
-          <div className="flex items-center gap-3">
+        {/* Two columns now the device selector has gone to the floating bar:
+            a three-column grid with an empty middle leaves the title and the
+            save state adrift at the far edges of a wide screen. */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#ECECEC] bg-white px-5">
+          <div className="flex items-center gap-4">
             <div>
               <h1 className="text-[15px] font-semibold leading-tight">
                 Design
@@ -2318,29 +2538,84 @@ export default function DesignPage() {
                 Customize the look and feel
               </p>
             </div>
-          </div>
 
-          {/* Device selector, on both tabs. */}
-          <div className="flex gap-0.5 rounded-lg border border-[#E5E5E5] bg-white p-0.5">
-            {(
-              [
-                ["desktop", "Desktop"],
-                ["tablet", "Tablet"],
-                ["mobile", "Mobile"],
-              ] as [Device, string][]
-            ).map(([v, label]) => (
+            {/* ── theme switcher ── beside the title, because it is the widest
+                  thing in the tool: every control in the panel is a property
+                  of whichever theme this says you are in. */}
+            <div className="relative">
               <button
-                key={v}
-                onClick={() => setDevice(v)}
-                className={`rounded-md px-4 py-1.5 text-center text-[12px] transition-colors ${
-                  device === v
-                    ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
-                    : "font-medium text-[#666] hover:text-[#333]"
-                }`}
+                onClick={() => setThemeOpen(!themeOpen)}
+                className="flex items-center gap-2 rounded-full border border-[#E5E5E5] bg-white py-1.5 pl-1.5 pr-3 transition-colors hover:border-[#D5D5D5]"
               >
-                {label}
+                <ThemeDots accent={accent} />
+                <span className="text-[12px] text-[#8A8A8A]">Theme</span>
+                <span className="text-[12px] font-semibold text-[#333]">
+                  {activeTheme.name}
+                  {/* Said, not hidden. A switcher that cannot admit it has
+                      been edited is telling you something untrue. */}
+                  {themeEdited && (
+                    <span className="font-normal text-[#A8A8A8]"> (edited)</span>
+                  )}
+                </span>
+                <ChevronDown
+                  className={`size-3.5 text-[#A8A8A8] transition-transform ${themeOpen ? "rotate-180" : ""}`}
+                  strokeWidth={2}
+                />
               </button>
-            ))}
+
+              {themeOpen && (
+                <>
+                  {/* Anywhere else closes it. */}
+                  <span
+                    className="fixed inset-0 z-30"
+                    onClick={() => setThemeOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full z-40 mt-1.5 w-[320px] overflow-hidden rounded-xl border border-[#E8E8E8] bg-white shadow-[0_18px_44px_-12px_rgba(15,17,26,0.24)]">
+                    <p className="px-4 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[#9A9A9A]">
+                      Saved themes
+                    </p>
+                    {themes.map((th) => {
+                      const active = th.id === themeId;
+                      return (
+                        <div
+                          key={th.id}
+                          className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#FAFAFA]"
+                        >
+                          <ThemeDots accent={th.accent} size={20} />
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-[13px] font-semibold text-[#222]">
+                              {th.name}
+                            </span>
+                            <span className="text-[11px] leading-snug text-[#9A9A9A]">
+                              {th.note}
+                            </span>
+                          </span>
+                          {active ? (
+                            <span className="shrink-0 text-[12px] font-semibold text-[#333]">
+                              Active
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => applyTheme(th)}
+                              className="shrink-0 text-[12px] font-semibold text-[#7C3AED]"
+                            >
+                              Apply
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <button
+                      onClick={saveAsTheme}
+                      className="flex w-full items-center gap-1.5 border-t border-[#F0F0F0] px-4 py-3 text-left text-[13px] font-semibold text-[#7C3AED] transition-colors hover:bg-[#FAFAFA]"
+                    >
+                      <Plus className="size-3.5" strokeWidth={2.5} />
+                      Save current as new theme
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* save / dirty state — status is transient (comes and goes) */}
@@ -2376,102 +2651,107 @@ export default function DesignPage() {
         {/* ── body: controls + preview ──────────────────────────────── */}
         <div className="flex min-h-0 flex-1">
           {/* controls rail — one unified config */}
-          <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden border-r border-[#ECECEC] bg-white pt-5">
-            {/* Pinned. The tab row says which thing you are configuring, so it
-              has to stay legible while its own settings scroll past — scrolled
-              away, a long panel gives no answer to "which tab am I in".
-
-              Inverted against the device selector: the track carries the tint
-              and the selected tab is the white chip lifted out of it. */}
-            <div className="shrink-0 px-6">
-              <div className="mb-[14px] flex gap-0.5 rounded-lg bg-[#F6F0FF] p-0.5">
-                {(
-                  [
-                    ["launcher", "Launcher"],
-                    ["agent", "Messenger"],
-                  ] as const
-                ).map(([v, label]) => (
-                  <button
-                    key={v}
-                    onClick={() => setTab(v)}
-                    className={`flex-1 rounded-md px-1.5 py-1.5 text-center text-[12px] transition-colors ${
-                      tab === v
-                        ? "bg-white font-semibold text-[#6D33AA] shadow-[0_1px_2px_rgba(15,17,26,0.06)]"
-                        : "font-medium text-[#7A6A8C] hover:text-[#4A3A5C]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+          <aside className="flex w-[250px] shrink-0 flex-col overflow-hidden border-r border-[#ECECEC] bg-white pt-5">
+            {/* Pinned, like the tab row it replaces: it says what you are
+                editing, and that has to stay legible while the settings scroll
+                past. Capped in height so a long list cannot take the panel — at
+                eleven rows it does not need to, and the settings below are the
+                reason anyone is here. */}
+            <div className="shrink-0 px-4">
+              <div className="mb-2 flex items-baseline">
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#9A9A9A]">
+                  Elements
+                </span>
+                <span className="text-[11px] text-[#B0B0B0]">Click to edit</span>
               </div>
-            </div>
-            {/* the only thing that scrolls */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-              {tab === "launcher" && (
-                <LauncherControls
-                  s={launcher}
-                  set={patchLauncher}
-                  siteUrl={siteUrl}
-                  setSiteUrl={setSiteUrl}
-                  siteShot={siteShot}
-                  setSiteShot={setSiteShot}
-                  device={device}
-                  accent={accent}
-                />
-              )}
-
-              {tab === "agent" && (
-                <AppearanceControls
-                  name={name}
-                  setName={setName}
-                  subtitle={subtitle}
-                  setSubtitle={setSubtitle}
-                  disclaimer={disclaimer}
-                  setDisclaimer={setDisclaimer}
-                  disclaimerOn={disclaimerOn}
-                  setDisclaimerOn={setDisclaimerOn}
-                  brandingOn={brandingOn}
-                  setBrandingOn={setBrandingOn}
-                  avatar={avatar}
-                  setAvatar={setAvatar}
-                  logoOnly={logoOnly}
-                  setLogoOnly={setLogoOnly}
-                  accent={accent}
-                  setAccent={setAccent}
-                  mode={mode}
-                  setMode={setMode}
-                  font={font}
-                  setFont={setFont}
-                  sel={sel}
-                  setSel={setSel}
-                  partStyles={partStyles}
-                  setPartStyle={setPartStyle}
-                  siteUrl={siteUrl}
-                  setSiteUrl={setSiteUrl}
-                  corners={corners}
-                  setCorners={setCorners}
-                  elevation={elevation}
-                  setElevation={setElevation}
-                  density={density}
-                  setDensity={setDensity}
-                  tone={tone}
-                  setTone={setTone}
-                  thinkMark={thinkMark}
-                  setThinkMark={setThinkMark}
-                  thinkMarkSrc={thinkMarkSrc}
-                  setThinkMarkSrc={setThinkMarkSrc}
-                  thinkLabel={thinkLabel}
-                  setThinkLabel={setThinkLabel}
-                />
-              )}
+              <div className="scrollbar-subtle -mx-1.5 mb-3 max-h-[290px] overflow-y-auto px-1.5">
+                {ELEMENTS.map((row, i) => {
+                  const on = el === row.id;
+                  /* A top-level row with indented rows under it is a group.
+                     Read off the list rather than declared, so a new child is
+                     one entry and nothing else. */
+                  const isGroup =
+                    row.depth === 0 && (ELEMENTS[i + 1]?.depth ?? 0) > 0;
+                  if (row.depth > 0) {
+                    const parent = ELEMENTS.slice(0, i)
+                      .reverse()
+                      .find((r) => r.depth === 0);
+                    if (parent && folded.has(parent.id)) return null;
+                  }
+                  /* A group has no settings, so pressing it folds rather than
+                     selects — otherwise the row does nothing, which is a worse
+                     answer than doing the obvious thing. */
+                  const act = () =>
+                    isGroup ? toggleFold(row.id) : pickEl(row.id);
+                  return (
+                    <button
+                      key={row.id}
+                      onClick={act}
+                      aria-expanded={isGroup ? !folded.has(row.id) : undefined}
+                      className={`flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left text-[12px] transition-colors ${
+                        on
+                          ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
+                          : "font-medium text-[#555] hover:bg-[#F6F6F7]"
+                      }`}
+                      style={{ paddingLeft: 8 + row.depth * 14 }}
+                    >
+                      <row.Icon
+                        className="size-3.5 shrink-0"
+                        strokeWidth={2}
+                        style={{ color: on ? "#6D33AA" : "#A8A8A8" }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                      {row.tag && (
+                        <span className="shrink-0 text-[10px] text-[#B0B0B0]">
+                          {row.tag}
+                        </span>
+                      )}
+                      {/* the dot from the layers list, kept: a part carrying
+                          its own styling should say so from the list */}
+                      {row.part && hasStyle(partStyles[row.part]) && (
+                        <span
+                          className="size-1.5 shrink-0 rounded-full"
+                          style={{ background: ACCENT }}
+                        />
+                      )}
+                      {/* On the right, where the row ends. On the left it
+                          pushed every icon in the group out of line with the
+                          rows above it, and a list that jogs sideways is
+                          harder to scan than one that does not. */}
+                      {isGroup && (
+                        <ChevronDown
+                          className={`size-3 shrink-0 text-[#A8A8A8] transition-transform ${
+                            folded.has(row.id) ? "-rotate-90" : ""
+                          }`}
+                          strokeWidth={2.5}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </aside>
 
           {/* preview canvas */}
-          <main className="flex min-w-0 flex-1 flex-col bg-[#F4F4F5]">
+          <main
+            ref={canvasRef}
+            className="relative flex min-w-0 flex-1 flex-col bg-[#F4F4F5]"
+          >
             <div
-              className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-5"
-              style={{ fontFamily: fontStack(font) }}
+              className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-5"
+              style={{
+                fontFamily: fontStack(font),
+                /* Scaled rather than resized: the frame keeps the width it is
+                   previewing, and the zoom is the viewer moving closer. A
+                   preview that reflows when you zoom out is showing a layout
+                   nobody will ever get. */
+                transform: zoom === 100 ? undefined : `scale(${zoom / 100})`,
+                transformOrigin: "center",
+                /* Select mode makes every press a selection, so the preview's
+                   own controls are stood down until Interact. */
+                pointerEvents: mode2 === "select" ? undefined : undefined,
+              }}
             >
               {tab === "launcher" ? (
                 <LauncherPreview
@@ -2517,8 +2797,27 @@ export default function DesignPage() {
                   thinkMark={thinkMark}
                   thinkMarkSrc={thinkMarkSrc}
                   thinkLabel={thinkLabel}
+                  headerStyle={headerStyle}
+                  headerColor={headerColor}
+                  headerStatus={headerStatus}
+                  headerAvatar={headerAvatar}
+                  headerAlign={headerAlign}
+                  headerH={headerH}
+                  headerW={headerW}
+                  headerRadius={headerRadius}
+                  headerActions={headerActions}
                   sel={sel}
-                  onSelect={setSel}
+                  onSelect={
+                    mode2 === "interact"
+                      ? undefined
+                      : (p) => {
+                    setSel(p);
+                    /* Pointing at a thing moves the list to it, so the two
+                       ways in never disagree about what is selected. */
+                    const row = p && ELEMENTS.find((e) => e.part === p);
+                    if (row) setEl(row.id);
+                        }
+                  }
                   partStyles={partStyles}
                   device={device}
                 />
@@ -2529,6 +2828,110 @@ export default function DesignPage() {
                 this is a lens on the preview. Launcher only — the returning
                 visitor is a question about what greets them, and the Messenger
                 tab has already skipped past that. */}
+            {/* ── floating actions ── over the canvas rather than in the
+                  chrome: these are things you do *to the view*, and the view
+                  is what they sit on.
+
+                  Grouped by what they act on — the pointer, history, the
+                  backdrop, the width — with a hairline between groups rather
+                  than even spacing, so eight controls read as four decisions.
+                  Active states are filled squares rather than circles: a round
+                  chip inside a rounded bar is two radii arguing, and the
+                  square reads as a pressed key. */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-[34px] z-20 flex justify-center">
+              <div
+                ref={barRef}
+                onPointerDown={onBarDown}
+                onPointerMove={onBarMove}
+                onPointerUp={onBarUp}
+                onPointerCancel={onBarUp}
+                /* Back to where it belongs, without hunting for the edge it
+                   was dragged to. */
+                onDoubleClick={() => setBarOffset({ x: 0, y: 0 })}
+                title="Drag to move · double-click to reset"
+                className="pointer-events-auto flex cursor-grab items-center gap-1 rounded-[26px] bg-[#17171F] px-3 py-2.5 shadow-[0_16px_40px_-10px_rgba(9,12,20,0.55)] active:cursor-grabbing"
+                style={{
+                  transform: `translate(${barOffset.x}px, ${barOffset.y}px)`,
+                  touchAction: "none",
+                }}
+              >
+                {(
+                  [
+                    ["select", MousePointer2, "Select"],
+                    ["interact", Play, "Interact"],
+                  ] as const
+                ).map(([m, Icon, title]) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode2(m)}
+                    title={title}
+                    className={`grid size-10 place-items-center rounded-xl transition-colors ${
+                      mode2 === m
+                        ? "bg-[#6D33AA] text-white"
+                        : "text-[#9A9AA6] hover:text-white"
+                    }`}
+                  >
+                    <Icon className="size-[18px]" strokeWidth={2} />
+                  </button>
+                ))}
+
+                <span className="mx-1.5 h-6 w-px bg-white/12" />
+
+                {/* Dimmed rather than hidden at the ends of the stack: a
+                    control that vanishes takes the next one with it, and the
+                    bar would shuffle under the pointer. */}
+                <button
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title="Undo"
+                  className="grid size-10 place-items-center rounded-xl text-[#9A9AA6] transition-colors hover:text-white disabled:pointer-events-none disabled:text-white/20"
+                >
+                  <Undo2 className="size-[18px]" strokeWidth={2} />
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title="Redo"
+                  className="grid size-10 place-items-center rounded-xl text-[#9A9AA6] transition-colors hover:text-white disabled:pointer-events-none disabled:text-white/20"
+                >
+                  <Redo2 className="size-[18px]" strokeWidth={2} />
+                </button>
+
+                <span className="mx-1.5 h-6 w-px bg-white/12" />
+
+                {(
+                  [
+                    ["desktop", Monitor],
+                    ["tablet", Tablet],
+                    ["mobile", Smartphone],
+                  ] as const
+                ).map(([d, Icon]) => (
+                  <button
+                    key={d}
+                    onClick={() => setDevice(d)}
+                    title={d}
+                    className={`grid size-10 place-items-center rounded-xl transition-colors ${
+                      device === d
+                        ? "bg-[#6D33AA] text-white"
+                        : "text-[#9A9AA6] hover:text-white"
+                    }`}
+                  >
+                    <Icon className="size-[18px]" strokeWidth={2} />
+                  </button>
+                ))}
+
+                <span className="mx-1.5 h-6 w-px bg-white/12" />
+
+                <button
+                  onClick={() => setZoom((z) => (z === 100 ? 80 : z === 80 ? 60 : 100))}
+                  className="px-2 text-[13px] font-semibold tabular-nums text-white"
+                  title="Zoom"
+                >
+                  {zoom}%
+                </button>
+              </div>
+            </div>
+
             <div className="shrink-0 border-t border-[#E7E7E9] bg-white px-5 py-3">
               {tab === "launcher" && (
                 <>
@@ -2560,6 +2963,119 @@ export default function DesignPage() {
               )}
             </div>
           </main>
+
+          {/* ── style / settings ── on the right, where an inspector goes:
+                the left column answers "what am I editing" and this one
+                answers "and what about it". Two questions, two columns, and
+                the thing itself between them. */}
+          <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden border-l border-[#ECECEC] bg-white">
+            <div className="flex shrink-0 border-b border-[#F0F0F0]">
+              {(
+                [
+                  ["style", "Style"],
+                  ["settings", "Settings"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setPanel(v)}
+                  className={`relative flex-1 py-3 text-[12px] transition-colors ${
+                    panel === v
+                      ? "font-semibold text-[#333]"
+                      : "font-medium text-[#9A9A9A] hover:text-[#666]"
+                  }`}
+                >
+                  {label}
+                  {panel === v && (
+                    <span className="absolute inset-x-8 bottom-0 h-[2px] rounded-full bg-[#6D33AA]" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+              {tab === "launcher" && (
+                <LauncherControls
+                  s={launcher}
+                  set={patchLauncher}
+                  siteUrl={siteUrl}
+                  setSiteUrl={setSiteUrl}
+                  siteShot={siteShot}
+                  setSiteShot={setSiteShot}
+                  device={device}
+                  accent={accent}
+                />
+              )}
+
+              {tab === "agent" && (
+                <AppearanceControls
+                  name={name}
+                  setName={setName}
+                  subtitle={subtitle}
+                  setSubtitle={setSubtitle}
+                  disclaimer={disclaimer}
+                  setDisclaimer={setDisclaimer}
+                  disclaimerOn={disclaimerOn}
+                  setDisclaimerOn={setDisclaimerOn}
+                  brandingOn={brandingOn}
+                  setBrandingOn={setBrandingOn}
+                  avatar={avatar}
+                  setAvatar={setAvatar}
+                  logoOnly={logoOnly}
+                  setLogoOnly={setLogoOnly}
+                  accent={accent}
+                  setAccent={setAccent}
+                  appearance={appearance}
+                  setAppearance={setAppearance}
+                  mode={mode}
+                  font={font}
+                  setFont={setFont}
+                  groups={EL_GROUPS[el]}
+                  panel={panel}
+                  el={el}
+                  elInfo={EL_INFO[el]}
+                  sel={sel}
+                  setSel={setSel}
+                  siteUrl={siteUrl}
+                  setSiteUrl={setSiteUrl}
+                  corners={corners}
+                  setCorners={setCorners}
+                  elevation={elevation}
+                  setElevation={setElevation}
+                  density={density}
+                  setDensity={setDensity}
+                  tone={tone}
+                  setTone={setTone}
+                  typeScale={typeScale}
+                  setTypeScale={setTypeScale}
+                  headerStyle={headerStyle}
+                  setHeaderStyle={setHeaderStyle}
+                  headerColor={headerColor}
+                  setHeaderColor={setHeaderColor}
+                  headerStatus={headerStatus}
+                  setHeaderStatus={setHeaderStatus}
+                  headerAvatar={headerAvatar}
+                  setHeaderAvatar={setHeaderAvatar}
+                  headerAlign={headerAlign}
+                  setHeaderAlign={setHeaderAlign}
+                  headerH={headerH}
+                  setHeaderH={setHeaderH}
+                  headerW={headerW}
+                  setHeaderW={setHeaderW}
+                  headerRadius={headerRadius}
+                  setHeaderRadius={setHeaderRadius}
+                  device={device}
+                  headerActions={headerActions}
+                  setHeaderActions={setHeaderActions}
+                  thinkMark={thinkMark}
+                  setThinkMark={setThinkMark}
+                  thinkMarkSrc={thinkMarkSrc}
+                  setThinkMarkSrc={setThinkMarkSrc}
+                  thinkLabel={thinkLabel}
+                  setThinkLabel={setThinkLabel}
+                />
+              )}
+            </div>
+          </aside>
         </div>
       </div>
     </div>
@@ -2635,6 +3151,137 @@ function loadFont(family: string) {
   document.head.appendChild(link);
 }
 
+/* A number you can drag.
+
+   The label is the handle: hovering it turns the pointer into the two-headed
+   resize arrow and dragging scrubs the value, which is how every editor of
+   this kind works and how anybody arrives at 39 rather than 40. Typing still
+   works, and so do the arrow keys — three ways at the same number, because
+   the right one depends on whether you know the answer or are looking for it.
+
+   Null is a real state, not zero: an empty width means "the full width of the
+   messenger", and a field that showed 0 for that would be saying something
+   else entirely. */
+function DimField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  fallback,
+  allowAuto = false,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  min: number;
+  max: number;
+  /* What a drag starts from when there is no value yet. */
+  fallback: number;
+  allowAuto?: boolean;
+}) {
+  const drag = useRef<{ x: number; from: number; moved: boolean } | null>(null);
+  const clamp = (n: number) => Math.min(max, Math.max(min, Math.round(n)));
+  const step = (by: number) => {
+    setText(null);
+    onChange(clamp((value ?? fallback) + by));
+  };
+
+  /* What is being typed, held apart from the value.
+
+     Clamping on every keystroke is what made the field unusable: the minimum
+     is 160, so the first character of "240" was a 2, which became 160, which
+     then sat in front of everything typed after it. A number is not finished
+     until you stop typing — so the text is kept as text, committed only when
+     it lands inside the range, and clamped once on the way out. */
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? (value === null ? "" : String(value));
+
+  const commit = () => {
+    if (text === null) return;
+    const raw = text.trim();
+    setText(null);
+    if (raw === "") {
+      onChange(allowAuto ? null : fallback);
+      return;
+    }
+    const n = Number(raw);
+    onChange(Number.isNaN(n) ? value : clamp(n));
+  };
+
+  return (
+    <div className="flex h-9 items-center rounded-lg border border-[#E5E5E5] pl-1 pr-1 focus-within:border-[#C9C9C9]">
+      <span
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = { x: e.clientX, from: value ?? fallback, moved: false };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          const dx = e.clientX - d.x;
+          /* A couple of pixels of slop before it counts as a drag, so a press
+             that was meant for the field does not nudge the value on its way
+             past. */
+          if (!d.moved && Math.abs(dx) < 3) return;
+          d.moved = true;
+          setText(null);
+          onChange(clamp(d.from + dx * (e.shiftKey ? 10 : 1)));
+        }}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+        title={`Drag to change ${label}`}
+        className="grid h-7 w-6 shrink-0 cursor-ew-resize select-none place-items-center rounded text-[11px] font-medium text-[#9A9A9A] transition-colors hover:bg-[#F2F2F4] hover:text-[#555]"
+      >
+        {label}
+      </span>
+      <input
+        inputMode="numeric"
+        value={shown}
+        placeholder={allowAuto ? "auto" : String(fallback)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          if (raw.trim() === "") {
+            /* Emptying the field is how you ask for auto, and it should take
+               effect as you do it rather than on blur. */
+            if (allowAuto) onChange(null);
+            return;
+          }
+          const n = Number(raw);
+          /* Committed live only while the number makes sense. Anything
+             outside the range is a half-typed number, and the preview should
+             not lurch to the minimum on its way past. */
+          if (!Number.isNaN(n) && n >= min && n <= max) onChange(n);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+            e.currentTarget.blur();
+          }
+          if (e.key === "Escape") {
+            setText(null);
+            e.currentTarget.blur();
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            step(e.shiftKey ? 10 : 1);
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            step(e.shiftKey ? -10 : -1);
+          }
+        }}
+        className="h-full min-w-0 flex-1 bg-transparent px-1 text-right text-[13px] tabular-nums text-[#333] outline-none placeholder:text-[#B0B0B0]"
+      />
+      <span className="pr-1 text-[10px] text-[#B0B0B0]">px</span>
+    </div>
+  );
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <label className="mb-1.5 block text-[12px] font-medium text-[#555]">
@@ -2647,10 +3294,20 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 /* collapsible group — the launcher panel has more settings than fit on one
    screen, so every group can be folded away once it's set. */
+/* No chevron, and no collapse behind it.
+
+   The panel is scoped to one element now, so a section is one of three or
+   four rather than one of a dozen — there is nothing to get past. And a
+   collapse with its affordance removed is worse than no collapse: the
+   behaviour is still there for whoever finds it by accident, and invisible
+   to everyone else.
+
+   `defaultOpen` is kept in the signature because call sites still pass it,
+   and a section that opens shut in a panel this short would be hiding two
+   controls behind a press. */
 function Group({
   title,
   children,
-  defaultOpen = true,
   badge,
   action,
 }: {
@@ -2658,19 +3315,14 @@ function Group({
   children: React.ReactNode;
   defaultOpen?: boolean;
   badge?: string;
-  /* sits between the title and the chevron. Rendered outside the collapse
-     button, since a control nested inside a button is neither valid nor
-     clickable without swallowing the collapse. */
+  /* sits at the end of the title row */
   action?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const open = true;
   return (
     <section className="border-b border-[#F0F0F0] pb-3 last:border-b-0">
       <div className="flex items-center py-2.5">
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-[#9A9A9A]">
             {title}
           </span>
@@ -2679,24 +3331,12 @@ function Group({
               {badge}
             </span>
           )}
-        </button>
+        </div>
         {action && (
           <div className="ml-2 flex shrink-0 items-center gap-1.5">
             {action}
           </div>
         )}
-        <button
-          onClick={() => setOpen(!open)}
-          aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
-          className="group ml-2 grid size-4 shrink-0 place-items-center"
-        >
-          <ChevronDown
-            className={`size-3.5 text-[#C0C0C0] transition-transform duration-200 group-hover:text-[#8A8A8A] ${
-              open ? "" : "-rotate-90"
-            }`}
-            strokeWidth={2.5}
-          />
-        </button>
       </div>
       {open && <div className="pb-1">{children}</div>}
     </section>
@@ -3478,49 +4118,10 @@ function LauncherControls({
         </p>
         <RowToggle
           label="Play a sound"
-          hint="As it arrives. Muted until the visitor interacts with the page."
+          hint="A soft chime as it arrives. Muted until the visitor interacts with the page."
           on={s.soundOn}
           onChange={(soundOn) => set({ soundOn })}
         />
-        {/* Only once the toggle is on. A picker for a sound nobody will hear
-            is a decision offered for no reason. */}
-        {s.soundOn && (
-          <div className="mt-2.5">
-            <div className="flex items-center gap-1.5">
-              <div className="relative min-w-0 flex-1">
-                <select
-                  value={s.sound}
-                  onChange={(e) => {
-                    const sound = e.target.value as SoundId;
-                    set({ sound });
-                    /* Choosing plays it. A dropdown of sounds you have to
-                       press a second button to hear is a list of words. */
-                    playSound(sound);
-                  }}
-                  className="h-9 w-full appearance-none rounded-lg border border-[#E5E5E5] bg-white pl-3 pr-9 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
-                >
-                  {SOUNDS.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]"
-                  strokeWidth={2}
-                />
-              </div>
-              <button
-                onClick={() => playSound(s.sound)}
-                aria-label="Play this sound"
-                title="Play"
-                className="grid size-9 shrink-0 place-items-center rounded-lg border border-[#E5E5E5] text-[#666] transition-colors hover:border-[#D5D5D5] hover:text-[#333]"
-              >
-                <Volume2 className="size-4" strokeWidth={1.8} />
-              </button>
-            </div>
-          </div>
-        )}
       </Group>
     </div>
   );
@@ -3545,14 +4146,17 @@ function AppearanceControls({
   setLogoOnly,
   accent,
   setAccent,
+  appearance,
+  setAppearance,
   mode,
-  setMode,
   font,
   setFont,
+  groups,
+  panel,
+  el,
+  elInfo,
   sel,
   setSel,
-  partStyles,
-  setPartStyle,
   siteUrl,
   setSiteUrl,
   corners,
@@ -3563,6 +4167,27 @@ function AppearanceControls({
   setDensity,
   tone,
   setTone,
+  typeScale,
+  setTypeScale,
+  headerStyle,
+  setHeaderStyle,
+  headerColor,
+  setHeaderColor,
+  headerStatus,
+  setHeaderStatus,
+  headerAvatar,
+  setHeaderAvatar,
+  headerAlign,
+  setHeaderAlign,
+  headerH,
+  setHeaderH,
+  headerW,
+  setHeaderW,
+  headerRadius,
+  setHeaderRadius,
+  device,
+  headerActions,
+  setHeaderActions,
   thinkMark,
   setThinkMark,
   thinkMarkSrc,
@@ -3586,14 +4211,21 @@ function AppearanceControls({
   setLogoOnly: (v: boolean) => void;
   accent: string;
   setAccent: (v: string) => void;
+  appearance: Appearance;
+  setAppearance: (v: Appearance) => void;
+  /* Resolved, for anything that needs to know which way Auto landed. */
   mode: Mode;
-  setMode: (v: Mode) => void;
   font: string;
   setFont: (v: string) => void;
+  /* Which groups the selected element opens. Empty means the element has no
+     settings of its own yet — better an honest gap than a panel of controls
+     that belong to something else. */
+  groups: GroupKey[];
+  panel: "style" | "settings";
+  el: El;
+  elInfo: { title: string; note: string };
   sel: Part | null;
   setSel: (v: Part | null) => void;
-  partStyles: PartStyles;
-  setPartStyle: (part: Part, patch: PartStyle) => void;
   /* Shared with the launcher's preview field rather than asked for twice: it
      is the same site either way, and a tenant who has already typed it should
      not have to type it again to be matched to it. */
@@ -3607,6 +4239,29 @@ function AppearanceControls({
   setDensity: (v: Density) => void;
   tone: SurfaceTone;
   setTone: (v: SurfaceTone) => void;
+  typeScale: TypeScale;
+  setTypeScale: (v: TypeScale) => void;
+  headerStyle: HeaderStyle;
+  setHeaderStyle: (v: HeaderStyle) => void;
+  headerColor: string | null;
+  setHeaderColor: (v: string | null) => void;
+  headerStatus: HeaderStatus;
+  setHeaderStatus: (v: HeaderStatus) => void;
+  headerAvatar: HeaderAvatar;
+  setHeaderAvatar: (v: HeaderAvatar) => void;
+  headerAlign: HeaderAlign;
+  setHeaderAlign: (v: HeaderAlign) => void;
+  headerH: number;
+  setHeaderH: (v: number) => void;
+  headerW: number | null;
+  setHeaderW: (v: number | null) => void;
+  headerRadius: number | null;
+  setHeaderRadius: (v: number | null) => void;
+  /* Which frame the header is being sized against, so its ceiling is the
+     panel rather than a number chosen in advance. */
+  device: Device;
+  headerActions: HeaderActions;
+  setHeaderActions: (v: HeaderActions) => void;
   thinkMark: ThinkingMark;
   setThinkMark: (v: ThinkingMark) => void;
   thinkMarkSrc: string | null;
@@ -3677,101 +4332,364 @@ function AppearanceControls({
     setLinkDraft(null);
   };
 
-  /* Nothing selected is the whole list — the panel has to be readable before
-     anyone has discovered it is clickable, and a tenant who never touches the
-     preview should not lose access to a setting because of it. */
-  const show = (k: GroupKey) => !sel || PARTS[sel].groups.includes(k);
+  /* The element decides. The list on the left is the navigation now, so the
+     panel shows what that row owns and nothing else — a scroll through every
+     setting in the product was what the tabs were for. */
+  /* Style is how it looks; Settings is what it says and does. A group belongs
+     to one or the other, and an element that has nothing on the tab you are
+     on says so rather than showing you the other tab's controls. */
+  const PANEL_OF: Record<GroupKey, "style" | "settings"> = {
+    colour: "style",
+    theme: "style",
+    shape: "style",
+    brand: "settings",
+    messages: "settings",
+    thinking: "settings",
+  };
+  const show = (k: GroupKey) => groups.includes(k) && PANEL_OF[k] === panel;
 
   // what the header falls back to with no logo uploaded
   const initial = (name.trim()[0] ?? "T").toUpperCase();
 
   return (
     <div>
-      {/* ── LAYERS ── the messenger's own parts, as a list. Two ways into the
-             same selection: point at it in the preview, or find it here when
-             it is small, hidden behind a state, or you do not know what it is
-             called. Indented by parentage rather than nested in a real tree —
-             nothing here moves, so a tree would be ceremony around a fixed
-             shape. */}
-      <Group title="Layers" defaultOpen={false}>
-        <div className="-mx-1 flex flex-col">
-          {PART_ORDER.map((p) => {
-            const meta = PARTS[p];
-            const on = sel === p;
-            const styled = hasStyle(partStyles[p]);
-            return (
-              <button
-                key={p}
-                onClick={() => setSel(on ? null : p)}
-                className={`flex items-center gap-1.5 rounded px-1.5 py-1 text-left text-[12px] transition-colors ${
-                  on
-                    ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
-                    : "text-[#555] hover:bg-[#F6F6F7]"
-                }`}
-                style={{ paddingLeft: meta.parent ? 20 : 6 }}
-              >
-                {meta.text ? (
-                  <Type className="size-3 shrink-0 text-[#A8A8A8]" strokeWidth={2} />
-                ) : (
-                  <Square className="size-3 shrink-0 text-[#A8A8A8]" strokeWidth={2} />
-                )}
-                <span className="min-w-0 flex-1 truncate">{meta.label}</span>
-                {/* A dot where a part has been given its own styling, so an
-                    override never goes missing behind a collapsed group. */}
-                {styled && (
-                  <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ background: ACCENT }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </Group>
-
-      {/* What the panel is showing, when it is not showing everything. */}
-      {sel ? (
-        <div className="sticky top-0 z-10 -mx-6 mb-1 flex items-center gap-2 border-b border-[#F0F0F0] bg-white px-6 py-2.5">
-          <span className="text-[12px] font-semibold text-[#333]">
-            {PARTS[sel].label}
-          </span>
-          <span className="text-[11px] text-[#A8A8A8]">selected</span>
-          <button
-            onClick={() => setSel(null)}
-            className="ml-auto flex items-center gap-1 text-[11px] font-medium text-[#7C3AED]"
-          >
-            <X className="size-3" strokeWidth={2.5} />
-            All settings
-          </button>
-        </div>
-      ) : (
-        /* The invitation, once. A preview nobody knows is clickable is a
-           preview nobody clicks, and there is no other affordance for it —
-           the outlines only appear under the pointer. */
-        <p className="mb-1 flex items-center gap-1.5 pt-3 text-[11px] leading-snug text-[#A8A8A8]">
-          <Pencil className="size-3 shrink-0" strokeWidth={2} />
-          Click any part of the preview, or open Layers.
+      {/* What this element is, in a line. The list on the left gives it a
+          name; this says what it is for, which is the half a name cannot
+          carry. */}
+      <div className="pb-1 pt-4">
+        <p className="text-[17px] font-bold leading-tight text-[#1A1A1A]">
+          {elInfo.title}
         </p>
+        <p className="mt-1 text-[12px] leading-snug text-[#777]">
+          {elInfo.note}
+        </p>
+
+      </div>
+
+      {/* ── BACKGROUND ── first on the header, because it is the decision the
+             other three are read against: a logo and a name look different on
+             the tenant's own colour than they do on white, and picking them
+             before the ground is picking them blind. */}
+      {el === "elHeader" && panel === "style" && (
+        <Group title="Appearance">
+          <div className="flex gap-1.5">
+            {(
+              [
+                ["brand", "Brand"],
+                ["light", "Light"],
+                ["minimal", "Minimal"],
+              ] as const
+            ).map(([v, label]) => {
+              const on = headerStyle === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setHeaderStyle(v)}
+                  className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2 transition-colors ${
+                    on
+                      ? "border-[#C4A9E8] bg-[#F8F4FF]"
+                      : "border-[#E5E5E5] hover:border-[#D5D5D5]"
+                  }`}
+                >
+                  {/* a header, in that treatment. The control shows the
+                      answer rather than naming it. */}
+                  <span
+                    className="flex h-7 w-full items-center gap-1 rounded-md px-1.5"
+                    style={{
+                      background:
+                        v === "brand"
+                          ? headerColor ?? accent
+                          : v === "light"
+                            ? "#FFFFFF"
+                            : "transparent",
+                      boxShadow:
+                        v === "light"
+                          ? "inset 0 -1px 0 #E9EAEA, inset 0 0 0 1px #F0F0F2"
+                          : v === "minimal"
+                            ? "inset 0 0 0 1px #F0F0F2"
+                            : "none",
+                    }}
+                  >
+                    <span
+                      className="size-3 shrink-0 rounded-full"
+                      style={{
+                        background:
+                          v === "brand"
+                            ? `color-mix(in oklab, ${inkOn(headerColor ?? accent)} 35%, transparent)`
+                            : "#E3E0EA",
+                      }}
+                    />
+                    <span
+                      className="h-1 w-7 rounded-full"
+                      style={{
+                        background:
+                          v === "brand"
+                            ? `color-mix(in oklab, ${inkOn(headerColor ?? accent)} 70%, transparent)`
+                            : "#D8D5E0",
+                      }}
+                    />
+                  </span>
+                  <span
+                    className={`text-[11px] ${on ? "font-semibold text-[#6D33AA]" : "font-medium text-[#777]"}`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Only under Brand — a colour for a fill that is not there is a
+              control with nothing to change. Prefilled with the theme's
+              accent, because that is what it is already using. */}
+          {headerStyle === "brand" && (
+            <div className="mt-3">
+              <FieldLabel>Header colour</FieldLabel>
+              <div className="flex items-center gap-2">
+                <label
+                  className="relative grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg ring-1 ring-black/10"
+                  style={{ background: headerColor ?? accent }}
+                  aria-label="Pick the header colour"
+                >
+                  <input
+                    type="color"
+                    value={headerColor ?? accent}
+                    onChange={(e) => setHeaderColor(e.target.value.toUpperCase())}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+                <input
+                  value={(headerColor ?? accent).toUpperCase()}
+                  onChange={(e) => setHeaderColor(e.target.value.toUpperCase())}
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-[#E5E5E5] px-3 font-mono text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
+                />
+              </div>
+              {/* Inheritance, said out loud. Until it is overridden the header
+                  follows the theme — change the accent and this moves with it
+                  — and once it is overridden it stops, which is a thing the
+                  tenant needs told rather than discovered. */}
+              <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+                {headerColor === null ? (
+                  <>Following the theme accent.</>
+                ) : (
+                  <>
+                    Set for the header only. The theme accent is{" "}
+                    <span className="font-mono text-[#8A8A8A]">
+                      {accent.toUpperCase()}
+                    </span>
+                    .
+                    <button
+                      onClick={() => setHeaderColor(null)}
+                      className="font-medium text-[#7C3AED] underline underline-offset-2"
+                    >
+                      Follow the theme
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
+          <div className="mt-3" />
+          <FieldLabel>Radius</FieldLabel>
+          <div className="grid grid-cols-2 gap-1.5">
+            <DimField
+              label="R"
+              value={headerRadius}
+              onChange={setHeaderRadius}
+              min={0}
+              max={40}
+              fallback={0}
+              allowAuto
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+            Empty follows the theme&rsquo;s corners. A number is the
+            header&rsquo;s own, which reads once it has been inset.
+          </p>
+        </Group>
       )}
 
-      {/* ── STYLE ── the floor under the named settings.
+      {/* ── LAYOUT ── the header's own arrangement. Alignment used to live in
+             Brand identity as "Centre logo", which is a header decision filed
+             under the agent's name. */}
+      {el === "elHeader" && panel === "style" && (
+        <Group title="Layout">
+          <FieldLabel>Dimensions</FieldLabel>
+          <div className="grid grid-cols-2 gap-1.5">
+            {/* The ceiling is the panel it sits in, not a number picked in
+                advance: capped at 720 on an 820 desktop the header could
+                never reach its own edges, which is exactly the width somebody
+                types a number to get. */}
+            <DimField
+              label="W"
+              value={headerW}
+              onChange={setHeaderW}
+              min={160}
+              max={DEVICE_WIDTH[device]}
+              fallback={DEVICE_WIDTH[device]}
+              allowAuto
+            />
+            <DimField
+              label="H"
+              value={headerH}
+              onChange={(v) => setHeaderH(v ?? HEADER_H)}
+              min={44}
+              max={120}
+              fallback={HEADER_H}
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+            Leave width empty for the full width of the messenger. A number
+            insets the header and centres it.
+          </p>
 
-             Everything above is a decision somebody anticipated: nine
-             controls that cover what almost every tenant wants, one press
-             each. This is for the tenth thing, the one nobody wrote a control
-             for — and it is scoped to one part, so reaching for it cannot
-             quietly restyle the product.
+          <div className="mb-4" />
+          <FieldLabel>Avatar</FieldLabel>
+          <div className="flex gap-1.5">
+            {(
+              [
+                ["off", "None"],
+                ["small", "Small"],
+                ["medium", "Medium"],
+                ["large", "Large"],
+              ] as const
+            ).map(([v, label]) => {
+              const on = headerAvatar === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setHeaderAvatar(v)}
+                  className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2 transition-colors ${
+                    on
+                      ? "border-[#C4A9E8] bg-[#F8F4FF]"
+                      : "border-[#E5E5E5] hover:border-[#D5D5D5]"
+                  }`}
+                >
+                  <span className="grid h-6 place-items-center">
+                    {v === "off" ? (
+                      <span className="h-1 w-4 rounded-full bg-[#D8D5E0]" />
+                    ) : (
+                      <span
+                        className="rounded-full bg-[#D8D5E0]"
+                        style={{
+                          width: AVATAR_PX[v] / 3,
+                          height: AVATAR_PX[v] / 3,
+                        }}
+                      />
+                    )}
+                  </span>
+                  <span
+                    className={`text-[10px] ${on ? "font-semibold text-[#6D33AA]" : "font-medium text-[#777]"}`}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-             Collapsed by default. A tenant who never opens it pays nothing
-             for it, which is the only way a panel can carry this much without
-             becoming the thing you have to get past. */}
-      {sel && (
-        <StyleInspector
-          part={sel}
-          value={partStyles[sel] ?? {}}
-          set={(patch) => setPartStyle(sel, patch)}
-        />
+          <div className="mb-4" />
+          <FieldLabel>Alignment</FieldLabel>
+          <Segmented
+            value={headerAlign}
+            onChange={setHeaderAlign}
+            options={[
+              { v: "left" as HeaderAlign, label: "Left", Icon: AlignLeft },
+              { v: "center" as HeaderAlign, label: "Centre", Icon: AlignCenter },
+            ]}
+          />
+          <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+            {headerAlign === "center"
+              ? "The mark alone, centred. The name and subtitle are hidden."
+              : "Mark, then the agent\u2019s name and status."}
+          </p>
+
+        </Group>
+      )}
+
+      {/* ── STATUS ── what the second line is for. A subtitle names the
+             agent, which a visitor can see; availability tells them whether
+             it is worth asking, which they cannot. */}
+      {el === "elHeader" && panel === "settings" && (
+        <Group title="Status line">
+          <div className="flex flex-col gap-1">
+            {(
+              [
+                ["text", "Subtitle", "Whatever is typed below."],
+                ["online", "Online", "A green dot and the word."],
+                ["replies", "Response time", "\u201cTypically replies instantly\u201d"],
+                ["off", "None", "Just the agent\u2019s name."],
+              ] as const
+            ).map(([v, label, note]) => {
+              const on = headerStatus === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setHeaderStatus(v)}
+                  className={`flex items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                    on
+                      ? "border-[#C4A9E8] bg-[#F8F4FF]"
+                      : "border-[#E5E5E5] hover:border-[#D5D5D5]"
+                  }`}
+                >
+                  <span
+                    className="mt-0.5 grid size-3.5 shrink-0 place-items-center rounded-full border"
+                    style={{
+                      borderColor: on ? ACCENT : "#C9C9D2",
+                      borderWidth: on ? 4.5 : 1.5,
+                    }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`block text-[12px] ${on ? "font-semibold text-[#6D33AA]" : "font-medium text-[#555]"}`}
+                    >
+                      {label}
+                    </span>
+                    <span className="block text-[11px] leading-snug text-[#A8A8A8]">
+                      {note}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {headerStatus === "online" && (
+            /* Said plainly. A green dot that is always on is a claim, and the
+               tool should not let somebody make it by accident. */
+            <p className="mt-2 text-[11px] leading-snug text-[#A8A8A8]">
+              Always shown. Wire it to real availability before you publish, or
+              it says someone is there at 3am.
+            </p>
+          )}
+        </Group>
+      )}
+
+      {/* ── ACTIONS ── which controls the header carries. All three used to
+             ship whether or not they made sense. */}
+      {el === "elHeader" && panel === "settings" && (
+        <Group title="Actions">
+          <RowToggle
+            label="Conversation history"
+            hint="The back arrow. Hide it if past conversations are not kept."
+            on={headerActions.archive}
+            onChange={(archive) => setHeaderActions({ ...headerActions, archive })}
+          />
+          <div className="mb-3" />
+          <RowToggle
+            label="Menu"
+            hint="New conversation, download transcript, sound."
+            on={headerActions.menu}
+            onChange={(menu) => setHeaderActions({ ...headerActions, menu })}
+          />
+          <div className="mb-3" />
+          <RowToggle
+            label="Close"
+            hint="Hide it where the messenger is embedded in the page and there is nothing to close."
+            on={headerActions.close}
+            onChange={(close) => setHeaderActions({ ...headerActions, close })}
+          />
+        </Group>
       )}
 
       {/* ── BRAND IDENTITY ── */}
@@ -3811,10 +4729,10 @@ function AppearanceControls({
                 className="h-10 w-14 shrink-0 object-contain"
               />
             ) : (
-              <span
-                className="size-10 shrink-0 rounded-full bg-cover bg-center ring-1 ring-black/5"
-                style={{ backgroundImage: `url(${avatar})` }}
-              />
+              <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#F4F4F6] p-[3px] ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatar} alt="" className="size-full object-contain" />
+              </span>
             )
           ) : (
             /* the initial is not decoration — it is exactly what ships when no
@@ -3946,7 +4864,7 @@ function AppearanceControls({
           Font leads. It is the choice that changes every screen, where the mode
           only changes which end of one palette is used. */}
       {show("theme") && (
-      <Group title="Theme">
+      <Group title="Typography">
         <FieldLabel>Font</FieldLabel>
         <div className="relative">
           <select
@@ -3974,14 +4892,67 @@ function AppearanceControls({
         </div>
         <div className="mb-4" />
 
+        <div className="mb-3" />
+        {/* Three steps of the whole ramp, not a number per element: a tenant
+            on a dense site wants everything a notch down, and the
+            relationships inside the ramp should survive the move. */}
+        <div className="flex gap-1 rounded-lg bg-[#F4F4F6] p-1">
+          {(
+            [
+              ["small", "Small"],
+              ["default", "Default"],
+              ["large", "Large"],
+            ] as const
+          ).map(([v, label]) => {
+            const on = typeScale === v;
+            return (
+              <button
+                key={v}
+                onClick={() => setTypeScale(v)}
+                className={`h-7 flex-1 rounded-md text-[12px] transition-colors ${
+                  on
+                    ? "bg-white font-semibold text-[#6D33AA] shadow-[0_1px_2px_rgba(15,17,26,0.06)]"
+                    : "font-medium text-[#777] hover:text-[#444]"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+      </Group>
+      )}
+
+      {/* ── APPEARANCE ── its own section rather than a field under the font.
+             Which of two palettes is in play is not a typographic decision,
+             and filing it there was why nobody could find it. */}
+      {show("theme") && (
+      <Group title="Appearance">
         <Segmented
-          value={mode}
-          onChange={setMode}
+          value={appearance}
+          onChange={setAppearance}
           options={[
-            { v: "light" as Mode, label: "Light", Icon: Sun },
-            { v: "dark" as Mode, label: "Dark", Icon: Moon },
+            { v: "light" as Appearance, label: "Light", Icon: Sun },
+            { v: "dark" as Appearance, label: "Dark", Icon: Moon },
+            { v: "auto" as Appearance, label: "Auto", Icon: Laptop },
           ]}
         />
+        <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+          Dark palette is derived from your brand colors. Auto follows the
+          visitor&rsquo;s system.
+          {appearance === "auto" && (
+            /* Said out loud, because Auto is the one setting whose result is
+               not visible in the control — the answer is on somebody else's
+               machine, and the preview is showing one of the two. */
+            <>
+              {" "}
+              <span className="font-medium text-[#8A8A8A]">
+                Yours is {mode} right now.
+              </span>
+            </>
+          )}
+        </p>
       </Group>
       )}
 
@@ -3994,28 +4965,17 @@ function AppearanceControls({
              button radii is how a widget ends up not matching itself. */}
       {show("shape") && (
       <Group title="Shape">
-        <MatchSite
-          siteUrl={siteUrl}
-          setSiteUrl={setSiteUrl}
-          apply={(m) => {
-            loadFont(m.font);
-            setFont(m.font);
-            setCorners(m.corners);
-            setElevation(m.elevation);
-            setDensity(m.density);
-            setTone(m.tone);
-            setAccent(m.accent);
-          }}
-          current={{ font, corners, elevation, density, tone, accent }}
-        />
-        <div className="mb-4" />
         <FieldLabel>Corners</FieldLabel>
         <div className="flex gap-1.5">
+          {/* Roundest first, and the default. The product is a chat panel, not
+              a form — the corner it ships with should be the one it leads
+              with, so the list reads as a departure from the default rather
+              than a climb toward it. */}
           {(
             [
-              ["sharp", "Sharp"],
+              ["round", "Rounded"],
               ["soft", "Soft"],
-              ["round", "Round"],
+              ["sharp", "Sharp"],
             ] as const
           ).map(([v, label]) => {
             const on = corners === v;
@@ -4032,11 +4992,17 @@ function AppearanceControls({
                 {/* the corner itself, at the scale it will be drawn */}
                 <span
                   className="size-5 border-2"
+                  /* Four longhands, no shorthand. Setting borderColor and then
+                     overriding two sides mixes the two on one property, and
+                     React re-applies them in whichever order it happens to
+                     walk the object — so the swatch could come back with the
+                     wrong pair of edges drawn. */
                   style={{
-                    borderColor: on ? ACCENT : "#C7C7CF",
-                    borderRadius: CORNERS[v].bubble,
+                    borderTopColor: on ? ACCENT : "#C7C7CF",
+                    borderLeftColor: on ? ACCENT : "#C7C7CF",
                     borderRightColor: "transparent",
                     borderBottomColor: "transparent",
+                    borderRadius: CORNERS[v].bubble,
                   }}
                 />
                 <span
@@ -4559,6 +5525,7 @@ function ThoughtTrace({
   secs,
   steps,
   accent,
+  ts = (n: number) => n,
   dark,
   mark = "sparkle",
   markSrc = null,
@@ -4568,6 +5535,7 @@ function ThoughtTrace({
   secs: number;
   steps: TraceStep[];
   accent: string;
+  ts?: (px: number) => number;
   dark?: boolean;
   mark?: ThinkingMark;
   markSrc?: string | null;
@@ -4600,8 +5568,8 @@ function ThoughtTrace({
     >
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-fit items-center gap-2 rounded-full py-0.5 pr-2 text-[13px] transition-colors"
-        style={{ color: open ? ink : neutral.secondary }}
+        className="flex w-fit items-center gap-2 rounded-full py-0.5 pr-2 transition-colors"
+        style={{ color: open ? ink : neutral.secondary, fontSize: ts(13) }}
       >
         {/* The configured mark, not the platform sparkle. The row that says
             what the agent did should be wearing the same face it wore while
@@ -4633,8 +5601,8 @@ function ThoughtTrace({
             ) : (
               <li
                 key={st}
-                className="flex items-center gap-2 text-[13px]"
-                style={{ color: neutral.secondary }}
+                className="flex items-center gap-2"
+                style={{ color: neutral.secondary, fontSize: ts(13) }}
               >
                 <Check
                   className="size-3.5 shrink-0"
@@ -4914,10 +5882,12 @@ function SourcesPanel({
    a beige hardcode on a dark theme. */
 function AiToolbar({
   time,
+  ts = (n: number) => n,
   neutral,
   sources,
 }: {
   time: string;
+  ts?: (px: number) => number;
   neutral: Record<string, string>;
   sources?: Source[];
 }) {
@@ -4952,8 +5922,8 @@ function AiToolbar({
           <Copy className="size-3" strokeWidth={1.5} />
         </button>
         <span
-          className="ml-1.5 text-[12px] tabular-nums"
-          style={{ color: neutral.muted }}
+          className="ml-1.5 tabular-nums"
+          style={{ color: neutral.muted, fontSize: ts(12) }}
         >
           {time}
         </span>
@@ -5580,6 +6550,7 @@ function HistoryList({
 
 function AiThinking({
   accent,
+  ts = (n: number) => n,
   mark = "sparkle",
   markSrc = null,
   label = "",
@@ -5588,6 +6559,9 @@ function AiThinking({
   dark = false,
 }: {
   accent: string;
+  /* The theme's ramp, passed rather than imported: this row is text in the
+     transcript like any other, and it should move with the rest of it. */
+  ts?: (px: number) => number;
   mark?: ThinkingMark;
   markSrc?: string | null;
   /* The opening line. Empty takes the platform's own. */
@@ -5632,7 +6606,7 @@ function AiThinking({
   }, [i, lines]);
   return (
     <div
-      className="flex items-center gap-2 text-[14px] font-medium"
+      className="flex items-center gap-2 font-medium"
       /* the sparkle takes its gradient from these, so it is the tenant's
          accent rather than the composer's default violet */
       style={
@@ -5640,6 +6614,7 @@ function AiThinking({
           "--brand": accent,
           "--brand-lite": liteOf(accent),
           color: neutral?.ink ?? "#333333",
+          fontSize: ts(14),
         } as CSSProperties
       }
     >
@@ -6595,6 +7570,15 @@ function AgentPreview({
   thinkMark = "sparkle",
   thinkMarkSrc = null,
   thinkLabel = "",
+  headerStyle = "light",
+  headerColor = null,
+  headerStatus = "text",
+  headerAvatar = "medium",
+  headerAlign = "left",
+  headerH = HEADER_H,
+  headerW = null,
+  headerRadius = null,
+  headerActions = { archive: true, menu: true, close: true },
   sel = null,
   onSelect,
   partStyles,
@@ -6622,6 +7606,15 @@ function AgentPreview({
   thinkMark?: ThinkingMark;
   thinkMarkSrc?: string | null;
   thinkLabel?: string;
+  headerStyle?: HeaderStyle;
+  headerColor?: string | null;
+  headerStatus?: HeaderStatus;
+  headerAvatar?: HeaderAvatar;
+  headerAlign?: HeaderAlign;
+  headerH?: number;
+  headerW?: number | null;
+  headerRadius?: number | null;
+  headerActions?: HeaderActions;
   /* Only the messenger tab passes these. Everywhere else the preview is a
      preview and nothing in it is pressable for settings. */
   sel?: Part | null;
@@ -6911,6 +7904,59 @@ function AgentPreview({
      outlined variant: the filled one grows with its contents, so bigger
      controls would make it taller rather than fuller. */
   const ctlSize = theme.outlineComposer ? "size-[34px]" : "size-7";
+  /* The composer's own controls — attach, mic, send — follow the corner
+     scale like everything else. They were discs at every setting, which left
+     three circles sitting inside a square field at Sharp. Capped so a
+     "rounded" scale still resolves to a circle on a square button rather than
+     to a 26px radius on a 28px box, which is a circle with a flat spot. */
+  /* What the header is made of, resolved once. Every colour inside it reads
+     from here, so a Brand header cannot end up with the panel's dark ink on
+     the tenant's dark blue. */
+  /* The theme's accent unless the header has been given one of its own. A
+     brand whose header is a deep navy and whose buttons are orange is the
+     ordinary case, not the exception. */
+  const hdrFill = headerColor ?? accent;
+  /* The rule belongs to the background rather than to a toggle of its own:
+     Light is a surface with an edge under it, Minimal is the absence of both,
+     and a Brand fill already has one — its own edge against the thread. */
+  const hdrRule =
+    headerStyle === "light"
+      ? neutral.line
+      : headerStyle === "brand"
+        ? `color-mix(in oklab, ${inkOn(headerColor ?? accent)} 22%, transparent)`
+        : "transparent";
+  const hdr =
+    headerStyle === "brand"
+      ? {
+          bg: hdrFill,
+          ink: inkOn(hdrFill),
+          sub: `color-mix(in oklab, ${inkOn(hdrFill)} 72%, transparent)`,
+          /* Full ink, not a mix. Fading toward transparent let the brand
+             colour through the strokes, which on a dark fill comes back as a
+             muddy grey rather than a lighter white — a thin 2px stroke has
+             too little area to carry a tint and still read as its own colour.
+             Weight is handled by size and stroke instead. */
+          icon: inkOn(hdrFill),
+          line: hdrRule,
+        }
+      : headerStyle === "minimal"
+        ? {
+            bg: "transparent",
+            ink: neutral.ink,
+            sub: neutral.muted,
+            icon: neutral.secondary,
+            line: hdrRule,
+          }
+        : {
+            bg: neutral.surface,
+            ink: neutral.ink,
+            sub: neutral.muted,
+            icon: neutral.secondary,
+            line: hdrRule,
+          };
+
+  const ctlRadius =
+    theme.radius.control === 999 ? 999 : Math.min(theme.radius.control, 12);
   const ctlIcon = "size-4";
   /* A short label before a colon is set in semibold, so "Disclaimer:" reads as
      what the line is rather than as the start of the sentence. Capped at 24
@@ -7037,16 +8083,25 @@ function AgentPreview({
 
   return (
     <div
-      /* 32px, matching GlassComposer. It splits the radius across two
-         elements — 32 on the panel's top corners, 32 on the composer's
-         bottom — which come to the same window; here the two are one
-         container, so it carries all four. */
-      className="flex flex-col overflow-hidden rounded-[32px] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.18)]"
+      /* The panel used to be a fixed 32px radius and a fixed drop shadow, which
+         is why the Shape controls looked broken: the two settings most likely
+         to be tried first were the two the panel ignored. Corners now sets its
+         radius — a notch above the bubbles', since a container wants a larger
+         radius than the things inside it to read as concentric — and Elevation
+         decides whether it lifts, outlines, or sits flat on the page. */
+      className="flex flex-col overflow-hidden"
       style={
         {
           width: width ?? DEVICE_WIDTH[device],
           height,
           background: neutral.canvas,
+          /* The container sits a step above its contents so the two read as
+             concentric — but only where there is a radius to step from. At
+             Sharp the step was the whole radius, which is why the panel kept
+             its corners while everything inside lost theirs. */
+          borderRadius: theme.radius.panel === 0 ? 0 : theme.radius.panel + 8,
+          boxShadow:
+            theme.panelShadow === "none" ? undefined : theme.panelShadow,
           /* Declared on the panel, not on the row of action items, so the
              header's controls resolve it too — it was scoped to `.ai-actions`,
              which meant the header's hover pointed at a variable that did not
@@ -7063,8 +8118,22 @@ function AgentPreview({
           thread, or the bare title on the archive. Padding alone made it the
           taller of the two and left the archive's rule a pixel off. */}
       <div
-        className="flex h-[60px] shrink-0 items-center border-b pl-4 pr-5"
-        style={{ borderColor: neutral.line }}
+        className="flex shrink-0 items-center border-b"
+        style={{
+          background: hdr.bg,
+          borderColor: hdr.line,
+          /* Density moves the air, not the type: the avatar and the title keep
+             their sizes and the room around them gives. */
+          height: headerH,
+          /* Inset and centred when a width is named, full-bleed otherwise.
+             Left-aligned it reads as a bar that failed to reach the edge; in
+             the middle it reads as a deliberate inset. */
+          width: headerW ?? "100%",
+          marginInline: headerW ? "auto" : undefined,
+          borderRadius: headerRadius ?? undefined,
+          paddingLeft: theme.space.row + 4,
+          paddingRight: theme.space.row + 8,
+        }}
       >
         <Hot
           part="header"
@@ -7084,15 +8153,13 @@ function AgentPreview({
                   flanks it is equal. */}
               <div className="flex w-[68px] shrink-0 items-center">
                 {
-                  /* Always: this opens the archive now, which is there
-                   whether or not the panel can be closed. */
-                  true && (
+                  headerActions.archive && (
                     <button
                       onClick={() =>
                         setView(view === "history" ? "thread" : "history")
                       }
                       className="hdr-action -ml-1 grid size-8 place-items-center rounded-full transition-colors"
-                      style={{ color: neutral.secondary }}
+                      style={{ color: hdr.icon }}
                       aria-label="Back"
                     >
                       <ChevronLeft className="size-5" strokeWidth={2} />
@@ -7118,13 +8185,14 @@ function AgentPreview({
                 )}
               </div>
               <div className="flex w-[68px] shrink-0 items-center justify-end gap-0.5">
+                {headerActions.menu && (
                 <span className="relative">
                   <button
                     onClick={() => setHeaderMenu(!headerMenu)}
                     aria-label="More"
                     aria-expanded={headerMenu}
                     className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
-                    style={{ color: neutral.secondary }}
+                    style={{ color: hdr.icon }}
                   >
                     <MoreVertical className="size-[18px]" strokeWidth={1.75} />
                   </button>
@@ -7207,18 +8275,21 @@ function AgentPreview({
                     </>
                   )}
                 </span>
+                )}
                 {/* This layout never had a close control — which is why it
                     vanished on switching the centred logo on. Same treatment as
                     the other header: a button where there is something to
                     close, the mark alone where there is not. */}
-                <button
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
-                  style={{ color: neutral.secondary }}
-                >
-                  <X className="size-[18px]" strokeWidth={2} />
-                </button>
+                {headerActions.close && (
+                  <button
+                    onClick={onClose}
+                    aria-label="Close"
+                    className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
+                    style={{ color: hdr.icon }}
+                  >
+                    <X className="size-[18px]" strokeWidth={2} />
+                  </button>
+                )}
               </div>
             </>
           ) : (
@@ -7227,22 +8298,30 @@ function AgentPreview({
                   does in the launcher. Closing has its own control on the
                   right; a back arrow that dismissed the whole thing would be
                   the only one on the page that meant "leave". */}
-              {
-                /* Always: this opens the archive now, which is there
-                   whether or not the panel can be closed. */
-                true && (
+              {/* Centred means equal room either side of the title, so the
+                  slots holding the controls take the same flex share. Left
+                  keeps the original flow — the back arrow, then the name, and
+                  the actions pushed to the end. */}
+              <span
+                className={
+                  headerAlign === "center"
+                    ? "flex flex-1 items-center"
+                    : "contents"
+                }
+              >
+                {headerActions.archive && (
                   <button
                     onClick={() =>
                       setView(view === "history" ? "thread" : "history")
                     }
                     className="-ml-1 hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
-                    style={{ color: neutral.secondary }}
+                    style={{ color: hdr.icon }}
                     aria-label="Back"
                   >
                     <ChevronLeft className="size-5" strokeWidth={2} />
                   </button>
-                )
-              }
+                )}
+              </span>
               {/* avatar — uploaded image, else default user-bubble fill + ink bot.
                   Not on the archive: the agent's face belongs to a conversation
                   with it, and a list of past ones is about them rather than
@@ -7256,15 +8335,41 @@ function AgentPreview({
                   styles={partStyles}
                   className="shrink-0"
                 >
-                  {avatar ? (
+                  {headerAvatar === "off" ? null : avatar ? (
+                    /* `contain`, not `cover`. Cover fills the box by cropping
+                       whatever does not fit, which is fine for a photograph
+                       and wrong for a logo: a wordmark comes back as two
+                       letters and a symbol loses its margins. The whole mark
+                       fits and the box takes the empty space instead.
+
+                       On a tinted ground rather than bare, so a white-on-
+                       transparent logo has something to sit on, with a little
+                       inset so it is not touching its own edge. */
                     <span
-                      className="block size-9 rounded-full bg-cover bg-center"
-                      style={{ backgroundImage: `url(${avatar})` }}
-                    />
+                      className="grid shrink-0 place-items-center overflow-hidden p-[3px]"
+                      style={{
+                        width: AVATAR_PX[headerAvatar],
+                        height: AVATAR_PX[headerAvatar],
+                        borderRadius: ctlRadius,
+                        background: theme.bubbleFill,
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={avatar}
+                        alt=""
+                        className="size-full object-contain"
+                      />
+                    </span>
                   ) : (
                     <div
-                      className="grid size-9 place-items-center rounded-full"
-                      style={{ background: theme.bubbleFill }}
+                      className="grid shrink-0 place-items-center"
+                      style={{
+                        width: AVATAR_PX[headerAvatar],
+                        height: AVATAR_PX[headerAvatar],
+                        background: theme.bubbleFill,
+                        borderRadius: ctlRadius,
+                      }}
                     >
                       <Bot
                         className="size-[18px]"
@@ -7275,6 +8380,10 @@ function AgentPreview({
                   )}
                 </Hot>
               )}
+              {/* Centred is the mark on its own: a name and a subtitle pushed to
+                  the middle leave the two controls either side looking like they
+                  belong to it, and the header stops reading as a bar. */}
+              {headerAlign === "left" && (
               <div className="flex min-w-0 flex-col leading-tight">
                 <Hot
                   part="title"
@@ -7284,15 +8393,16 @@ function AgentPreview({
                   styles={partStyles}
                 >
                   <span
-                    className="block text-[14px] font-semibold tracking-tight"
-                    style={{ color: neutral.ink }}
+                    className="block font-semibold tracking-tight"
+                    style={{ color: hdr.ink, fontSize: theme.ts(14) }}
                   >
                     {view === "history"
                       ? "Conversation history"
                       : name || "Agent"}
                   </span>
                 </Hot>
-                {view !== "history" && subtitle.trim() && (
+                {view !== "history" && headerStatus !== "off" && (
+                  headerStatus === "text" && !subtitle.trim() ? null :
                   <Hot
                   part="subtitle"
                   sel={sel}
@@ -7302,26 +8412,42 @@ function AgentPreview({
                   className="mt-0.5"
                 >
                     <span
-                      className="block text-[12px]"
-                      style={{ color: neutral.muted }}
+                      className="flex items-center gap-1.5"
+                      style={{ color: hdr.sub, fontSize: theme.ts(12) }}
                     >
-                      {subtitle}
+                      {/* A dot only where it is standing for something. Next
+                          to "Virtual Assistant" it would be claiming an
+                          availability nobody stated. */}
+                      {headerStatus === "online" && (
+                        <span className="size-[7px] shrink-0 rounded-full bg-[#22C55E]" />
+                      )}
+                      {headerStatus === "online"
+                        ? "Online"
+                        : headerStatus === "replies"
+                          ? "Typically replies instantly"
+                          : subtitle}
                     </span>
                   </Hot>
                 )}
               </div>
+              )}
               {/* One set: same 32px box, same round hover, same secondary grey. The
                   menu used to be a bare icon with no target at all and the close
                   a 24px one, so three controls in a row had three sizes and only
                   two of them answered a pointer. */}
-              <div className="ml-auto flex items-center gap-0.5">
+              <div
+                className={`flex items-center gap-0.5 ${
+                  headerAlign === "center" ? "flex-1 justify-end" : "ml-auto"
+                }`}
+              >
+                {headerActions.menu && (
                 <span className="relative">
                   <button
                     onClick={() => setHeaderMenu(!headerMenu)}
                     aria-label="More"
                     aria-expanded={headerMenu}
                     className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
-                    style={{ color: neutral.secondary }}
+                    style={{ color: hdr.icon }}
                   >
                     <MoreVertical className="size-[18px]" strokeWidth={1.75} />
                   </button>
@@ -7404,6 +8530,7 @@ function AgentPreview({
                     </>
                   )}
                 </span>
+                )}
                 {/* Always drawn, because it is part of the header being
                     designed — it used to appear only where something could
                     actually be closed, which meant it was missing from the
@@ -7414,14 +8541,16 @@ function AgentPreview({
                     offered: same mark in the same place, but not a button, so
                     there is no click that quietly does nothing. The three-dot
                     menu beside it is drawn the same way. */}
-                <button
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
-                  style={{ color: neutral.secondary }}
-                >
-                  <X className="size-[18px]" strokeWidth={2} />
-                </button>
+                {headerActions.close && (
+                  <button
+                    onClick={onClose}
+                    aria-label="Close"
+                    className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
+                    style={{ color: hdr.icon }}
+                  >
+                    <X className="size-[18px]" strokeWidth={2} />
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -7461,8 +8590,11 @@ function AgentPreview({
            suggestions and the disclaimer on top of the spacing those two
            already carry — the conversation used to end at the last message,
            which is what that padding was for. */
-          className="absolute inset-0 flex flex-col overflow-y-auto px-5 pt-5 transition-transform motion-reduce:transition-none"
+          className="absolute inset-0 flex flex-col overflow-y-auto transition-transform motion-reduce:transition-none"
           style={{
+            paddingLeft: theme.space.pad,
+            paddingRight: theme.space.pad,
+            paddingTop: theme.space.pad,
             transform: view === "history" ? "translateX(100%)" : "none",
             transitionDuration: `${VIEW_SLIDE_MS}ms`,
             transitionTimingFunction: VIEW_SLIDE_EASE,
@@ -7476,7 +8608,11 @@ function AgentPreview({
              was already taller than its container and showed a scrollbar with
              nothing to scroll. Filling the space as a flex child costs no extra
              height. */
-            className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-4"
+            className="mx-auto flex w-full max-w-[720px] flex-1 flex-col"
+            /* The space between turns is the loudest thing Density does: a
+               compact thread is not smaller type, it is turns that sit closer
+               together. */
+            style={{ gap: theme.space.gap }}
           >
             {/* live conversation */}
             {convo.map((m, i) => (
@@ -7518,10 +8654,11 @@ function AgentPreview({
                       styles={partStyles}
                       className={
                         theme.userNeutral
-                          ? "w-fit max-w-[80%] whitespace-pre-line px-5 py-3 text-[14px] font-light"
-                          : "w-fit max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed"
+                          ? "w-fit max-w-[80%] whitespace-pre-line px-5 py-3 font-light"
+                          : "w-fit max-w-[80%] px-3.5 py-2 leading-relaxed"
                       }
                       style={{
+                        fontSize: theme.ts(14),
                         ...bubbleShape(theme.radius.bubble, "user"),
                         ...(theme.userNeutral
                           ? { background: neutral.paper, color: neutral.ink }
@@ -7540,8 +8677,8 @@ function AgentPreview({
                     visitor wrote themselves. So the two turns share the stamp
                     and its position, and nothing else. */}
                     <span
-                      className="mt-1 px-1 text-[11px]"
-                      style={{ color: neutral.muted }}
+                      className="mt-1 px-1"
+                      style={{ color: neutral.muted, fontSize: theme.ts(11) }}
                     >
                       10:24 AM
                     </span>
@@ -7566,6 +8703,7 @@ function AgentPreview({
                       <ThoughtTrace
                         /* Stated where a turn states it, derived from the
                            answer everywhere else — see traceSecs. */
+                        ts={theme.ts}
                         secs={m.thoughtSecs ?? traceSecs(m.text)}
                         steps={m.steps}
                         accent={accent}
@@ -7579,13 +8717,17 @@ function AgentPreview({
                     <div
                       className={
                         theme.aiBubble
-                          ? "w-fit max-w-[90%] whitespace-pre-wrap border px-3.5 py-2 text-[14px] leading-relaxed transition-shadow duration-200 group-hover:shadow-[var(--ds-shadow-sm)]"
-                          : "w-full text-[14px] leading-relaxed"
+                          ? "w-fit max-w-[90%] whitespace-pre-wrap border px-3.5 py-2 leading-relaxed transition-shadow duration-200 group-hover:shadow-[var(--ds-shadow-sm)]"
+                          : "w-full leading-relaxed"
                       }
                       style={
                         theme.aiBubble
-                          ? { ...aiBubble, ...bubbleShape(theme.radius.bubble, "ai") }
-                          : { color: neutral.ink }
+                          ? {
+                              ...aiBubble,
+                              ...bubbleShape(theme.radius.bubble, "ai"),
+                              fontSize: theme.ts(14),
+                            }
+                          : { color: neutral.ink, fontSize: theme.ts(14) }
                       }
                     >
                       <RichText
@@ -7622,8 +8764,10 @@ function AgentPreview({
                                 setPicked((prev) => ({ ...prev, [i]: b }));
                                 send(b);
                               }}
-                              className="starter-chip shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out"
+                              className="starter-chip shrink-0 whitespace-nowrap px-4 py-2 transition-[background-color,box-shadow] duration-200 ease-out"
                               style={{
+                                fontSize: theme.ts(14),
+                                borderRadius: theme.radius.chip,
                                 color: theme.bubbleInk,
                                 backgroundColor: theme.bubbleFill,
                                 ["--chip-stroke" as string]: chip.stroke,
@@ -7646,6 +8790,7 @@ function AgentPreview({
                         style={{ animation: "fade-in 220ms ease-out both" }}
                       >
                         <AiToolbar
+                          ts={theme.ts}
                           time="10:24 AM"
                           neutral={neutral}
                           sources={m.sources}
@@ -7668,6 +8813,7 @@ function AgentPreview({
               >
               <div style={{ animation: "fade-in 200ms ease-out both" }}>
                 <AiThinking
+                  ts={theme.ts}
                   accent={accent}
                   mark={thinkMark}
                   markSrc={thinkMarkSrc}
@@ -7741,8 +8887,10 @@ function AgentPreview({
                   <button
                     key={b}
                     onClick={() => send(b)}
-                    className="starter-chip shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out"
+                    className="starter-chip shrink-0 whitespace-nowrap px-4 py-2 transition-[background-color,box-shadow] duration-200 ease-out"
                     style={{
+                      fontSize: theme.ts(14),
+                      borderRadius: theme.radius.chip,
                       color: theme.bubbleInk,
                       backgroundColor: theme.bubbleFill,
                       ["--chip-stroke" as string]: chip.stroke,
@@ -8082,11 +9230,19 @@ function AgentPreview({
                      its sides inward and sets the message inside a lens, so it
                      becomes the same 24 the panel's own corners use. */
                   className={`pill-field flex w-full items-center ${
-                    isMultiline
-                      ? "flex-wrap gap-y-1.5 rounded-[24px]"
-                      : "rounded-full"
+                    isMultiline ? "flex-wrap gap-y-1.5" : ""
                   }`}
                   style={{
+                    /* A stadium at Rounded, the scale's own radius otherwise.
+                       Multiline takes a little less, because a 64px pill that
+                       has grown to three lines is a lens rather than a field —
+                       which is the note the class below used to carry. */
+                    borderRadius:
+                      theme.radius.control === 999
+                        ? isMultiline
+                          ? 24
+                          : 999
+                        : theme.radius.control,
                     background: neutral.surface,
                     boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${liteOf(accent)} 55%, transparent)`,
                     padding: 8,
@@ -8099,10 +9255,10 @@ function AgentPreview({
                       takes order-2 and the send/mic disc order-3 rather than
                       the markup being written out twice. */}
                   <button
-                    className={`grid size-11 shrink-0 place-items-center rounded-full transition-opacity hover:opacity-80 ${
+                    className={`grid size-11 shrink-0 place-items-center transition-opacity hover:opacity-80 ${
                       isMultiline ? "order-2" : ""
                     }`}
-                    style={{ background: neutral.paper, color: neutral.ink }}
+                    style={{ borderRadius: ctlRadius, background: neutral.paper, color: neutral.ink }}
                     aria-label="Add attachment"
                   >
                     <Plus className="size-5" strokeWidth={1.5} />
@@ -8134,7 +9290,7 @@ function AgentPreview({
                       onClick={() => send(draft)}
                       disabled={thinking}
                       aria-label="Send message"
-                      className={`grid size-11 shrink-0 place-items-center rounded-full text-white transition-opacity disabled:opacity-40 ${
+                      className={`grid size-11 shrink-0 place-items-center text-white transition-opacity disabled:opacity-40 ${
                         isMultiline ? "order-3 ml-auto" : ""
                       }`}
                       style={{ background: accent }}
@@ -8147,10 +9303,11 @@ function AgentPreview({
                       hidden={!mic.canDictate}
                       aria-label={mic.listening ? "Use what you said" : "Voice input"}
                       aria-pressed={mic.listening}
-                      className={`relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-full transition-opacity hover:opacity-80 ${
+                      className={`relative grid size-11 shrink-0 place-items-center overflow-hidden transition-opacity hover:opacity-80 ${
                         isMultiline ? "order-3 ml-auto" : ""
                       }`}
                       style={{
+                        borderRadius: ctlRadius,
                         background: mic.listening ? accent : neutral.paper,
                         color: mic.listening ? "#FFFFFF" : neutral.ink,
                       }}
@@ -8191,12 +9348,13 @@ function AgentPreview({
                       }
                     }}
                     placeholder={placeholder}
-                    className="block w-full resize-none bg-transparent px-2 pb-2 pt-1.5 text-[14px] leading-[1.5] tracking-tight outline-none placeholder:text-[var(--ph)]"
+                    className="block w-full resize-none bg-transparent px-2 pb-2 pt-1.5 leading-[1.5] tracking-tight outline-none placeholder:text-[var(--ph)]"
                     style={{
                       /* the palette's own muted rather than a fixed grey, which
                          was a light-mode value sitting on a dark field */
                       ["--ph" as string]: neutral.muted,
                       color: neutral.ink,
+                      fontSize: theme.ts(14),
                       maxHeight: 140,
                       overflowY: "auto",
                       boxSizing: "border-box",
@@ -8204,8 +9362,8 @@ function AgentPreview({
                   />
                   <div className="flex items-center">
                     <button
-                      className={`flex ${ctlSize} shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80`}
-                      style={{ background: neutral.paper, color: neutral.ink }}
+                      className={`flex ${ctlSize} shrink-0 items-center justify-center transition-opacity hover:opacity-80`}
+                      style={{ borderRadius: ctlRadius, background: neutral.paper, color: neutral.ink }}
                       aria-label="Add attachment"
                     >
                       <Plus className={ctlIcon} strokeWidth={1.5} />
@@ -8217,8 +9375,8 @@ function AgentPreview({
                         onClick={() => send(draft)}
                         disabled={thinking}
                         aria-label="Send message"
-                        className={`ml-auto flex ${ctlSize} shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40`}
-                        style={{ background: accent }}
+                        className={`ml-auto flex ${ctlSize} shrink-0 items-center justify-center text-white transition-opacity disabled:opacity-40`}
+                        style={{ borderRadius: ctlRadius, background: accent }}
                       >
                         <ArrowUp className={ctlIcon} strokeWidth={2} />
                       </button>
@@ -8228,8 +9386,9 @@ function AgentPreview({
                         hidden={!mic.canDictate}
                         aria-label={mic.listening ? "Use what you said" : "Voice input"}
                         aria-pressed={mic.listening}
-                        className={`relative ml-auto flex ${ctlSize} shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80`}
+                        className={`relative ml-auto flex ${ctlSize} shrink-0 items-center justify-center overflow-hidden transition-opacity hover:opacity-80`}
                         style={{
+                          borderRadius: ctlRadius,
                           background: mic.listening ? accent : neutral.paper,
                           color: mic.listening ? "#FFFFFF" : neutral.ink,
                         }}
@@ -8292,7 +9451,7 @@ function AgentPreview({
                     className={`flex ${ctlSize} shrink-0 items-center justify-center rounded-[6px] transition-colors hover:bg-[var(--ctl-hover)] ${
                       isMultiline ? "order-2 mr-auto" : ""
                     }`}
-                    style={{ color: neutral.secondary }}
+                    style={{ borderRadius: ctlRadius, color: neutral.secondary }}
                     aria-label="Add attachment"
                   >
                     <Plus className={ctlIcon} strokeWidth={1.5} />
@@ -8323,6 +9482,7 @@ function AgentPreview({
                     style={{
                       ["--ph" as string]: neutral.muted,
                       color: neutral.ink,
+                      fontSize: theme.ts(14),
                       maxHeight: 140,
                       overflowY: "auto",
                       boxSizing: "border-box",
@@ -8339,10 +9499,10 @@ function AgentPreview({
                       onClick={() => send(draft)}
                       disabled={thinking}
                       aria-label="Send message"
-                      className={`flex ${ctlSize} shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40 ${
+                      className={`flex ${ctlSize} shrink-0 items-center justify-center text-white transition-opacity disabled:opacity-40 ${
                         isMultiline ? "order-3" : ""
                       }`}
-                      style={{ background: accent }}
+                      style={{ borderRadius: ctlRadius, background: accent }}
                     >
                       <ArrowUp className={ctlIcon} strokeWidth={2} />
                     </button>
@@ -8356,10 +9516,11 @@ function AgentPreview({
                       onClick={() => mic.toggle(draft)}
                       hidden={!mic.canDictate}
                       aria-pressed={mic.listening}
-                      className={`relative flex ${ctlSize} shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80 ${
+                      className={`relative flex ${ctlSize} shrink-0 items-center justify-center overflow-hidden transition-opacity hover:opacity-80 ${
                         isMultiline ? "order-3" : ""
                       }`}
                       style={{
+                        borderRadius: ctlRadius,
                         background: mic.listening ? accent : neutral.paper,
                         color: mic.listening ? "#FFFFFF" : neutral.ink,
                       }}
@@ -9847,28 +11008,14 @@ function LauncherPreview({
      doubles as the user gesture browsers need before they'll play sound. */
   // identity of the current entrance run — any change re-arms the wait, so
   // `entered` falls back to false without an effect having to reset it
-  /* Which sound is chosen is deliberately *not* in the key. The entrance is
-     the launcher arriving; picking a different chime is not a new arrival,
-     and keying off it meant the picker replayed the whole entrance — which
-     played the sound a second time on top of the one the picker had just
-     played itself. */
   const runKey = `${s.type}-${s.delay}-${s.soundOn}`;
   const [enteredKey, setEnteredKey] = useState<string | null>(null);
   const entered = enteredKey === runKey;
 
-  /* Kept in a ref so the timer can read whichever sound is current when it
-     fires: naming the value as a dependency would put it straight back into
-     the re-run it was just taken out of. Written in an effect rather than
-     during render, since a ref is not a rendering concern. */
-  const soundRef = useRef(s.sound);
-  useEffect(() => {
-    soundRef.current = s.sound;
-  }, [s.sound]);
-
   useEffect(() => {
     const id = setTimeout(() => {
       setEnteredKey(runKey);
-      if (s.soundOn) playSound(soundRef.current);
+      if (s.soundOn) playChime();
     }, s.delay * 1000);
     return () => clearTimeout(id);
   }, [runKey, s.delay, s.soundOn]);
