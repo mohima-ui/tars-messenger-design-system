@@ -68,7 +68,6 @@ import {
   Pencil,
   Wrench,
   CornerDownRight,
-  Loader2,
   Type,
   Link2,
   Link2Off,
@@ -1658,218 +1657,6 @@ const PART_SHADOWS: { label: string; v: string | undefined }[] = [
   { label: "Lift", v: "0 18px 50px -12px rgba(15,17,26,0.28)" },
 ];
 
-/* ─── match my site ───────────────────────────────────────────────────────
-   Six settings is already fewer than twenty, but it is still six decisions
-   handed to somebody whose job is not this. The page they are trying to match
-   already answers all six, so the panel should open on a proposal rather than
-   a blank form — one press beats twenty minutes of dragging, and the controls
-   stay exactly where they were for the cases it gets wrong.
-
-   What is real here is the applying: a match sets the same six values a
-   person would set by hand, and they are visibly set afterwards. What is
-   staged is the reading — a browser cannot inspect a third-party page from
-   this origin. In the product that step belongs in the install snippet, where
-   `getComputedStyle` returns the actual numbers rather than anybody's guess:
-
-     getComputedStyle(document.body).fontFamily
-     getComputedStyle(primaryButton).borderRadius
-     getComputedStyle(card).boxShadow
-
-   Less clever than a heuristic, and right. */
-type SiteMatch = {
-  font: string;
-  corners: Corners;
-  elevation: Elevation;
-  density: Density;
-  tone: SurfaceTone;
-  accent: string;
-};
-
-const SITE_MATCHES: { host: RegExp; match: SiteMatch }[] = [
-  {
-    host: /globalpayments\.com/i,
-    match: {
-      font: "Inter",
-      corners: "sharp",
-      elevation: "flat",
-      density: "comfortable",
-      tone: "cool",
-      accent: "#120BF4",
-    },
-  },
-  {
-    host: /amex|americanexpress/i,
-    match: {
-      font: "Inter",
-      corners: "soft",
-      elevation: "border",
-      density: "comfortable",
-      tone: "cool",
-      accent: "#006FCF",
-    },
-  },
-  {
-    host: /vodafone/i,
-    match: {
-      font: "Roboto",
-      corners: "round",
-      elevation: "shadow",
-      density: "comfortable",
-      tone: "white",
-      accent: "#E60000",
-    },
-  },
-];
-
-/* Anything we do not hold a reading for still gets an answer rather than a
-   shrug. These are the commonest values on the web, not a guess at that
-   particular site — and the summary says so, because a proposal that will not
-   admit it is a default is a proposal nobody can check. */
-const GENERIC_MATCH: SiteMatch = {
-  font: "Inter",
-  corners: "soft",
-  elevation: "border",
-  density: "comfortable",
-  tone: "white",
-  accent: "#2563EB",
-};
-
-const hostOf = (url: string) =>
-  url
-    .trim()
-    .replace(/^https?:\/\//i, "")
-    .replace(/\/.*$/, "")
-    .replace(/^www\./i, "");
-
-function matchFor(url: string): { match: SiteMatch; known: boolean } {
-  const host = hostOf(url);
-  const hit = SITE_MATCHES.find((m) => m.host.test(host));
-  return hit ? { match: hit.match, known: true } : { match: GENERIC_MATCH, known: false };
-}
-
-/* The proposal, at the head of the settings it sets.
-
-   Not a mode and not a wizard: pressing it writes the same six values a
-   person would have written by hand, and the controls underneath show them
-   immediately. That is what makes it safe to press — nothing is hidden, and
-   disagreeing with one of the six costs one click on the control below
-   rather than starting again. */
-function MatchSite({
-  siteUrl,
-  setSiteUrl,
-  apply,
-  current,
-}: {
-  siteUrl: string;
-  setSiteUrl: (v: string) => void;
-  apply: (m: SiteMatch) => void;
-  current: SiteMatch;
-}) {
-  const [phase, setPhase] = useState<"idle" | "reading" | "done">("idle");
-  const [known, setKnown] = useState(true);
-  /* What it looked like before, so the one press has one press back. An undo
-     is what lets somebody try it without deciding anything. */
-  const before = useRef<SiteMatch | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  const host = hostOf(siteUrl);
-  const ready = /\.[a-z]{2,}/i.test(host);
-
-  const run = () => {
-    if (!ready) return;
-    before.current = current;
-    setPhase("reading");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const { match, known: k } = matchFor(siteUrl);
-      setKnown(k);
-      apply(match);
-      setPhase("done");
-    }, 900);
-  };
-
-  const undo = () => {
-    if (before.current) apply(before.current);
-    setPhase("idle");
-  };
-
-  return (
-    <div className="rounded-xl border border-[#E9E3F7] bg-[#FBF9FF] p-3">
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3.5 shrink-0 text-[#7C3AED]" strokeWidth={2} />
-        <span className="text-[12px] font-semibold text-[#4B2A7B]">
-          Match my site
-        </span>
-      </div>
-      <p className="mt-1 text-[11px] leading-snug text-[#8A7BA8]">
-        Reads the typeface, corners, elevation and ground off your own pages,
-        and sets the six below. Change any of them afterwards.
-      </p>
-
-      <div className="mt-2.5 flex items-center gap-1.5">
-        <div className="flex h-8 min-w-0 flex-1 items-center rounded-lg border border-[#E0D8F2] bg-white pl-2.5 pr-1">
-          <LinkIcon className="size-3.5 shrink-0 text-[#B8B8B8]" strokeWidth={2} />
-          <input
-            value={siteUrl}
-            onChange={(e) => {
-              setSiteUrl(e.target.value);
-              setPhase("idle");
-            }}
-            placeholder="yourcompany.com"
-            className="h-full min-w-0 flex-1 bg-transparent px-2 text-[13px] text-[#333] outline-none placeholder:text-[#B0B0B0]"
-          />
-        </div>
-        <button
-          onClick={run}
-          disabled={!ready || phase === "reading"}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold text-white transition-opacity disabled:opacity-40"
-          style={{ background: "#632E9A" }}
-        >
-          {phase === "reading" && (
-            <Loader2 className="size-3.5 animate-spin" strokeWidth={2.5} />
-          )}
-          {phase === "reading" ? "Reading" : "Match"}
-        </button>
-      </div>
-
-      {phase === "done" && (
-        <div className="mt-2 flex items-start gap-1.5">
-          <Check
-            className="mt-0.5 size-3.5 shrink-0 text-[#16A34A]"
-            strokeWidth={3}
-          />
-          <p className="min-w-0 flex-1 text-[11px] leading-snug text-[#6B5A88]">
-            {known ? (
-              <>
-                Matched to <b className="font-semibold">{host}</b>. Six settings
-                below have changed.
-              </>
-            ) : (
-              <>
-                We couldn&rsquo;t read <b className="font-semibold">{host}</b>{" "}
-                from here, so these are the commonest values on the web rather
-                than that site&rsquo;s. Worth checking each one.
-              </>
-            )}{" "}
-            <button
-              onClick={undo}
-              className="font-semibold text-[#7C3AED] underline underline-offset-2"
-            >
-              Undo
-            </button>
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* A bubble's corners, from the scale. The tail stays tighter than the other
    three so a bubble still points at its speaker whatever the scale is set to
    — four equal corners at "round" is a pill, and a pill has stopped saying
@@ -2092,8 +1879,6 @@ export default function DesignPage() {
      so adding a fifth later is one line here rather than a new prop on every
      component between here and the preview. */
   const [corners, setCorners] = useState<Corners>("soft");
-  const [elevation, setElevation] = useState<Elevation>("shadow");
-  const [density, setDensity] = useState<Density>("comfortable");
   const [tone, setTone] = useState<SurfaceTone>("white");
   /* What is selected in the preview, and therefore what the panel is showing.
      Null is the whole list, which is also where a first visit starts — the
@@ -2114,8 +1899,13 @@ export default function DesignPage() {
     });
   }, []);
   const look = useMemo<Look>(
-    () => ({ corners, elevation, density, tone }),
-    [corners, elevation, density, tone],
+    () => ({
+      corners,
+      elevation: "shadow" as Elevation,
+      density: "comfortable" as Density,
+      tone,
+    }),
+    [corners, tone],
   );
   /* What the agent looks and sounds like while it is working. Two settings
      rather than one, because they answer different questions: the mark says
@@ -2163,8 +1953,6 @@ export default function DesignPage() {
       mode,
       font,
       corners,
-      elevation,
-      density,
       tone,
       partStyles,
       thinkMark,
@@ -2185,8 +1973,6 @@ export default function DesignPage() {
       mode,
       font,
       corners,
-      elevation,
-      density,
       tone,
       partStyles,
       thinkMark,
@@ -2216,8 +2002,6 @@ export default function DesignPage() {
     setMode(saved.mode);
     setFont(saved.font);
     setCorners(saved.corners);
-    setElevation(saved.elevation);
-    setDensity(saved.density);
     setTone(saved.tone);
     setPartStyles(saved.partStyles);
     setThinkMark(saved.thinkMark);
@@ -2450,10 +2234,6 @@ export default function DesignPage() {
                   setSiteUrl={setSiteUrl}
                   corners={corners}
                   setCorners={setCorners}
-                  elevation={elevation}
-                  setElevation={setElevation}
-                  density={density}
-                  setDensity={setDensity}
                   tone={tone}
                   setTone={setTone}
                   thinkMark={thinkMark}
@@ -3557,10 +3337,6 @@ function AppearanceControls({
   setSiteUrl,
   corners,
   setCorners,
-  elevation,
-  setElevation,
-  density,
-  setDensity,
   tone,
   setTone,
   thinkMark,
@@ -3601,10 +3377,6 @@ function AppearanceControls({
   setSiteUrl: (v: string) => void;
   corners: Corners;
   setCorners: (v: Corners) => void;
-  elevation: Elevation;
-  setElevation: (v: Elevation) => void;
-  density: Density;
-  setDensity: (v: Density) => void;
   tone: SurfaceTone;
   setTone: (v: SurfaceTone) => void;
   thinkMark: ThinkingMark;
@@ -3687,48 +3459,6 @@ function AppearanceControls({
 
   return (
     <div>
-      {/* ── LAYERS ── the messenger's own parts, as a list. Two ways into the
-             same selection: point at it in the preview, or find it here when
-             it is small, hidden behind a state, or you do not know what it is
-             called. Indented by parentage rather than nested in a real tree —
-             nothing here moves, so a tree would be ceremony around a fixed
-             shape. */}
-      <Group title="Layers" defaultOpen={false}>
-        <div className="-mx-1 flex flex-col">
-          {PART_ORDER.map((p) => {
-            const meta = PARTS[p];
-            const on = sel === p;
-            const styled = hasStyle(partStyles[p]);
-            return (
-              <button
-                key={p}
-                onClick={() => setSel(on ? null : p)}
-                className={`flex items-center gap-1.5 rounded px-1.5 py-1 text-left text-[12px] transition-colors ${
-                  on
-                    ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
-                    : "text-[#555] hover:bg-[#F6F6F7]"
-                }`}
-                style={{ paddingLeft: meta.parent ? 20 : 6 }}
-              >
-                {meta.text ? (
-                  <Type className="size-3 shrink-0 text-[#A8A8A8]" strokeWidth={2} />
-                ) : (
-                  <Square className="size-3 shrink-0 text-[#A8A8A8]" strokeWidth={2} />
-                )}
-                <span className="min-w-0 flex-1 truncate">{meta.label}</span>
-                {/* A dot where a part has been given its own styling, so an
-                    override never goes missing behind a collapsed group. */}
-                {styled && (
-                  <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ background: ACCENT }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </Group>
 
       {/* What the panel is showing, when it is not showing everything. */}
       {sel ? (
@@ -3751,7 +3481,7 @@ function AppearanceControls({
            the outlines only appear under the pointer. */
         <p className="mb-1 flex items-center gap-1.5 pt-3 text-[11px] leading-snug text-[#A8A8A8]">
           <Pencil className="size-3 shrink-0" strokeWidth={2} />
-          Click any part of the preview, or open Layers.
+          Click any part of the preview to jump to its settings.
         </p>
       )}
 
@@ -3994,21 +3724,6 @@ function AppearanceControls({
              button radii is how a widget ends up not matching itself. */}
       {show("shape") && (
       <Group title="Shape">
-        <MatchSite
-          siteUrl={siteUrl}
-          setSiteUrl={setSiteUrl}
-          apply={(m) => {
-            loadFont(m.font);
-            setFont(m.font);
-            setCorners(m.corners);
-            setElevation(m.elevation);
-            setDensity(m.density);
-            setTone(m.tone);
-            setAccent(m.accent);
-          }}
-          current={{ font, corners, elevation, density, tone, accent }}
-        />
-        <div className="mb-4" />
         <FieldLabel>Corners</FieldLabel>
         <div className="flex gap-1.5">
           {(
@@ -4048,64 +3763,6 @@ function AppearanceControls({
             );
           })}
         </div>
-
-        <div className="mb-4" />
-        <FieldLabel>Elevation</FieldLabel>
-        <div className="flex gap-1.5">
-          {(
-            [
-              ["shadow", "Shadow"],
-              ["border", "Border"],
-              ["flat", "Flat"],
-            ] as const
-          ).map(([v, label]) => {
-            const on = elevation === v;
-            return (
-              <button
-                key={v}
-                onClick={() => setElevation(v)}
-                className={`flex flex-1 flex-col items-center gap-2 rounded-lg border py-2 transition-colors ${
-                  on
-                    ? "border-[#C4A9E8] bg-[#F8F4FF]"
-                    : "border-[#E5E5E5] hover:border-[#D5D5D5]"
-                }`}
-              >
-                {/* a surface sitting off the page three different ways */}
-                <span
-                  className="h-5 w-8 rounded bg-white"
-                  style={{
-                    boxShadow:
-                      v === "shadow"
-                        ? "0 4px 8px -2px rgba(15,17,26,0.32)"
-                        : v === "border"
-                          ? "inset 0 0 0 1px #C7C7CF"
-                          : "inset 0 0 0 1px #EFEFF2",
-                  }}
-                />
-                <span
-                  className={`text-[11px] ${on ? "font-semibold text-[#6D33AA]" : "font-medium text-[#777]"}`}
-                >
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mb-4" />
-        <FieldLabel>Density</FieldLabel>
-        <Segmented
-          value={density}
-          onChange={setDensity}
-          options={[
-            { v: "comfortable" as Density, label: "Comfortable", Icon: AlignLeft },
-            { v: "compact" as Density, label: "Compact", Icon: AlignCenter },
-          ]}
-        />
-        <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
-          Only the air moves. Type stays the size it was — a 12px reply is not
-          denser, it is harder to read.
-        </p>
 
         <div className="mb-4" />
         <FieldLabel>Surface</FieldLabel>
