@@ -1378,285 +1378,6 @@ function partCss(ps?: PartStyle): CSSProperties {
 const hasStyle = (ps?: PartStyle) =>
   !!ps && Object.values(ps).some((v) => v !== undefined);
 
-/* ── inspector primitives ─────────────────────────────────────────────────
-   Deliberately small and dense: this sits under the named settings, not
-   beside them, and a tenant who never opens it should not be paying for it in
-   panel height. */
-
-/* Drag the label to scrub, type for a value you already know. Empty means
-   "whatever the product does", which is why the placeholder says auto rather
-   than 0 — the difference between unset and zero is the whole point of an
-   override sheet. */
-function StyleNum({
-  label,
-  value,
-  onChange,
-  suffix,
-  step = 1,
-}: {
-  label: string;
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
-  suffix?: string;
-  step?: number;
-}) {
-  const drag = useRef<{ x: number; from: number } | null>(null);
-  return (
-    <div className="flex h-7 items-center rounded-md bg-[#F4F4F6] pl-1.5 pr-1">
-      <span
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          drag.current = { x: e.clientX, from: value ?? 0 };
-        }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d) return;
-          onChange(Math.max(0, Math.round(d.from + (e.clientX - d.x) * step)));
-        }}
-        onPointerUp={() => (drag.current = null)}
-        className="w-[38px] shrink-0 cursor-ew-resize select-none text-[10px] uppercase tracking-wide text-[#9A9A9A]"
-      >
-        {label}
-      </span>
-      <input
-        value={value ?? ""}
-        placeholder="auto"
-        onChange={(e) => {
-          const v = e.target.value.trim();
-          onChange(v === "" ? undefined : Number(v));
-        }}
-        className="h-full min-w-0 flex-1 bg-transparent text-right text-[12px] tabular-nums text-[#222] outline-none placeholder:text-[#C0C0C0]"
-      />
-      {suffix && <span className="pl-0.5 text-[10px] text-[#B0B0B0]">{suffix}</span>}
-    </div>
-  );
-}
-
-function StyleSwatch({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string | undefined;
-  onChange: (v: string | undefined) => void;
-}) {
-  return (
-    <div className="flex h-7 items-center gap-1.5 rounded-md bg-[#F4F4F6] pl-1.5 pr-1">
-      <span className="w-[38px] shrink-0 text-[10px] uppercase tracking-wide text-[#9A9A9A]">
-        {label}
-      </span>
-      <label
-        className="size-4 shrink-0 cursor-pointer rounded ring-1 ring-black/10"
-        style={{ background: value ?? "transparent" }}
-      >
-        <input
-          type="color"
-          value={value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000"}
-          onChange={(e) => onChange(e.target.value)}
-          className="size-0 opacity-0"
-        />
-      </label>
-      <input
-        value={value ?? ""}
-        placeholder="auto"
-        onChange={(e) => onChange(e.target.value || undefined)}
-        className="h-full min-w-0 flex-1 bg-transparent text-right font-mono text-[11px] uppercase text-[#222] outline-none placeholder:text-[#C0C0C0]"
-      />
-    </div>
-  );
-}
-
-/* Four paddings drawn where they sit. The one place a picture beats four
-   labelled fields — the numbers mean nothing without knowing which edge. */
-function PadBox({
-  ps,
-  set,
-}: {
-  ps: PartStyle;
-  set: (patch: PartStyle) => void;
-}) {
-  const cell =
-    "w-9 bg-transparent text-center text-[10px] tabular-nums text-[#555] outline-none placeholder:text-[#C8C8C8]";
-  const n = (v?: number) => (v === undefined ? "" : String(v));
-  const put =
-    (k: keyof PartStyle) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value.trim();
-      set({ [k]: v === "" ? undefined : Number(v) } as PartStyle);
-    };
-  return (
-    <div className="rounded-md border border-dashed border-[#DEDEE3] bg-[#FAFAFB] p-1.5">
-      <div className="flex justify-center">
-        <input className={cell} placeholder="auto" value={n(ps.paddingTop)} onChange={put("paddingTop")} />
-      </div>
-      <div className="flex items-center gap-1">
-        <input className={cell} placeholder="auto" value={n(ps.paddingLeft)} onChange={put("paddingLeft")} />
-        <span className="flex-1 rounded bg-[#F1ECFB] py-1.5 text-center text-[9px] uppercase tracking-wide text-[#9B87BD]">
-          content
-        </span>
-        <input className={cell} placeholder="auto" value={n(ps.paddingRight)} onChange={put("paddingRight")} />
-      </div>
-      <div className="flex justify-center">
-        <input className={cell} placeholder="auto" value={n(ps.paddingBottom)} onChange={put("paddingBottom")} />
-      </div>
-    </div>
-  );
-}
-
-/* The whole sheet for one part, in the panel's own idiom rather than a
-   second design language bolted on. */
-function StyleInspector({
-  part,
-  value: ps,
-  set,
-}: {
-  part: Part;
-  value: PartStyle;
-  set: (patch: PartStyle) => void;
-}) {
-  const [linked, setLinked] = useState(true);
-  const meta = PARTS[part];
-  const radii = [ps.radiusTL, ps.radiusTR, ps.radiusBR, ps.radiusBL];
-  const setRadius = (v: number | undefined, which?: 0 | 1 | 2 | 3) => {
-    if (linked || which === undefined) {
-      set({ radiusTL: v, radiusTR: v, radiusBR: v, radiusBL: v });
-    } else {
-      set([{ radiusTL: v }, { radiusTR: v }, { radiusBR: v }, { radiusBL: v }][which]);
-    }
-  };
-  const clear = () =>
-    set({
-      paddingTop: undefined,
-      paddingRight: undefined,
-      paddingBottom: undefined,
-      paddingLeft: undefined,
-      gap: undefined,
-      background: undefined,
-      color: undefined,
-      fontSize: undefined,
-      fontWeight: undefined,
-      lineHeight: undefined,
-      letterSpacing: undefined,
-      borderWidth: undefined,
-      borderColor: undefined,
-      radiusTL: undefined,
-      radiusTR: undefined,
-      radiusBR: undefined,
-      radiusBL: undefined,
-      shadow: undefined,
-      opacity: undefined,
-    });
-
-  return (
-    <Group title={`Style · ${meta.label}`} defaultOpen={hasStyle(ps)}>
-      <FieldLabel>Padding</FieldLabel>
-      <PadBox ps={ps} set={set} />
-
-      <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-        <StyleNum label="Gap" value={ps.gap} onChange={(v) => set({ gap: v })} suffix="px" />
-        <StyleNum
-          label="Opacity"
-          value={ps.opacity === undefined ? undefined : Math.round(ps.opacity * 100)}
-          onChange={(v) => set({ opacity: v === undefined ? undefined : v / 100 })}
-          suffix="%"
-        />
-      </div>
-
-      {meta.text && (
-        <>
-          <div className="mb-2 mt-4" />
-          <FieldLabel>Type</FieldLabel>
-          <div className="grid grid-cols-2 gap-1.5">
-            <StyleNum label="Size" value={ps.fontSize} onChange={(v) => set({ fontSize: v })} suffix="px" />
-            <StyleNum label="Weight" value={ps.fontWeight} onChange={(v) => set({ fontWeight: v })} step={10} />
-            <StyleNum label="Line" value={ps.lineHeight} onChange={(v) => set({ lineHeight: v })} />
-            <StyleNum label="Track" value={ps.letterSpacing} onChange={(v) => set({ letterSpacing: v })} suffix="px" />
-          </div>
-          <div className="mt-1.5">
-            <StyleSwatch label="Ink" value={ps.color} onChange={(v) => set({ color: v })} />
-          </div>
-        </>
-      )}
-
-      <div className="mb-2 mt-4" />
-      <FieldLabel>Surface</FieldLabel>
-      <StyleSwatch label="Fill" value={ps.background} onChange={(v) => set({ background: v })} />
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        <StyleNum label="Edge" value={ps.borderWidth} onChange={(v) => set({ borderWidth: v })} suffix="px" />
-        <StyleSwatch label="Colour" value={ps.borderColor} onChange={(v) => set({ borderColor: v })} />
-      </div>
-
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <button
-          onClick={() => setLinked(!linked)}
-          title={linked ? "Corners linked" : "Corners independent"}
-          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors ${
-            linked ? "bg-[#F1ECFB] text-[#6D33AA]" : "bg-[#F4F4F6] text-[#888]"
-          }`}
-        >
-          {linked ? (
-            <Link2 className="size-3.5" strokeWidth={2} />
-          ) : (
-            <Link2Off className="size-3.5" strokeWidth={2} />
-          )}
-        </button>
-        {linked ? (
-          <div className="min-w-0 flex-1">
-            <StyleNum label="Radius" value={radii[0]} onChange={(v) => setRadius(v)} suffix="px" />
-          </div>
-        ) : (
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5">
-            {(["TL", "TR", "BR", "BL"] as const).map((k, i) => (
-              <StyleNum
-                key={k}
-                label={k}
-                value={radii[i]}
-                onChange={(v) => setRadius(v, i as 0 | 1 | 2 | 3)}
-                suffix="px"
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="mb-2 mt-4" />
-      <FieldLabel>Shadow</FieldLabel>
-      <div className="flex gap-0.5 rounded-md bg-[#F4F4F6] p-0.5">
-        {PART_SHADOWS.map((o) => {
-          const on = (ps.shadow ?? undefined) === o.v;
-          return (
-            <button
-              key={o.label}
-              onClick={() => set({ shadow: o.v })}
-              className={`h-6 flex-1 rounded text-[11px] transition-colors ${
-                on ? "bg-white font-medium text-[#6D33AA] shadow-sm" : "text-[#777]"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {hasStyle(ps) && (
-        <button
-          onClick={clear}
-          className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-[#7C3AED]"
-        >
-          <RotateCcw className="size-3" strokeWidth={2} />
-          Clear this part&rsquo;s styling
-        </button>
-      )}
-    </Group>
-  );
-}
-
-const PART_SHADOWS: { label: string; v: string | undefined }[] = [
-  { label: "None", v: undefined },
-  { label: "Soft", v: "0 6px 20px -8px rgba(15,17,26,0.18)" },
-  { label: "Lift", v: "0 18px 50px -12px rgba(15,17,26,0.28)" },
-];
-
 /* A bubble's corners, from the scale. The tail stays tighter than the other
    three so a bubble still points at its speaker whatever the scale is set to
    — four equal corners at "round" is a pill, and a pill has stopped saying
@@ -1883,21 +1604,9 @@ export default function DesignPage() {
   /* What is selected in the preview, and therefore what the panel is showing.
      Null is the whole list, which is also where a first visit starts — the
      panel has to be readable before anyone knows it is clickable. */
-  const [sel, setSel] = useState<Part | null>(null);
-  /* The override sheet, per part. Saved with the rest of the design: it is a
-     property of the agent, not of the tool. */
-  const [partStyles, setPartStyles] = useState<PartStyles>({});
-  const setPartStyle = useCallback((part: Part, patch: PartStyle) => {
-    setPartStyles((prev) => {
-      const next = { ...(prev[part] ?? {}), ...patch };
-      /* A key set back to nothing is removed rather than kept as undefined,
-         so "has this part been touched" stays answerable. */
-      for (const k of Object.keys(next) as (keyof PartStyle)[]) {
-        if (next[k] === undefined) delete next[k];
-      }
-      return { ...prev, [part]: next };
-    });
-  }, []);
+  /* The preview still takes a sheet; nothing writes to it now that selection
+     has gone from the panel, so every part renders as the product does. */
+  const partStyles: PartStyles = {};
   const look = useMemo<Look>(
     () => ({
       corners,
@@ -1954,7 +1663,6 @@ export default function DesignPage() {
       font,
       corners,
       tone,
-      partStyles,
       thinkMark,
       thinkMarkSrc,
       thinkLabel,
@@ -1974,7 +1682,6 @@ export default function DesignPage() {
       font,
       corners,
       tone,
-      partStyles,
       thinkMark,
       thinkMarkSrc,
       thinkLabel,
@@ -2003,7 +1710,6 @@ export default function DesignPage() {
     setFont(saved.font);
     setCorners(saved.corners);
     setTone(saved.tone);
-    setPartStyles(saved.partStyles);
     setThinkMark(saved.thinkMark);
     setThinkMarkSrc(saved.thinkMarkSrc);
     setThinkLabel(saved.thinkLabel);
@@ -2226,10 +1932,6 @@ export default function DesignPage() {
                   setMode={setMode}
                   font={font}
                   setFont={setFont}
-                  sel={sel}
-                  setSel={setSel}
-                  partStyles={partStyles}
-                  setPartStyle={setPartStyle}
                   siteUrl={siteUrl}
                   setSiteUrl={setSiteUrl}
                   corners={corners}
@@ -2297,8 +1999,6 @@ export default function DesignPage() {
                   thinkMark={thinkMark}
                   thinkMarkSrc={thinkMarkSrc}
                   thinkLabel={thinkLabel}
-                  sel={sel}
-                  onSelect={setSel}
                   partStyles={partStyles}
                   device={device}
                 />
@@ -3329,10 +3029,6 @@ function AppearanceControls({
   setMode,
   font,
   setFont,
-  sel,
-  setSel,
-  partStyles,
-  setPartStyle,
   siteUrl,
   setSiteUrl,
   corners,
@@ -3366,10 +3062,6 @@ function AppearanceControls({
   setMode: (v: Mode) => void;
   font: string;
   setFont: (v: string) => void;
-  sel: Part | null;
-  setSel: (v: Part | null) => void;
-  partStyles: PartStyles;
-  setPartStyle: (part: Part, patch: PartStyle) => void;
   /* Shared with the launcher's preview field rather than asked for twice: it
      is the same site either way, and a tenant who has already typed it should
      not have to type it again to be matched to it. */
@@ -3449,60 +3141,16 @@ function AppearanceControls({
     setLinkDraft(null);
   };
 
-  /* Nothing selected is the whole list — the panel has to be readable before
-     anyone has discovered it is clickable, and a tenant who never touches the
-     preview should not lose access to a setting because of it. */
-  const show = (k: GroupKey) => !sel || PARTS[sel].groups.includes(k);
+  /* Every group, every time. Selection came out of the preview, so there is
+     nothing left to filter against — and a panel that shows everything is
+     what it was before any of it. */
+  const show = (_k: GroupKey) => true;
 
   // what the header falls back to with no logo uploaded
   const initial = (name.trim()[0] ?? "T").toUpperCase();
 
   return (
     <div>
-
-      {/* What the panel is showing, when it is not showing everything. */}
-      {sel ? (
-        <div className="sticky top-0 z-10 -mx-6 mb-1 flex items-center gap-2 border-b border-[#F0F0F0] bg-white px-6 py-2.5">
-          <span className="text-[12px] font-semibold text-[#333]">
-            {PARTS[sel].label}
-          </span>
-          <span className="text-[11px] text-[#A8A8A8]">selected</span>
-          <button
-            onClick={() => setSel(null)}
-            className="ml-auto flex items-center gap-1 text-[11px] font-medium text-[#7C3AED]"
-          >
-            <X className="size-3" strokeWidth={2.5} />
-            All settings
-          </button>
-        </div>
-      ) : (
-        /* The invitation, once. A preview nobody knows is clickable is a
-           preview nobody clicks, and there is no other affordance for it —
-           the outlines only appear under the pointer. */
-        <p className="mb-1 flex items-center gap-1.5 pt-3 text-[11px] leading-snug text-[#A8A8A8]">
-          <Pencil className="size-3 shrink-0" strokeWidth={2} />
-          Click any part of the preview to jump to its settings.
-        </p>
-      )}
-
-      {/* ── STYLE ── the floor under the named settings.
-
-             Everything above is a decision somebody anticipated: nine
-             controls that cover what almost every tenant wants, one press
-             each. This is for the tenth thing, the one nobody wrote a control
-             for — and it is scoped to one part, so reaching for it cannot
-             quietly restyle the product.
-
-             Collapsed by default. A tenant who never opens it pays nothing
-             for it, which is the only way a panel can carry this much without
-             becoming the thing you have to get past. */}
-      {sel && (
-        <StyleInspector
-          part={sel}
-          value={partStyles[sel] ?? {}}
-          set={(patch) => setPartStyle(sel, patch)}
-        />
-      )}
 
       {/* ── BRAND IDENTITY ── */}
       {show("brand") && (
@@ -3666,15 +3314,18 @@ function AppearanceControls({
       </Group>
       )}
 
-      {/* ── THEME ── */}
-      {/* ── THEME ──
-          One palette, so this is only a font and a mode. The four-way picker
-          went when the direction was settled on Light: three unchosen palettes
-          in the panel invite a decision that has already been made, and each is
-          another set of states to keep working.
+      {/* ── THEME ── everything the messenger is made of, in one group: the
+             typeface, the corners, the ground it sits on, and which end of the
+             palette it draws from.
 
-          Font leads. It is the choice that changes every screen, where the mode
-          only changes which end of one palette is used. */}
+             Corners and surface used to be a Shape group of their own, which
+             split the look across two headings for no reason a tenant could
+             see — they are the same decision as the font, made about a
+             different property.
+
+             Font leads: it changes every screen. Mode reads last, because it
+             does not change what any of the others are, only which end of one
+             palette they resolve to. */}
       {show("theme") && (
       <Group title="Theme">
         <FieldLabel>Font</FieldLabel>
@@ -3704,26 +3355,6 @@ function AppearanceControls({
         </div>
         <div className="mb-4" />
 
-        <Segmented
-          value={mode}
-          onChange={setMode}
-          options={[
-            { v: "light" as Mode, label: "Light", Icon: Sun },
-            { v: "dark" as Mode, label: "Dark", Icon: Moon },
-          ]}
-        />
-      </Group>
-      )}
-
-      {/* ── SHAPE ── the four settings that decide whether the messenger reads
-             as part of the page it is sitting on. Each is a choice with a
-             handful of answers rather than a number to drag: matching a site
-             is a perceptual job, and nobody has ever done it by typing 14.
-
-             None of them is per-component on purpose — separate bubble and
-             button radii is how a widget ends up not matching itself. */}
-      {show("shape") && (
-      <Group title="Shape">
         <FieldLabel>Corners</FieldLabel>
         <div className="flex gap-1.5">
           {(
@@ -3803,8 +3434,20 @@ function AppearanceControls({
           Most sites are not pure white. Matching their ground is what stops
           the panel reading as a bright rectangle cut into the page.
         </p>
+
+        <div className="mb-4" />
+        <FieldLabel>Mode</FieldLabel>
+        <Segmented
+          value={mode}
+          onChange={setMode}
+          options={[
+            { v: "light" as Mode, label: "Light", Icon: Sun },
+            { v: "dark" as Mode, label: "Dark", Icon: Moon },
+          ]}
+        />
       </Group>
       )}
+
 
       {/* ── THINKING ── the one moment the agent is visibly working, and the
              only part of the transcript it writes before it has anything to
