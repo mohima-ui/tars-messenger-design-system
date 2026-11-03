@@ -102,7 +102,14 @@ thing is before they will use it.
 - **Shapes**: square, circle, chip (chip carries a label, default "Ask AI").
 - **Sizes**: sm / md / lg, with a separate mobile size (defaults md desktop,
   sm mobile).
-- **Icon**: a preset or an uploaded one.
+- **Icon**: a preset or an uploaded one. Finer options sit in a **⋯ popover**
+  beside the Icon label, not as permanent controls:
+  - **Button background**: Accent (default) · Custom colour · None. *None* is
+    for an uploaded image only (a transparent PNG that is already the shape;
+    no body, no shadow). On a custom colour the glyph flips to `#16171A` when
+    the fill's OKLCH L > 0.72, else white.
+  - **Image padding** (uploaded image only): 0–16px, step 2. 0 = edge to edge,
+    cropped to the shape; above 0 the image is inset and shown whole.
 - **Greeting** (on by default): the agent's own first message, beside the
   button. Switching it off does not stop the agent greeting — that line is the
   conversation's first message and belongs to the conversation.
@@ -114,7 +121,7 @@ thing is before they will use it.
 ## 4. Placement
 
 Composer: left, centre, right. Button: left, right.
-Offsets default to **16px** horizontal and vertical, adjustable 0–120 in steps
+Offsets default to **40px** horizontal and vertical, adjustable 0–120 in steps
 of 4. Centred placement has no horizontal offset to set.
 
 ---
@@ -363,7 +370,7 @@ component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
 | Part | Value |
 |---|---|
 | Row | padding 20 × 13, gap 10, content height 36 |
-| Logomark | 36 circle, brand fill, image fills the disc; monogram fallback 12px bold white |
+| Logomark | 36 circle, brand fill, image fills the disc; monogram fallback 12px bold white. Options in a ⋯ popover on the upload row: transparent background (default off, accent shows through), spacing 0–30% step 5, size 28–44 step 2, corner radius 0–size/2 step 2 |
 | Title | 14px / 18px, semibold, `--ink-soft` |
 | Subtitle | 12px / 14px, `--ink-faint`, 4px under the title |
 | Back · menu · close | 32 buttons, 20px icons, `--ink-mute`, hover fills `--fill` |
@@ -380,6 +387,7 @@ component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
 | Action row | 24 buttons, 2 gaps, 14px icons — the speaker is 16 because at a matched box it carries visibly less ink. Row pulled 6px left so the first glyph aligns with the text above it |
 | Suggestion chips | right-aligned, one row, horizontal scroll, gap 8, chip spec as above |
 | Disclaimer | 12px, `--note`, centred, max width 500 centred / 320 in a corner, truncated with the remainder on a hover tail |
+| Typing hint | While the field has text (desktop only), the notice strip swaps the disclaimer / credit for **"Press Enter to send · Shift + Enter for a new line"** — same strip, same 12px, 200ms fade + 3px slide; back as soon as the field empties. Not on touch: there is no Enter key to describe |
 
 ### Composer inside the messenger
 

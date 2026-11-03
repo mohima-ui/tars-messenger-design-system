@@ -10,6 +10,8 @@ import {
   SEARCH_DOCS_OUTPUT,
   type Json,
 } from "./trace-fixtures";
+import { SchedulerCard, SCHED_STEPS, type SchedStep } from "./scheduler";
+import { BRIGHTLINE_CONTENT } from "../brightline/content";
 
 import {
   useMemo,
@@ -117,6 +119,18 @@ type LauncherSettings = {
   customIcon: string | null;
   /* kept so the row can say which file, not just that there is one */
   customIconName: string | null;
+  /* The button's own fill, apart from the accent. A logo is often drawn for a
+     ground that is not the agent's colour — a white mark meant for amber — and
+     the launcher is the one place on the page that has to stand out against
+     the customer's site rather than match the messenger. null is the accent. */
+  buttonBg: string | null;
+  /* Uploaded image only. Off by default, which is the old behaviour: the image
+     fills the button. On, the button has no body at all, for a transparent
+     PNG that is already the whole shape. */
+  iconBgOff: boolean;
+  /* Uploaded image only: space between the image and the button's edge. 0 is
+     edge to edge, cropped to the shape; anything more insets it, shown whole. */
+  iconPad: number;
   placeholder: string;
   defaultPrompts: string[];
   contextualOn: boolean;
@@ -130,8 +144,10 @@ type LauncherSettings = {
 const DEFAULT_LAUNCHER: LauncherSettings = {
   type: "composer",
   placement: "center",
-  offsetX: 16,
-  offsetY: 16,
+  /* 40 / 40. Live sites sat at 12–24 and read as stuck to the bottom of the
+     screen; 40 clears a browser's own chrome and anything pinned there. */
+  offsetX: 40,
+  offsetY: 40,
   shape: "square",
   style: "fill",
   chipLabel: "Ask AI",
@@ -140,6 +156,9 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
   sizeMobile: "sm",
   customIcon: null,
   customIconName: null,
+  buttonBg: null,
+  iconBgOff: false,
+  iconPad: 0,
   /* One line, used everywhere the visitor types: the launcher once it is open
      or focused, and the messenger's own composer. At rest the launcher cycles
      the contextual suggestions instead — those are the sales pitch, this is
@@ -259,8 +278,22 @@ const holdFor = (s: string) => 600 + s.trim().split(/\s+/).length * 280;
    Cloudflare — globalpayments.com among them — so the capture "succeeds" and
    returns a near-blank security notice. For those, a checked-in shot of the
    real page is both accurate and instant. */
-const LOCAL_SITES: { match: RegExp; src: string }[] = [
-  { match: /globalpayments\.com/i, src: "/site-previews/globalpayments.jpg" },
+/* A site is one or more images stacked top to bottom. Brightline is the same
+   twelve section captures the /brightline demo is built from — their real
+   page, cropped section by section — because the capture service cannot
+   render it whole. */
+const LOCAL_SITES: { match: RegExp; srcs: string[] }[] = [
+  { match: /globalpayments\.com/i, srcs: ["/site-previews/globalpayments.jpg"] },
+  {
+    match: /brightline\.com/i,
+    srcs: Array.from(
+      { length: 12 },
+      (_, i) =>
+        `/brightline/screens/${String(i + 1).padStart(2, "0")}-${
+          i === 0 ? "hero" : "section"
+        }.jpg`,
+    ),
+  },
 ];
 const localSiteFor = (origin: string) =>
   LOCAL_SITES.find((s) => s.match.test(origin)) ?? null;
@@ -861,7 +894,7 @@ const generatedFor = (url: string) =>
    are not invented for it — they are the four the agent's first message offers,
    read off the script, so the launcher cannot offer one thing and the panel open
    on another. */
-const SCRIPT_SITE = /globalpayments\./i;
+const SCRIPT_SITE = /globalpayments\.|brightline\./i;
 
 function promptsFor(s: LauncherSettings, path: string) {
   const clean = (list: string[]) => list.map((p) => p.trim()).filter(Boolean);
@@ -1093,6 +1126,38 @@ function liteOf(accent: string) {
   return oklchToHex(0.61, Math.min(0.21, C * 1.25), H);
 }
 
+/* WCAG contrast between two hexes. */
+function contrast(a: string, b: string) {
+  const lum = (h: string) => {
+    const [r, g, b2] = [1, 3, 5].map((i) =>
+      srgbToLin(parseInt(h.slice(i, i + 2), 16) / 255),
+    );
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b2;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/* The accent wherever it is read — text, an icon, a hairline — rather than
+   filled. A tenant's colour is picked against white: Tars purple and Global
+   Payments blue both fall to 1.6:1 on the dark panel, which is not dim, it is
+   gone. Hue is the brand; lightness is a readability decision. So the hue is
+   held and the lightness walked away from the ground until it clears `min`
+   (4.5 for text, 3 for icons and strokes), chroma eased a little on the way
+   up because a saturated colour on a dark ground vibrates. Already readable,
+   it comes back untouched — fills keep the true brand colour regardless. */
+function readableOn(fg: string, bg: string, min = 4.5) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(fg) || !/^#[0-9a-fA-F]{6}$/.test(bg)) return fg;
+  if (contrast(fg, bg) >= min) return fg;
+  const { L, C, H } = hexToOklch(fg);
+  const up = hexToOklch(bg).L < 0.5;
+  for (let l = L; up ? l <= 0.98 : l >= 0.05; l += up ? 0.01 : -0.01) {
+    const out = oklchToHex(l, up ? C * 0.85 : C, H);
+    if (contrast(out, bg) >= min) return out;
+  }
+  return up ? "#FFFFFF" : "#000000";
+}
+
 /* derived theme + accent shades — the whole engine in one place */
 /* ─── platform neutrals ───────────────────────────────────────────────────
    Three curated palettes, each with a light and a dark set. Only the neutrals
@@ -1112,6 +1177,9 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       secondary: "#6E6E6E",
       muted: "#979797",
     },
+    /* Every dark muted was lifted to clear 4.5:1 on its own paper — the
+       darkest ground it is ever set on. They sat at 3.6–4.3, which is the
+       timestamps and hints a visitor does have to read. */
     dark: {
       canvas: "#1C1917",
       surface: "#242020",
@@ -1119,7 +1187,7 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       line: "#3A3330",
       ink: "#F5EFE8",
       secondary: "#B8AFA6",
-      muted: "#8A827A",
+      muted: "#938B83",
     },
   },
   /* GlassComposer's own `theme="white"`, which is what the Global Payments
@@ -1149,7 +1217,7 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       line: "#45454B",
       ink: "#EFEFF1",
       secondary: "#B4B4B9",
-      muted: "#8B8B92",
+      muted: "#9E9EA4",
     },
   },
   slate: {
@@ -1169,7 +1237,7 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       line: "#35383E",
       ink: "#EDEEF0",
       secondary: "#A8ADB6",
-      muted: "#7C828C",
+      muted: "#898F99",
     },
   },
   midnight: {
@@ -1189,7 +1257,7 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       line: "#2B3446",
       ink: "#E8ECF4",
       secondary: "#9FA9BC",
-      muted: "#74809A",
+      muted: "#7F8BA3",
     },
   },
 };
@@ -1225,13 +1293,17 @@ function Hot({
   const override = partCss(styles?.[part]);
   /* Outside the editor the wrapper still has to apply the overrides — a
      tenant's saved styling is part of the product, not part of the tool. */
+  /* Always the element, with its own class and style. This used to return a
+     bare fragment when nothing was selectable and no override was set — which
+     threw away the className and style the call site passed, so once
+     selection came out of the preview every part drawn through here lost its
+     own look: the user bubble went from a filled, rounded bubble to loose
+     text. The wrapper is the part; only the selection behaviour is optional. */
   if (!onSelect) {
-    return hasStyle(styles?.[part]) ? (
+    return (
       <div className={className} style={{ ...style, ...override }}>
         {children}
       </div>
-    ) : (
-      <>{children}</>
     );
   }
   const on = sel === part;
@@ -1375,8 +1447,6 @@ function partCss(ps?: PartStyle): CSSProperties {
     opacity: ps.opacity,
   };
 }
-const hasStyle = (ps?: PartStyle) =>
-  !!ps && Object.values(ps).some((v) => v !== undefined);
 
 /* A bubble's corners, from the scale. The tail stays tighter than the other
    three so a bubble still points at its speaker whatever the scale is set to
@@ -1572,6 +1642,10 @@ export default function DesignPage() {
      never marks the design dirty. Nobody can review a returning visitor by
      waiting a day, so the four states have to be reachable by clicking. */
   const [session, setSession] = useState<SessionState>("first");
+  /* "off" is a state of the strip, not of the card: the messenger tab is the
+     demo conversation by default, and the scheduler is a lens you put over
+     it. */
+  const [sched, setSched] = useState<SchedStep | "off">("off");
 
   /* Configure opens over the design tool rather than beside it. The two are
      different sections of the product and the point of showing them together
@@ -1589,6 +1663,12 @@ export default function DesignPage() {
   const [brandingOn, setBrandingOn] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [logoOnly, setLogoOnly] = useState(false);
+  const [markLook, setMarkLook] = useState<LogoLook>(DEFAULT_LOGO_LOOK);
+  const [wordLook, setWordLook] = useState<LogoLook>(DEFAULT_WORDMARK_LOOK);
+  /* One look in play at a time — whichever the Center toggle says the header
+     is drawing — so every consumer reads `logoLook` and never has to ask. */
+  const logoLook = logoOnly ? wordLook : markLook;
+  const setLogoLook = logoOnly ? setWordLook : setMarkLook;
   const [accent, setAccent] = useState(ACCENT);
   /* Pinned. The direction is Light, so the palette is no longer a choice —
      this stays as the one value the theme engine still reads. */
@@ -1632,6 +1712,9 @@ export default function DesignPage() {
   // preview-only, so deliberately outside the saved config — pointing the
   // preview at a site isn't a change to the customer's launcher
   const [siteUrl, setSiteUrl] = useState("");
+  /* Set during render, before any preview reads the script. */
+  const tenant = tenantFor(siteUrl);
+  setTenant(tenant);
   /* The other way to point it: a picture of a page the capture service can't
      reach — anything behind a login, a staging build, a page that isn't
      published yet. Held beside the URL rather than instead of it, so removing
@@ -1657,6 +1740,8 @@ export default function DesignPage() {
       brandingOn,
       avatar,
       logoOnly,
+      markLook,
+      wordLook,
       accent,
       themeKey,
       mode,
@@ -1676,6 +1761,8 @@ export default function DesignPage() {
       brandingOn,
       avatar,
       logoOnly,
+      markLook,
+      wordLook,
       accent,
       themeKey,
       mode,
@@ -1705,6 +1792,8 @@ export default function DesignPage() {
     setBrandingOn(saved.brandingOn);
     setAvatar(saved.avatar);
     setLogoOnly(saved.logoOnly);
+    setMarkLook(saved.markLook);
+    setWordLook(saved.wordLook);
     setAccent(saved.accent);
     setMode(saved.mode);
     setFont(saved.font);
@@ -1924,6 +2013,8 @@ export default function DesignPage() {
                   setBrandingOn={setBrandingOn}
                   avatar={avatar}
                   setAvatar={setAvatar}
+                  logoLook={logoLook}
+                  setLogoLook={setLogoLook}
                   logoOnly={logoOnly}
                   setLogoOnly={setLogoOnly}
                   accent={accent}
@@ -1957,6 +2048,7 @@ export default function DesignPage() {
             >
               {tab === "launcher" ? (
                 <LauncherPreview
+                  key={tenant}
                   accent={accent}
                   theme={t}
                   settings={launcher}
@@ -1972,6 +2064,7 @@ export default function DesignPage() {
                   disclaimerOn={disclaimerOn}
                   brandingOn={brandingOn}
                   avatar={avatar}
+                  logoLook={logoLook}
                   logoOnly={logoOnly}
                   session={session}
                 />
@@ -1990,10 +2083,26 @@ export default function DesignPage() {
                      else: a suggestion answers the question the turn it sits
                      under ends on. */
                   suggestions={scriptPrompts(SCRIPT.slice(0, 1))}
+                  /* The seed is read once at mount, so switching the lens on
+                     or off is a different conversation and remounts. Moving
+                     between the scheduler's own steps is not — the card is
+                     stepped in place, and a remount there would throw away
+                     the day and the timezone somebody had just chosen. */
+                  key={`${sched === "off" ? "demo" : "sched"}-${tenant}`}
+                  seed={sched === "off" ? undefined : SCHED_THREAD}
+                  scheduler={
+                    <SchedulerCard
+                      theme={t}
+                      accent={accent}
+                      step={sched === "off" ? "pick" : sched}
+                      onStep={setSched}
+                    />
+                  }
                   disclaimer={disclaimer}
                   disclaimerOn={disclaimerOn}
                   brandingOn={brandingOn}
                   avatar={avatar}
+                  logoLook={logoLook}
                   logoOnly={logoOnly}
                   accent={accent}
                   thinkMark={thinkMark}
@@ -2006,9 +2115,11 @@ export default function DesignPage() {
             </div>
             {/* Under the frame rather than in the settings panel: everything on
                 the left is something the customer configures and saves, and
-                this is a lens on the preview. Launcher only — the returning
-                visitor is a question about what greets them, and the Messenger
-                tab has already skipped past that. */}
+                this is a lens on the preview. One per tab — the returning
+                visitor is a question about what greets them, which the
+                Messenger tab has already skipped past; the booking gambit is a
+                question about a turn inside the conversation, which the
+                launcher never reaches. */}
             <div className="shrink-0 border-t border-[#E7E7E9] bg-white px-5 py-3">
               {tab === "launcher" && (
                 <>
@@ -2035,6 +2146,43 @@ export default function DesignPage() {
                       part that has to survive the meeting. */}
                   <p className="mt-1.5 text-[11px] leading-snug text-[#8A8A8A]">
                     {SESSIONS.find((o) => o.id === session)?.note}
+                  </p>
+                </>
+              )}
+              {tab !== "launcher" && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-[#8A8A8A]">
+                      Scheduler
+                    </span>
+                    <button
+                      onClick={() => setSched("off")}
+                      className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                        sched === "off"
+                          ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
+                          : "font-medium text-[#666] hover:bg-[#F4F4F5] hover:text-[#333]"
+                      }`}
+                    >
+                      Off
+                    </button>
+                    {SCHED_STEPS.map((o) => (
+                      <button
+                        key={o.id}
+                        onClick={() => setSched(o.id)}
+                        className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                          sched === o.id
+                            ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
+                            : "font-medium text-[#666] hover:bg-[#F4F4F5] hover:text-[#333]"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-snug text-[#8A8A8A]">
+                    {sched === "off"
+                      ? "The booking gambit, in every state it has. Turn it on and it arrives in the thread on the turn that offers it — the card is live, so it can also just be clicked through."
+                      : SCHED_STEPS.find((o) => o.id === sched)?.note}
                   </p>
                 </>
               )}
@@ -2312,6 +2460,201 @@ function Segmented<T extends string>({
 }
 
 /* number field with steppers — friendlier than a bare input for px / seconds */
+/* How an uploaded logo sits in the header's mark. Four settings that every
+   tenant's file needs a different answer to — a transparent PNG wants no
+   disc, a busy square wants inset, a brand with a square app icon wants its
+   corners back — so they exist, but behind the ⋯ on the upload row: none of
+   them is a first decision, and as four permanent controls they were most of
+   the Brand group. */
+type LogoLook = {
+  /* off: the accent shows through any transparency in the file */
+  bgOff: boolean;
+  /* percent of the mark, each side. Negative zooms in: the image is drawn
+     larger than the mark and cropped, for a file with its own margin baked
+     in. */
+  pad: number;
+  size: number;
+  radius: number;
+};
+const DEFAULT_LOGO_LOOK: LogoLook = { bgOff: false, pad: 0, size: 36, radius: 18 };
+const LOGO_SIZE = { min: 28, max: 48 };
+/* A centred wordmark is its own look: it starts with nothing behind it, as
+   it has always rendered, and its width is a wordmark's, not a mark's. */
+const DEFAULT_WORDMARK_LOOK: LogoLook = { bgOff: true, pad: 0, size: 120, radius: 0 };
+const WORDMARK_SIZE = { min: 60, max: 200 };
+
+/* `size` overrides the look's own for marks drawn smaller elsewhere (the
+   launcher's 20px caption); the radius scales with it so the shape holds. */
+function LogoMark({
+  src,
+  look,
+  accent,
+  size,
+}: {
+  src: string;
+  look: LogoLook;
+  accent: string;
+  size?: number;
+}) {
+  const px = size ?? look.size;
+  const k = px / look.size;
+  return (
+    <span
+      className="block shrink-0 overflow-hidden"
+      style={{
+        width: px,
+        height: px,
+        borderRadius: Math.min(look.radius, look.size / 2) * k,
+        background: look.bgOff ? "transparent" : accent,
+      }}
+    >
+      {/* One continuous zoom: spacing is padding on each side, so the image
+          is drawn at 100 − 2×spacing percent of the mark. Positive shrinks it
+          inside the mark (padding), negative grows it past the edge (crops a
+          margin baked into the file), 0 is edge to edge. */}
+      <span
+        className="block size-full bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${src})`,
+          backgroundSize: `${100 - look.pad * 2}%`,
+        }}
+      />
+    </span>
+  );
+}
+
+/* A labelled range: name on the left, value and unit on the right, the track
+   filled up to the thumb. The thumb is a white disc ringed in the panel's
+   purple so it reads as the thing to drag. */
+function Slider({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+  suffix: string;
+}) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <div>
+      {/* 2px here plus the 6px the 16px input leaves above its 4px track:
+          8px from the label to the line. */}
+      <div className="mb-0.5 flex items-baseline justify-between">
+        <span className="text-[12px] font-medium text-[#555]">{label}</span>
+        <span className="text-[12px] font-semibold tabular-nums text-[#333]">
+          {value}
+          <span className="ml-0.5 text-[10px] font-normal text-[#A0A0A0]">
+            {suffix}
+          </span>
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
+        className="block h-4 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#632E9A] [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#632E9A] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_1px_3px_rgba(15,17,26,0.2)]"
+        style={
+          {
+            ["--fill" as string]: `${pct}%`,
+          } as CSSProperties
+        }
+      />
+      <style>{`
+        input[type="range"][aria-label="${label}"]::-webkit-slider-runnable-track {
+          background: linear-gradient(to right, #632E9A var(--fill), #ECECEE var(--fill));
+        }
+        input[type="range"][aria-label="${label}"]::-moz-range-track {
+          background: linear-gradient(to right, #632E9A var(--fill), #ECECEE var(--fill));
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function LogoOptions({
+  look,
+  setLook,
+  pos,
+  centered = false,
+}: {
+  look: LogoLook;
+  setLook: (l: LogoLook) => void;
+  centered?: boolean;
+  /* Fixed to the viewport, not the panel: the settings column scrolls and
+     clips, and the popover is allowed to hang out past it to the right. */
+  pos: { top: number; left: number };
+}) {
+  const set = (p: Partial<LogoLook>) => setLook({ ...look, ...p });
+  return (
+    <div
+      style={{ top: pos.top, left: pos.left }}
+      className="fixed z-40 flex w-[268px] flex-col gap-4 rounded-xl border border-[#ECECEC] bg-white p-3.5 text-left shadow-[0_8px_28px_rgba(15,17,26,0.14)]">
+      <div className="flex items-center justify-between gap-3">
+        <span className="group relative flex items-center gap-1.5">
+          <span className="text-[12px] font-medium text-[#555]">
+            Transparent background
+          </span>
+          <Info className="size-3.5 cursor-help text-[#B8B8B8]" strokeWidth={2} />
+          <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-max max-w-[220px] rounded-md bg-[#333] px-2 py-1 text-[11px] leading-snug text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+            For a PNG with transparency. Off, the accent shows behind it.
+          </span>
+        </span>
+        <Toggle on={look.bgOff} onChange={(bgOff) => set({ bgOff })} size="sm" />
+      </div>
+      <Slider
+        label="Logo spacing"
+        value={look.pad}
+        onChange={(pad) => set({ pad })}
+        min={-30}
+        max={30}
+        suffix="%"
+      />
+      <Slider
+        label="Logo width"
+        value={look.size}
+        onChange={(size) =>
+          set({
+            size,
+            radius: centered ? look.radius : Math.min(look.radius, size / 2),
+          })
+        }
+        min={centered ? WORDMARK_SIZE.min : LOGO_SIZE.min}
+        max={centered ? WORDMARK_SIZE.max : LOGO_SIZE.max}
+        suffix="px"
+      />
+      <Slider
+        label="Logo corner radius"
+        value={look.radius}
+        onChange={(radius) => set({ radius })}
+        min={0}
+        max={centered ? 22 : look.size / 2}
+        suffix="px"
+      />
+      <button
+        onClick={() =>
+          setLook(centered ? DEFAULT_WORDMARK_LOOK : DEFAULT_LOGO_LOOK)
+        }
+        className="self-start text-[11px] font-medium text-[#632E9A] hover:text-[#4A2275]"
+      >
+        Reset to default
+      </button>
+    </div>
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -2455,6 +2798,144 @@ function RowToggle({
 
 /* ─────────────────────── Launcher controls ──────────────────────── */
 
+/* White or near-black, whichever reads on the fill. The glyph on a custom
+   button colour cannot stay white: on a pale amber it disappears. */
+const inkOn = (hex: string) =>
+  hexToOklch(hex).L > 0.72 ? "#16171A" : "#FFFFFF";
+
+/* The ⋯ popover under the Icon label. Anchored to the row, not a modal: it is
+   two small choices about the thing directly beside it. */
+function IconOptions({
+  s,
+  set,
+  accent,
+}: {
+  s: LauncherSettings;
+  set: (patch: Partial<LauncherSettings>) => void;
+  accent: string;
+}) {
+  const custom = !!s.customIcon;
+  const fill: "accent" | "custom" | "none" =
+    custom && s.iconBgOff ? "none" : s.buttonBg ? "custom" : "accent";
+  const swatch = (
+    on: boolean,
+    label: string,
+    onClick: () => void,
+    body: React.ReactNode,
+    disabled = false,
+  ) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? "Upload an image to use this" : undefined}
+      className={`flex flex-1 flex-col items-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        on
+          ? "border-[#C4A9E8] bg-[#F8F4FF] text-[#6D33AA]"
+          : "border-[#E5E5E5] text-[#666] hover:border-[#D5D5D5] disabled:hover:border-[#E5E5E5]"
+      }`}
+    >
+      {body}
+      {label}
+    </button>
+  );
+  return (
+    <div className="absolute right-0 top-full z-40 mt-1.5 w-[236px] rounded-xl border border-[#ECECEC] bg-white p-3 shadow-[0_8px_28px_rgba(15,17,26,0.14)]">
+      <FieldLabel>Button background</FieldLabel>
+      <div className="flex gap-1.5">
+        {swatch(
+          fill === "accent",
+          "Accent",
+          () => set({ buttonBg: null, iconBgOff: false }),
+          <span
+            className="size-5 rounded-full ring-1 ring-black/10"
+            style={{ background: accent }}
+          />,
+        )}
+        {swatch(
+          fill === "custom",
+          "Custom",
+          () =>
+            set({ buttonBg: s.buttonBg ?? "#FFB020", iconBgOff: false }),
+          <span
+            className="size-5 rounded-full ring-1 ring-black/10"
+            style={{
+              background:
+                s.buttonBg ??
+                "conic-gradient(from 90deg, #CE3838, #CEB238, #3BB24E, #38A8B2, #3854CE, #9E38B2, #CE3838)",
+            }}
+          />,
+        )}
+        {/* Always listed, usable only with an uploaded image: a built-in
+            glyph with no button behind it is a line drawing floating on
+            someone's page. Shown disabled rather than hidden, so the option
+            is findable before the upload. */}
+        {swatch(
+            fill === "none",
+            "None",
+            () => set({ iconBgOff: true }),
+            <span
+              className="size-5 rounded-full ring-1 ring-black/10"
+              style={{
+                background:
+                  "repeating-conic-gradient(#E4E4E7 0 25%, #FFFFFF 0 50%) 0 0 / 8px 8px",
+              }}
+            />,
+            !custom,
+          )}
+      </div>
+      {fill === "custom" && (
+        /* The same picker as the messenger's Accent: a hue wheel with the
+           chosen colour as a dot in its middle, and the hex beside it. */
+        <div className="mt-2.5 flex items-center gap-2">
+          <label
+            className="relative grid size-8 shrink-0 cursor-pointer place-items-center rounded-full ring-1 ring-black/10"
+            style={{
+              background:
+                "conic-gradient(from 90deg, #CE3838, #CEB238, #3BB24E, #38A8B2, #3854CE, #9E38B2, #CE3838)",
+            }}
+            aria-label="Pick a colour"
+          >
+            <input
+              type="color"
+              value={s.buttonBg ?? accent}
+              onChange={(e) => set({ buttonBg: e.target.value })}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+            <span
+              className="size-4 rounded-full ring-1 ring-white/70"
+              style={{ backgroundColor: s.buttonBg ?? accent }}
+            />
+          </label>
+          <input
+            value={(s.buttonBg ?? "").toUpperCase()}
+            onChange={(e) => set({ buttonBg: e.target.value })}
+            className="h-9 min-w-0 flex-1 rounded-lg border border-[#E5E5E5] px-3 font-mono text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
+          />
+        </div>
+      )}
+      <div
+        className={`mt-3 ${custom ? "" : "pointer-events-none opacity-40"}`}
+        aria-disabled={!custom}
+      >
+        <NumberField
+          label="Image padding"
+          value={s.iconPad}
+          onChange={(iconPad) => set({ iconPad })}
+          min={0}
+          max={16}
+          step={2}
+          suffix="px"
+        />
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+        {custom
+          ? "0 fills the button. More insets the image and shows it whole."
+          : "None and padding apply to an uploaded image."}
+      </p>
+    </div>
+  );
+}
+
 function LauncherControls({
   s,
   set,
@@ -2478,6 +2959,7 @@ function LauncherControls({
 }) {
   const isComposer = s.type === "composer";
   const isMobile = device === "mobile";
+  const [iconMenu, setIconMenu] = useState(false);
 
   const readIcon = (file: File | undefined) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -2757,7 +3239,34 @@ function LauncherControls({
               remove one — upload once and the size, the icon set and the
               upload itself all disappeared together. */}
           <div className="mt-4">
-            <FieldLabel>Icon</FieldLabel>
+            {/* The finer settings — fill, padding — live behind the ⋯ beside
+                the label rather than stacked under the grid. They are the
+                second decision about an icon, and most customers never make
+                it; as permanent sliders they were most of the group. */}
+            <div className="relative mb-1.5 flex items-center justify-between">
+              <span className="text-[12px] font-medium text-[#555]">Icon</span>
+              <button
+                onClick={() => setIconMenu(!iconMenu)}
+                aria-label="Icon options"
+                aria-expanded={iconMenu}
+                className={`grid size-6 place-items-center rounded-md transition-colors ${
+                  iconMenu
+                    ? "bg-[#F6F0FF] text-[#6D33AA]"
+                    : "text-[#9A9A9A] hover:bg-[#F6F0FF] hover:text-[#6D33AA]"
+                }`}
+              >
+                <MoreHorizontal className="size-4" strokeWidth={2} />
+              </button>
+              {iconMenu && (
+                <>
+                  <span
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIconMenu(false)}
+                  />
+                  <IconOptions s={s} set={set} accent={accent} />
+                </>
+              )}
+            </div>
             {/* One row that scrolls, with the upload as its first slot. The
                 custom image used to be a dropzone of its own above this —
                 three lines of chrome for a control most customers never
@@ -3021,6 +3530,8 @@ function AppearanceControls({
   setBrandingOn,
   avatar,
   setAvatar,
+  logoLook,
+  setLogoLook,
   logoOnly,
   setLogoOnly,
   accent,
@@ -3053,6 +3564,8 @@ function AppearanceControls({
   brandingOn: boolean;
   setBrandingOn: (v: boolean) => void;
   avatar: string | null;
+  logoLook: LogoLook;
+  setLogoLook: (l: LogoLook) => void;
   setAvatar: (v: string | null) => void;
   logoOnly: boolean;
   setLogoOnly: (v: boolean) => void;
@@ -3121,6 +3634,8 @@ function AppearanceControls({
   /* Open while the link is being described; `at` is where in the copy it goes,
      captured when the command was typed so later edits elsewhere cannot move
      the insertion point out from under it. */
+  const [logoMenu, setLogoMenu] = useState(false);
+  const [logoMenuPos, setLogoMenuPos] = useState({ top: 0, left: 0 });
   const [linkDraft, setLinkDraft] = useState<{
     at: number;
     text: string;
@@ -3172,13 +3687,14 @@ function AppearanceControls({
           </span>
         </div>
 
+        <div className="flex items-stretch gap-2">
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
             readFile(e.dataTransfer.files?.[0]);
           }}
-          className="relative flex items-center gap-3 rounded-xl border border-dashed border-[#D8D8D8] p-3 transition-colors hover:border-[#C0C0C0]"
+          className="relative flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-dashed border-[#D8D8D8] p-3 transition-colors hover:border-[#C0C0C0]"
         >
           {avatar ? (
             logoOnly ? (
@@ -3189,9 +3705,11 @@ function AppearanceControls({
                 className="h-10 w-14 shrink-0 object-contain"
               />
             ) : (
-              <span
-                className="size-10 shrink-0 rounded-full bg-cover bg-center ring-1 ring-black/5"
-                style={{ backgroundImage: `url(${avatar})` }}
+              <LogoMark
+                src={avatar}
+                look={logoLook}
+                accent={accent}
+                size={40}
               />
             )
           ) : (
@@ -3229,6 +3747,54 @@ function AppearanceControls({
               <Trash2 className="size-3.5" strokeWidth={2} />
             </button>
           )}
+        </div>
+        {/* The logo's options, in a box of their own beside the upload: a
+            separate thing from the file, so it does not share the dropzone.
+            Always there, logo or not — what is set before an upload applies
+            the moment one lands. Centred, it edits the wordmark's own look. */}
+        {(
+          <span className="relative flex">
+            <button
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                /* Opens below the box, centred on it, and pulled back in
+                   only if it would leave the window. */
+                setLogoMenuPos({
+                  top: r.bottom + 6,
+                  left: clamp(
+                    r.left + r.width / 2 - 134,
+                    8,
+                    window.innerWidth - 276,
+                  ),
+                });
+                setLogoMenu(!logoMenu);
+              }}
+              aria-label="Logo options"
+              aria-expanded={logoMenu}
+              className={`grid w-11 place-items-center rounded-xl border transition-colors ${
+                logoMenu
+                  ? "border-[#C4A9E8] bg-[#F6F0FF] text-[#6D33AA]"
+                  : "border-[#E5E5E5] text-[#9A9A9A] hover:border-[#D5D5D5] hover:text-[#555]"
+              }`}
+            >
+              <MoreVertical className="size-4" strokeWidth={2} />
+            </button>
+            {logoMenu && (
+              <>
+                <span
+                  className="fixed inset-0 z-30"
+                  onClick={() => setLogoMenu(false)}
+                />
+                <LogoOptions
+                  look={logoLook}
+                  setLook={setLogoLook}
+                  pos={logoMenuPos}
+                  centered={logoOnly}
+                />
+              </>
+            )}
+          </span>
+        )}
         </div>
         <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
           PNG / JPG · square · ≤ 5 MB · falls back to the name&rsquo;s initial
@@ -3445,6 +4011,9 @@ function AppearanceControls({
             { v: "dark" as Mode, label: "Dark", Icon: Moon },
           ]}
         />
+        <p className="mt-1.5 text-[11px] leading-snug text-[#A8A8A8]">
+          Applies to the launcher and the messenger together.
+        </p>
       </Group>
       )}
 
@@ -3764,10 +4333,73 @@ const streamMs = (t: string) => wordCount(t) * WORD_MS + WORD_IN_MS;
 const traceSecs = (t: string) =>
   Math.max(2, Math.min(9, Math.round(wordCount(t) / 9)));
 
+/* ─── a message as words ─────────────────────────────────────────────────
+   One tokeniser for both the screen and the voice. Every word and citation
+   gets the index the reveal animation staggers by, and read-aloud highlights
+   by the same index — so the word lit up is always the word being spoken,
+   because there is only one list for the two of them to disagree about. */
+type Tok =
+  | { kind: "space"; text: string }
+  | { kind: "word"; text: string; bold: boolean; n: number }
+  | { kind: "cite"; text: string; n: number };
+type Block = { bullet: boolean; lead: Tok[]; rest: Tok[] };
+
+function tokenize(text: string): Block[] {
+  let n = 0;
+  const run = (str: string): Tok[] =>
+    str.split(/(\*\*[^*]+\*\*)/).flatMap((seg) => {
+      const strong = /^\*\*([^*]+)\*\*$/.exec(seg);
+      const body = strong ? strong[1] : seg;
+      return body.split(/(\[\d+\])/).flatMap((part): Tok[] => {
+        const cite = /^\[(\d+)\]$/.exec(part);
+        if (cite) return [{ kind: "cite", text: cite[1], n: n++ }];
+        return part
+          .split(/(\s+)/)
+          .filter((t) => t !== "")
+          .map((t): Tok =>
+            /^\s+$/.test(t)
+              ? { kind: "space", text: t }
+              : { kind: "word", text: t, bold: !!strong, n: n++ },
+          );
+      });
+    });
+  return text.split("\n\n").map((block) => {
+    if (!block.startsWith("- "))
+      return { bullet: false, lead: [], rest: run(block) };
+    const body = block.slice(2);
+    const colon = body.indexOf(":");
+    return {
+      bullet: true,
+      lead: colon > -1 ? run(body.slice(0, colon + 1)) : [],
+      rest: run(colon > -1 ? body.slice(colon + 1) : body),
+    };
+  });
+}
+
+/* What the voice says, and where in that string each word starts — so a
+   boundary event's character offset can be turned back into a word index.
+   Citations are not read: "[2]" spoken aloud is noise. */
+function speechOf(text: string) {
+  let plain = "";
+  const starts: { at: number; n: number }[] = [];
+  for (const b of tokenize(text)) {
+    for (const t of [...b.lead, ...b.rest]) {
+      if (t.kind !== "word") continue;
+      if (plain) plain += " ";
+      starts.push({ at: plain.length, n: t.n });
+      plain += t.text;
+    }
+    plain += ".";
+  }
+  return { plain, starts };
+}
+
 function RichText({
   text,
   neutral,
   instant,
+  spoken,
+  highlight,
 }: {
   text: string;
   neutral: Record<string, string>;
@@ -3776,64 +4408,73 @@ function RichText({
      morning would show the visitor their own history being written out in
      front of them, which is the opposite of picking something back up. */
   instant?: boolean;
+  /* The word being read aloud, by token index, and the colour behind it. */
+  spoken?: number;
+  highlight?: string;
 }) {
-  let w = 0;
-  const reveal = (d: number): CSSProperties =>
+  const reveal = (n: number): CSSProperties =>
     instant
       ? {}
       : {
-          animation: `word-in ${WORD_IN_MS}ms cubic-bezier(0.2,0.6,0.2,1) ${d}ms both`,
+          animation: `word-in ${WORD_IN_MS}ms cubic-bezier(0.2,0.6,0.2,1) ${n * WORD_MS}ms both`,
         };
+  /* Background only, drawn out past the word with a spread shadow so it
+     costs no width: a bolder or recoloured word would reflow the line on
+     every step. Slides between words rather than blinking; off for anyone
+     who has asked for less motion. */
+  const lit = (n: number): CSSProperties =>
+    spoken === n && highlight
+      ? {
+          background: highlight,
+          boxShadow: `0 0 0 2px ${highlight}`,
+          borderRadius: 3,
+        }
+      : {};
 
-  const inline = (str: string, key: string) =>
-    str.split(/(\[\d+\])/).map((part, pi) => {
-      const cite = /^\[(\d+)\]$/.exec(part);
-      if (cite) {
+  const draw = (toks: Tok[], key: string) =>
+    toks.map((t, i) => {
+      if (t.kind === "space") return t.text;
+      if (t.kind === "cite")
         return (
           <span
-            key={`${key}-c${pi}`}
+            key={`${key}-${i}`}
             className="ml-1 inline-flex size-[18px] translate-y-[2px] items-center justify-center rounded-full text-[11px] leading-none"
             style={{
               background: neutral.paper,
               color: neutral.secondary,
-              ...reveal(w++ * WORD_MS),
+              ...reveal(t.n),
             }}
           >
-            {cite[1]}
+            {t.text}
           </span>
         );
-      }
-      return part.split(/(\s+)/).map((tok, ti) => {
-        if (tok === "" || /^\s+$/.test(tok)) return tok;
-        return (
-          <span
-            key={`${key}-${pi}-${ti}`}
-            className="inline-block"
-            style={reveal(w++ * WORD_MS)}
-          >
-            {tok}
-          </span>
-        );
-      });
+      return (
+        <span
+          key={`${key}-${i}`}
+          className={`inline-block transition-[background-color,box-shadow] duration-100 motion-reduce:transition-none ${
+            t.bold ? "font-semibold" : ""
+          }`}
+          style={{ ...reveal(t.n), ...lit(t.n) }}
+        >
+          {t.text}
+        </span>
+      );
     });
 
   return (
     <>
-      {text.split("\n\n").map((block, i) => {
-        if (!block.startsWith("- ")) {
+      {tokenize(text).map((b, i) => {
+        if (!b.bullet) {
           return (
             <p key={i} className={i === 0 ? "" : "mt-3"}>
-              {inline(block, `b${i}`)}
+              {draw(b.rest, `b${i}`)}
             </p>
           );
         }
-        const body = block.slice(2);
-        const colon = body.indexOf(":");
-        const lead = colon > -1 ? body.slice(0, colon + 1) : "";
-        const rest = colon > -1 ? body.slice(colon + 1) : body;
         // the dot lands on the same tick as the line's first word, so a bullet
         // never sits there waiting for text that hasn't arrived
-        const dotAt = w * WORD_MS;
+        const first = [...b.lead, ...b.rest].find((t) => t.kind !== "space");
+        const dotAt = first && "n" in first ? first.n : 0;
         return (
           <p key={i} className="mt-2 flex gap-2">
             <span
@@ -3841,16 +4482,85 @@ function RichText({
               style={{ background: neutral.secondary, ...reveal(dotAt) }}
             />
             <span>
-              {lead && (
-                <span className="font-medium">{inline(lead, `l${i}`)}</span>
+              {b.lead.length > 0 && (
+                <span className="font-medium">{draw(b.lead, `l${i}`)}</span>
               )}
-              {inline(rest, `r${i}`)}
+              {draw(b.rest, `r${i}`)}
             </span>
           </p>
         );
       })}
     </>
   );
+}
+
+/* Reads one message aloud and reports which word it is on.
+
+   The browser's voice says where it is through boundary events, which some
+   voices never fire. So the first word is lit on start, and if no boundary
+   has arrived shortly after, a clock takes over at an ordinary speaking
+   pace — a little longer on a word that ends a sentence — so the highlight
+   moves either way. */
+const SPEAK_WPM = 170;
+function useReadAloud() {
+  const [state, setState] = useState<{ msg: number; word: number } | null>(
+    null,
+  );
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopClock = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const stop = useCallback(() => {
+    stopClock();
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    setState(null);
+  }, []);
+  useEffect(() => stop, [stop]);
+
+  const start = (msg: number, text: string) => {
+    stop();
+    const { plain, starts } = speechOf(text);
+    if (!starts.length) return;
+    const words = plain.split(" ");
+    let heard = false;
+    let k = 0;
+    const tick = () => {
+      if (heard || k >= starts.length) return;
+      setState({ msg, word: starts[k].n });
+      const w = words[k] ?? "";
+      const ms = (60000 / SPEAK_WPM) * (/[.!?]$/.test(w) ? 1.8 : 1);
+      k++;
+      timer.current = setTimeout(
+        k < starts.length ? tick : () => setState(null),
+        ms,
+      );
+    };
+    setState({ msg, word: starts[0].n });
+    const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
+    if (!synth) {
+      tick();
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(plain);
+    u.onboundary = (e) => {
+      if (e.name && e.name !== "word") return;
+      heard = true;
+      stopClock();
+      let at = 0;
+      for (let j = 0; j < starts.length; j++)
+        if (starts[j].at <= e.charIndex) at = j;
+      setState({ msg, word: starts[at].n });
+    };
+    u.onend = () => {
+      stopClock();
+      setState(null);
+    };
+    u.onerror = u.onend;
+    synth.speak(u);
+    timer.current = setTimeout(tick, 700);
+  };
+  return { reading: state, start, stop };
 }
 
 /* "Thought for 8s", with the composer's own sparkle. Collapsed by default —
@@ -3981,7 +4691,7 @@ function ToolCallStep({
         <Wrench
           className="size-3.5 shrink-0"
           strokeWidth={2.5}
-          style={{ color: accent }}
+          style={{ color: readableOn(accent, neutral.surface, 3) }}
         />
         <span className="font-mono text-[12px]">{call.tool}</span>
         <ChevronDown
@@ -4046,7 +4756,7 @@ function TraceIO({
           <CornerDownRight
             className="size-3 shrink-0"
             strokeWidth={2.5}
-            style={{ color: accent }}
+            style={{ color: readableOn(accent, neutral.surface, 3) }}
           />
         )}
         <span
@@ -4216,10 +4926,14 @@ function AiToolbar({
   time,
   neutral,
   sources,
+  reading = false,
+  onRead,
 }: {
   time: string;
   neutral: Record<string, string>;
   sources?: Source[];
+  reading?: boolean;
+  onRead?: () => void;
 }) {
   const [showSources, setShowSources] = useState(false);
   const btn =
@@ -4239,8 +4953,20 @@ function AiToolbar({
           } as CSSProperties
         }
       >
-        <button className={btn} style={tint} aria-label="Read aloud">
-          <Volume2 className="size-3.5" strokeWidth={1.5} />
+        <button
+          onClick={onRead}
+          className={btn}
+          style={
+            reading ? { color: neutral.ink, background: neutral.paper } : tint
+          }
+          aria-label={reading ? "Stop reading" : "Read aloud"}
+          aria-pressed={reading}
+        >
+          {reading ? (
+            <Square className="size-2.5" strokeWidth={0} fill="currentColor" />
+          ) : (
+            <Volume2 className="size-3.5" strokeWidth={1.5} />
+          )}
         </button>
         <button className={btn} style={tint} aria-label="Good response">
           <ThumbsUp className="size-3" strokeWidth={1.5} />
@@ -4325,6 +5051,11 @@ type Msg = {
      message rather than inserted as its own entry so the transcript stays a
      list of turns, and a divider can never end up orphaned at the bottom. */
   dayBreak?: string;
+  /* A gambit rendered under the message rather than inside it. The turn still
+     says what it says; the card is what the turn is offering, and it is the
+     message's own — not a separate entry in the thread that could be scrolled
+     away from the sentence explaining it. */
+  card?: "scheduler";
 };
 
 /* live "thinking" indicator — sparkle + cycling shimmer phrase (matches /web) */
@@ -5213,11 +5944,25 @@ const SUPPORT_REPLY: Omit<Msg, "from"> = {
    chat cold offer the same three things. Two lists would drift the moment
    either was edited, and the visitor would be shown one set of options and then
    a different set a second later. */
-const GREETING: Omit<Msg, "from"> = {
+const GP_GREETING: Omit<Msg, "from"> = {
   text: "Hi there 👋 welcome to Global Payments. Looking to learn more? I can help!",
 };
+/* Reassigned by setTenant — see the foot of the script. */
+let GREETING: Omit<Msg, "from"> = GP_GREETING;
+
+/* ─── which conversation the preview is running ─────────────────────────
+   Global Payments by default; Brightline's when the preview is pointed at
+   brightline.com, so the page behind the launcher and the conversation in
+   front of it are the same customer. Module state rather than a prop
+   threaded through every turn helper: the preview remounts on a change, so
+   nothing reads a stale value. */
+type Tenant = "gp" | "brightline";
+let TENANT: Tenant = "gp";
+const tenantFor = (url: string): Tenant =>
+  /brightline\.com/i.test(url) ? "brightline" : "gp";
 
 function cannedReply(text: string): Omit<Msg, "from"> {
+  if (TENANT === "brightline") return brightlineReply(text);
   const t = text.toLowerCase();
   if (/support|help|problem|issue|payout|dispute|chargeback/.test(t))
     return SUPPORT_REPLY;
@@ -5611,10 +6356,10 @@ const LAST_CHAT_ABOUT = "Accepting payments online";
 
    Every set of suggestions answers the question its own turn ends on. A set
    that does not follow from the message above it is furniture. */
-const SCRIPT: Msg[] = [
+const GP_SCRIPT: Msg[] = [
   {
     from: "ai",
-    text: GREETING.text,
+    text: GP_GREETING.text,
     steps: ["Read the page", "Loaded the agent's brief"],
     followUps: [
       "Accept payments",
@@ -5778,6 +6523,106 @@ const SCRIPT: Msg[] = [
    Matched on the offer rather than on the exact words: all four chips at a
    given point lead to the same next turn, because in the real product the
    choice narrows what the agent knows, not which question it asks next. */
+/* ── the booking turn ─────────────────────────────────────────────────────
+   Three turns of run-up, because the card is only honest in context: the
+   email it pre-fills is the one that was said in the conversation, and a
+   scheduler previewed on its own hides the part of the design that matters
+   most — that the form already knows half its answers. */
+const SCHED_THREAD: Msg[] = [
+  { from: "user", text: "I want to book a meeting" },
+  {
+    from: "ai",
+    text: "Happy to set that up. What is the best email for the invite?",
+    steps: ["Checked the team's calendars"],
+  },
+  { from: "user", text: "shaun@example.com" },
+  {
+    from: "ai",
+    text: "Please select a convenient time for your 30-minute meeting about Chillical integration.",
+    thoughtSecs: 2,
+    steps: [
+      "Read the meeting brief",
+      {
+        tool: "list_availability",
+        input: {
+          host: "aditya@globalpayments.com",
+          duration_mins: 30,
+          from: "2026-09-28",
+          to: "2026-10-04",
+          timezone: "Asia/Kolkata",
+        } as Json,
+        output: {
+          days: [
+            { date: "2026-09-28", open: 6 },
+            { date: "2026-09-29", open: 8, after_midnight: 2 },
+            { date: "2026-09-30", open: 3 },
+            { date: "2026-10-01", open: 0 },
+            { date: "2026-10-02", open: 5 },
+          ],
+          host_timezone: "UTC",
+          hold_seconds: 300,
+        } as Json,
+      },
+    ],
+    card: "scheduler",
+  },
+];
+
+let SCRIPT: Msg[] = GP_SCRIPT;
+
+/* ─── Brightline ──────────────────────────────────────────────────────────
+   The conversation decided for Brightline, read from the same content pack
+   the /brightline demo runs on rather than written a second time: the
+   greeting and its four prompts, then a walk down the first path a parent
+   takes — getting started — with each reply's own follow-ups under it. */
+const BL = BRIGHTLINE_CONTENT;
+const BL_GREETING: Omit<Msg, "from"> = {
+  text: [BL.greeting?.text, BL.greeting?.then?.text].filter(Boolean).join("\n\n"),
+};
+function brightlineReply(text: string): Omit<Msg, "from"> {
+  const key = Object.keys(BL.replies ?? {}).find(
+    (k) => k.trim().toLowerCase() === text.trim().toLowerCase(),
+  );
+  if (!key)
+    return {
+      text: BL.replyFallback ?? "",
+      followUps: BL.followUpFallback,
+    };
+  const followUps = BL.followUps?.[key];
+  return {
+    text: BL.replies![key],
+    thoughtSecs: 3,
+    followUps: followUps?.length ? followUps : BL.followUpFallback,
+  };
+}
+const BL_SCRIPT: Msg[] = (() => {
+  const out: Msg[] = [
+    {
+      from: "ai",
+      ...BL_GREETING,
+      steps: ["Read the page", "Loaded the agent's brief"],
+      followUps: BL.greeting?.then?.prompts ?? BL.starters,
+    },
+  ];
+  /* Follow the first suggestion each turn offers, for as long as there is a
+     written reply to it — the same depth the Global Payments script runs. */
+  let ask: string | undefined = out[0].followUps?.[1];
+  for (let i = 0; ask && i < 5; i++) {
+    if (!BL.replies?.[ask]) break;
+    out.push({ from: "user", text: ask });
+    const turn = brightlineReply(ask);
+    out.push({ from: "ai", ...turn });
+    ask = turn.followUps?.find((f) => BL.replies?.[f] && !out.some((m) => m.text === f));
+  }
+  return out;
+})();
+
+function setTenant(t: Tenant) {
+  TENANT = t;
+  SCRIPT = t === "brightline" ? BL_SCRIPT : GP_SCRIPT;
+  GREETING = t === "brightline" ? BL_GREETING : GP_GREETING;
+}
+
 function scriptedReply(sent: string): Omit<Msg, "from"> | null {
   const asked = sent.trim().toLowerCase();
   const at = SCRIPT.findIndex(
@@ -5890,6 +6735,7 @@ function AgentPreview({
   disclaimerOn,
   brandingOn,
   avatar,
+  logoLook,
   logoOnly,
   accent,
   thinkMark = "sparkle",
@@ -5909,6 +6755,7 @@ function AgentPreview({
   onClose,
   placeholder,
   suggestions,
+  scheduler,
 }: {
   theme: ReturnType<typeof useTheme>;
   name: string;
@@ -5917,6 +6764,7 @@ function AgentPreview({
   disclaimerOn: boolean;
   brandingOn: boolean;
   avatar: string | null;
+  logoLook: LogoLook;
   logoOnly: boolean;
   accent: string;
   thinkMark?: ThinkingMark;
@@ -5946,6 +6794,10 @@ function AgentPreview({
   placeholder: string;
   /* whatever the launcher is offering — the opening turn hands the same set on */
   suggestions: string[];
+  /* Handed in already built rather than rendered from a name here: the card
+     is themed and stepped by the page that owns the settings, and the panel's
+     only job is to put it under the turn that offers it. */
+  scheduler?: React.ReactNode;
 }) {
   const { neutral } = theme;
   /* Two things a light palette gets for free and a dark one does not.
@@ -6113,7 +6965,11 @@ function AgentPreview({
         e.currentTarget.style.background = neutral.surface;
       }}
     >
-      <Plus className="size-3.5" strokeWidth={2.4} style={{ color: accent }} />
+      <Plus
+        className="size-3.5"
+        strokeWidth={2.4}
+        style={{ color: readableOn(accent, neutral.surface, 3) }}
+      />
       {newChatLabel}
     </button>
   );
@@ -6182,6 +7038,16 @@ function AgentPreview({
      launcher that starts talking out loud on a page nobody expected it to is
      the kind of thing people close the tab over. */
   const [autoRead, setAutoRead] = useState(false);
+  const tts = useReadAloud();
+  /* The spoken word's ground: the text's own ink laid thinly over whatever it
+     sits on — a light grey in light, a lifted grey in dark, and correct on a
+     tinted bubble too because it is an overlay rather than a fixed colour.
+     Dark takes twice as much: a step up off charcoal needs more than a step
+     down off white to be seen moving. The word keeps its colour; on this
+     ground it stays above 8:1 in every dark palette. */
+  const readHighlight = `color-mix(in srgb, ${neutral.ink} ${
+    theme.mode === "dark" ? 16 : 8
+  }%, transparent)`;
 
   /* thread | history. The back arrow in the header moves between them; the two
      sit side by side in one clipped frame and slide, so the panel reads as a
@@ -6204,6 +7070,13 @@ function AgentPreview({
      output is on screen" is also a commitment that can be defended; "shown
      whenever the visitor is typing" is not really one. */
   const conversing = convo.some((m) => m.from === "user");
+
+  /* While there is something in the field, the strip stops being a notice and
+     becomes the instruction for the field: how to send it. Both notices are
+     about the conversation; this one is about the keystroke you are about to
+     make, and it is only true while you are making it. Not on touch — there is
+     no Enter key to describe on a phone keyboard, only the send disc. */
+  const typingHint = draft.trim().length > 0 && device === "desktop";
 
   /* The outlined field is a fixed 54px, and 28px controls left 11.5px of dead
      space above and below each one — the field read as mostly air. 34px leaves
@@ -6402,12 +7275,26 @@ function AgentPreview({
               </div>
               <div className="flex h-9 flex-1 items-center justify-center">
                 {avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatar}
-                    alt=""
-                    className="h-7 w-auto max-w-full object-contain"
-                  />
+                  /* The wordmark's box: its width is the setting, its height
+                     whatever the file's shape makes of that (capped to the
+                     header), and spacing zooms the image inside it. */
+                  <span
+                    className="flex max-w-full items-center justify-center overflow-hidden"
+                    style={{
+                      width: logoLook.size,
+                      maxHeight: 44,
+                      borderRadius: logoLook.radius,
+                      background: logoLook.bgOff ? "transparent" : accent,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={avatar}
+                      alt=""
+                      className="block max-h-[44px] shrink-0 object-contain"
+                      style={{ width: `${100 - logoLook.pad * 2}%` }}
+                    />
+                  </span>
                 ) : (
                   <span
                     className="text-[14px] font-semibold tracking-tight"
@@ -6557,10 +7444,7 @@ function AgentPreview({
                   className="shrink-0"
                 >
                   {avatar ? (
-                    <span
-                      className="block size-9 rounded-full bg-cover bg-center"
-                      style={{ backgroundImage: `url(${avatar})` }}
-                    />
+                    <LogoMark src={avatar} look={logoLook} accent={accent} />
                   ) : (
                     <div
                       className="grid size-9 place-items-center rounded-full"
@@ -6816,13 +7700,19 @@ function AgentPreview({
                       onSelect={onSelect}
                       accent={accent}
                       styles={partStyles}
+                      /* Same size, weight and leading as the agent's text: the
+                         two sides of one conversation, set as one. */
                       className={
                         theme.userNeutral
-                          ? "w-fit max-w-[80%] whitespace-pre-line px-5 py-3 text-[14px] font-light"
-                          : "w-fit max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed"
+                          ? "relative w-fit max-w-[80%] whitespace-pre-line px-5 py-3 text-[14px] leading-relaxed"
+                          : "relative w-fit max-w-[80%] px-3.5 py-2 text-[14px] leading-relaxed"
                       }
                       style={{
-                        ...bubbleShape(theme.radius.bubble, "user"),
+                        /* Fully round on three corners — half a single
+                           line's height — and square under the tail, which
+                           draws that corner itself. */
+                        borderRadius: 24,
+                        borderBottomRightRadius: 4,
                         ...(theme.userNeutral
                           ? { background: neutral.paper, color: neutral.ink }
                           : {
@@ -6833,6 +7723,35 @@ function AgentPreview({
                       }}
                     >
                       {m.text}
+                      {/* The tail. The bubble's bottom-right corner runs down
+                          and flicks out past its edge to a point on the
+                          baseline — the message-app tail, so the bubble says
+                          who it came from without a name on it. Drawn over the
+                          tight corner in the bubble's own fill; the bordered
+                          themes trace the outer curve too, so the outline is
+                          continuous. */}
+                      <svg
+                        aria-hidden
+                        width="15"
+                        height="20"
+                        viewBox="0 0 15 20"
+                        className="pointer-events-none absolute bottom-0 -right-[6px]"
+                      >
+                        <path
+                          d="M0 0H9C9 9 10.5 15.5 15 20H0Z"
+                          fill={
+                            theme.userNeutral ? neutral.paper : theme.bubbleFill
+                          }
+                        />
+                        {!theme.userNeutral && (
+                          <path
+                            d="M8.5 0C8.5 9 10 15.5 13.8 19.5H2"
+                            fill="none"
+                            stroke={theme.bubbleBorder}
+                            strokeWidth="1"
+                          />
+                        )}
+                      </svg>
                     </Hot>
                     {/* The time only. The agent's turn carries a toolbar under it —
                     replay, the two votes, copy — because those act on something
@@ -6892,8 +7811,13 @@ function AgentPreview({
                         text={m.text}
                         neutral={neutral}
                         instant={i < historyLen}
+                        spoken={
+                          tts.reading?.msg === i ? tts.reading.word : undefined
+                        }
+                        highlight={readHighlight}
                       />
                     </div>
+                    {m.card === "scheduler" && scheduler}
                     {m.buttons &&
                       m.buttons.length > 0 &&
                       i !== streamingIdx && (
@@ -6949,6 +7873,12 @@ function AgentPreview({
                           time="10:24 AM"
                           neutral={neutral}
                           sources={m.sources}
+                          reading={tts.reading?.msg === i}
+                          onRead={() =>
+                            tts.reading?.msg === i
+                              ? tts.stop()
+                              : tts.start(i, m.text)
+                          }
                         />
                       </div>
                     )}
@@ -7229,12 +8159,37 @@ function AgentPreview({
                      half the width empty beside it. In a corner the panel is
                      400, so 320 is already most of the row and the rest stays
                      on the hover. */
-                  className="relative mx-auto flex w-full items-start gap-2 px-4 pb-2 pt-0.5"
+                  className="relative mx-auto w-full px-4 pb-2 pt-0.5"
                   style={{
                     maxWidth: noticeW,
                     ...(showNotice && brandingOn ? { minHeight: 22 } : null),
                   }}
                 >
+                  {/* In the strip's own slot, so it costs no height and the
+                      composer never moves: the notices fade out of the row and
+                      this fades into it, and back the moment the field is
+                      empty again. */}
+                  <p
+                    aria-hidden={!typingHint}
+                    className="pointer-events-none absolute inset-x-4 top-0.5 truncate text-center text-[12px] leading-snug transition-all duration-200"
+                    style={{
+                      color: neutral.secondary,
+                      opacity: typingHint ? 1 : 0,
+                      transform: typingHint ? "none" : "translateY(3px)",
+                    }}
+                  >
+                    Press <span className="font-semibold">Enter</span> to send ·{" "}
+                    <span className="font-semibold">Shift + Enter</span> for a new
+                    line
+                  </p>
+                  <div
+                    className="flex w-full items-start gap-2 transition-all duration-200"
+                    style={{
+                      opacity: typingHint ? 0 : 1,
+                      transform: typingHint ? "translateY(-3px)" : "none",
+                      pointerEvents: typingHint ? "none" : undefined,
+                    }}
+                  >
                   {/* Light centres its line; the boxed themes keep it ranged
                     left. Centred text inside a card that also carries a dismiss
                     control on one side never looks centred — it reads as offset
@@ -7355,6 +8310,7 @@ function AgentPreview({
                       <X className="size-3.5" strokeWidth={2} />
                     </button>
                   )}
+                  </div>
                 </div>
               )}
               {theme.pillComposer ? (
@@ -7451,8 +8407,8 @@ function AgentPreview({
                         isMultiline ? "order-3 ml-auto" : ""
                       }`}
                       style={{
-                        background: mic.listening ? accent : neutral.paper,
-                        color: mic.listening ? "#FFFFFF" : neutral.ink,
+                        background: accent,
+                        color: "#FFFFFF",
                       }}
                     >
                       {mic.listening && (
@@ -7530,8 +8486,8 @@ function AgentPreview({
                         aria-pressed={mic.listening}
                         className={`relative ml-auto flex ${ctlSize} shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80`}
                         style={{
-                          background: mic.listening ? accent : neutral.paper,
-                          color: mic.listening ? "#FFFFFF" : neutral.ink,
+                          background: accent,
+                          color: "#FFFFFF",
                         }}
                       >
                         {mic.listening && (
@@ -7660,8 +8616,8 @@ function AgentPreview({
                         isMultiline ? "order-3" : ""
                       }`}
                       style={{
-                        background: mic.listening ? accent : neutral.paper,
-                        color: mic.listening ? "#FFFFFF" : neutral.ink,
+                        background: accent,
+                        color: "#FFFFFF",
                       }}
                       aria-label={mic.listening ? "Use what you said" : "Voice input"}
                     >
@@ -8518,14 +9474,17 @@ function ButtonSuggestions({
           <span className="flex items-center gap-2">
             <span
               className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.08em]"
-              style={{ color: accent }}
+              style={{ color: readableOn(accent, fill) }}
             >
               {recall.label}
             </span>
             {/* On the label's line, not the question's. Both are facts about
                 the exchange rather than part of it, so they belong on the same
                 row — and the question keeps its full width for the words. */}
-            <span className="shrink-0 text-[10px]" style={{ color: accent }}>
+            <span
+              className="shrink-0 text-[10px]"
+              style={{ color: readableOn(accent, fill) }}
+            >
               {recall.when}
             </span>
           </span>
@@ -8810,6 +9769,7 @@ function LauncherPreview({
   disclaimerOn,
   brandingOn,
   avatar,
+  logoLook,
   logoOnly,
   session,
 }: {
@@ -8836,6 +9796,7 @@ function LauncherPreview({
   disclaimerOn: boolean;
   brandingOn: boolean;
   avatar: string | null;
+  logoLook: LogoLook;
   logoOnly: boolean;
 }) {
   const isMobile = device === "mobile";
@@ -8988,7 +9949,7 @@ function LauncherPreview({
   /* An upload is a picture we already hold, so it takes the same path as a
      checked-in shot: straight into the frame, no capture, no failure state. */
   const localSite = siteShot
-    ? { src: siteShot.src }
+    ? { srcs: [siteShot.src] }
     : looksLikeUrl
       ? localSiteFor(origin)
       : null;
@@ -9583,6 +10544,7 @@ function LauncherPreview({
     disclaimerOn,
     brandingOn,
     avatar,
+    logoLook,
     logoOnly,
     accent,
     thinkMark,
@@ -9671,15 +10633,16 @@ function LauncherPreview({
         className="absolute inset-0 overflow-y-auto overscroll-contain bg-white"
       >
         {/* a shot renders at its natural height — that is what there is to scroll */}
-        {localSite && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={localSite.src}
-            src={localSite.src}
-            alt=""
-            className="relative z-[1] block w-full"
-          />
-        )}
+        {localSite &&
+          localSite.srcs.map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={src}
+              src={src}
+              alt=""
+              className="relative z-[1] block w-full"
+            />
+          ))}
         {showSite && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -9990,7 +10953,7 @@ function LauncherPreview({
                       <div className="flex items-center gap-2">
                         <span
                           className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.08em]"
-                          style={{ color: accent }}
+                          style={{ color: readableOn(accent, theme.neutral.surface) }}
                         >
                           {RECALL_LABEL}
                         </span>
@@ -10000,7 +10963,7 @@ function LauncherPreview({
                             its full width for the words. */}
                         <span
                           className="shrink-0 text-[10px]"
-                          style={{ color: accent }}
+                          style={{ color: readableOn(accent, theme.neutral.surface) }}
                         >
                           {LAST_SEEN}
                         </span>
@@ -10048,9 +11011,11 @@ function LauncherPreview({
                             says who, the label says what kind, and neither is
                             the thing the visitor came back for. */}
                         {avatar ? (
-                          <span
-                            className="size-5 shrink-0 rounded-full bg-cover bg-center"
-                            style={{ backgroundImage: `url(${avatar})` }}
+                          <LogoMark
+                            src={avatar}
+                            look={logoLook}
+                            accent={accent}
+                            size={20}
                           />
                         ) : (
                           <span
@@ -10066,13 +11031,13 @@ function LauncherPreview({
                         )}
                         <span
                           className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.08em]"
-                          style={{ color: accent }}
+                          style={{ color: readableOn(accent, theme.neutral.surface) }}
                         >
                           {INBOUND_LABEL}
                         </span>
                         <span
                           className="shrink-0 text-[10px]"
-                          style={{ color: accent }}
+                          style={{ color: readableOn(accent, theme.neutral.surface) }}
                         >
                           {INBOUND_AGO}
                         </span>
@@ -10318,7 +11283,7 @@ function LauncherPreview({
                      line above for the same weight. */
                   <span
                     className="min-w-0 flex-1 truncate px-3 text-[14px] tracking-[0.01em]"
-                    style={{ color: accent }}
+                    style={{ color: readableOn(accent, L.surface) }}
                   >
                     {UNREAD_TITLE}
                   </span>
@@ -10462,7 +11427,7 @@ function LauncherPreview({
                           className="absolute -top-0.5 -right-0.5 grid h-[12px] min-w-[12px] place-items-center rounded-full px-[3px] text-[8.5px] font-semibold"
                           style={{
                             background: "#FFFFFF",
-                            color: accent,
+                            color: readableOn(accent, "#FFFFFF"),
                             boxShadow: `0 0 0 1.5px ${accent}`,
                             /* 12 at rest, 16 through the buzz — see
                                badge-swell. Same duration as the disc's nudge
@@ -10696,11 +11661,18 @@ function LauncherPreview({
                   }`}
                   style={{
                     background:
-                      s.customIcon && !isChip && !resumeMark
-                        ? undefined
-                        : spec.background,
-                    color: spec.color,
-                    boxShadow: spec.shadow,
+                      s.customIcon && !isChip && !resumeMark && s.iconBgOff
+                        ? "transparent"
+                        : s.customIcon && !isChip && !resumeMark && !s.iconPad
+                          ? undefined
+                          : (s.buttonBg ?? spec.background),
+                    color: s.buttonBg ? inkOn(s.buttonBg) : spec.color,
+                    /* A transparent image is the whole shape already; a
+                       shadow would draw the invisible box around it. */
+                    boxShadow:
+                      s.customIcon && !isChip && !resumeMark && s.iconBgOff
+                        ? "none"
+                        : spec.shadow,
                     ["--lift-shadow" as string]: spec.lift,
                     /* A step down on a phone. The setting is the customer's
                        choice for their site; the phone is a different amount of
@@ -10759,12 +11731,14 @@ function LauncherPreview({
                       <ChatDotsMark
                         className="relative shrink-0"
                         style={{ width: ICON_PX, height: ICON_PX }}
-                        dot={spec.color}
+                        dot={s.buttonBg ? inkOn(s.buttonBg) : spec.color}
                         /* Knocked out in the button's own body, so the badge
                            sits on top of the bubble's outline rather than
                            reading as a bulge in it. */
                         dotRing={
-                          spec.color === "#FFFFFF"
+                          s.buttonBg
+                            ? s.buttonBg
+                            : spec.color === "#FFFFFF"
                             ? accent
                             : theme.neutral.surface
                         }
@@ -10793,8 +11767,13 @@ function LauncherPreview({
                       </>
                     ) : (
                       <span
-                        className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url(${s.customIcon})` }}
+                        className={`absolute bg-center bg-no-repeat ${
+                          s.iconPad ? "bg-contain" : "bg-cover"
+                        }`}
+                        style={{
+                          backgroundImage: `url(${s.customIcon})`,
+                          inset: s.iconPad,
+                        }}
                       />
                     )
                   ) : (
