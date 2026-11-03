@@ -1217,7 +1217,7 @@ const NEUTRALS: Record<ThemeKey, Record<Mode, Record<string, string>>> = {
       line: "#45454B",
       ink: "#EFEFF1",
       secondary: "#B4B4B9",
-      muted: "#9E9EA4",
+      muted: "#A1A1A7",
     },
   },
   slate: {
@@ -1548,8 +1548,18 @@ function useTheme(
        Ink is left alone: a warm page does not want warm text, it wants the
        same text on a warm ground. */
     const t = TONE[look.tone];
-    const tint = (hex: string) =>
-      t.amount === 0 ? hex : mixHex(hex, t.hue, mode === "dark" ? t.amount * 0.5 : t.amount);
+    /* Dark tints the hue in without the hue's lightness. Mixing a pale cream
+       into charcoal is mostly mixing in white: it lifted every surface by
+       about seven points and pulled muted text down to 3.4:1. So in dark the
+       surface keeps its own lightness and takes only the tone's hue, at a
+       chroma small enough to read as warm or cool rather than as coloured. */
+    const tint = (hex: string) => {
+      if (t.amount === 0) return hex;
+      if (mode !== "dark") return mixHex(hex, t.hue, t.amount);
+      const base = hexToOklch(hex);
+      const hue = hexToOklch(t.hue);
+      return oklchToHex(base.L, Math.max(base.C, hue.C * 0.5), hue.H);
+    };
     const neutral =
       t.amount === 0
         ? base
@@ -4611,7 +4621,11 @@ function ThoughtTrace({
       <button
         onClick={() => setOpen(!open)}
         className="flex w-fit items-center gap-2 rounded-full py-0.5 pr-2 text-[13px] transition-colors"
-        style={{ color: open ? ink : neutral.secondary }}
+        /* Text, so it is held to 4.5:1 — the lighter partner the icons use
+           clears 3:1 for a glyph but not for a 13px line. */
+        style={{
+          color: open ? readableOn(ink, neutral.surface) : neutral.secondary,
+        }}
       >
         {/* The configured mark, not the platform sparkle. The row that says
             what the agent did should be wearing the same face it wore while
