@@ -334,6 +334,11 @@ replies, follow-ups, accordions, forms, sources, past conversations, greeting.
 
 ### 11.1 Dark mode
 
+> **For engineering:** apply this on top of the current build. It changes
+> colours in dark mode only — no layout, sizes or behaviour, and light mode is
+> untouched. Every value here is from `/design`. Where an older section of this
+> document gives a different colour for dark, this section wins.
+
 **One mode for the whole unit.** Light / dark is a single setting (Messenger →
 Theme → Mode) and it drives the launcher *and* the messenger together: composer
 launcher, button launcher, greeting card, suggestion chips, recall card and the
