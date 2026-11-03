@@ -513,6 +513,98 @@ white (ink on it 15.1 : 1) and `#4B4B4F` on the dark surface (ink on it
   it is not exposed in `/design` (the button launcher is fixed at Fill), so it
   has no dark treatment.
 
+### 11.2 Motion and shine
+
+Everything that moves or shines, with the exact values. **Every looping effect
+is removed under `prefers-reduced-motion`** (`motion-reduce:hidden` on the
+shine layers). Keyframes live in `app/globals.css` unless noted.
+
+#### The shining edge — composer launcher
+
+A highlight travels round the pill's border, forever, at rest and expanded.
+
+| | Value |
+|---|---|
+| Layer | absolute, `inset: 0`, `border-radius: inherit`, z above the pill, pointer-events none |
+| Masked to the border | `padding: 2px` + mask `linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)` with `mask-composite: exclude` (`-webkit-mask-composite: xor`) — only the 2px ring shows |
+| Inside it | a square **150%** of the pill's width, centred, rotating (`animate-spin`) |
+| Its fill | `conic-gradient(lite 0deg, lite@55% 30deg, transparent 90deg, transparent 270deg, lite@40% 330deg, lite 360deg)` — `lite` = `liteOf(accent)` (§11.1); `@55%` = `color-mix(in srgb, lite 55%, transparent)` |
+| Speed | one revolution per **5200ms**, `linear` |
+| Light / dark | same in both (it is the accent's lighter partner, which already clears 3 : 1 on dark) |
+
+#### The shine on the button launcher
+
+Every Fill button carries a white highlight travelling its inside edge — light
+moving across the surface, not a ring around it.
+
+| | Value |
+|---|---|
+| Masked ring | same mask as above, **1.25px** wide, inside the button's own radius |
+| Inside it | a square **180%** of the button, centred, rotating |
+| Its fill | `conic-gradient(rgba(255,255,255,.92) 0deg, rgba(255,255,255,.12) 55deg, transparent 120deg, transparent 240deg, rgba(255,255,255,.12) 305deg, rgba(255,255,255,.92) 360deg)` |
+| Speed | **5200ms** per revolution, `linear` |
+| Button body | the accent flat (no gradient) + `inset 0 1px 0 rgba(255,255,255,.26)` top highlight |
+
+#### Hover — the button launcher lifts
+
+| | Rest | Hover |
+|---|---|---|
+| Transform | none | `translateY(-2px)` |
+| Shadow | `0 10px 24px -8px accent@28%, 0 2px 5px -1px rgba(15,17,26,.12), inset 0 1px 0 rgba(255,255,255,.26)` | `0 16px 34px -10px accent@35%, 0 3px 8px -2px rgba(15,17,26,.16), inset 0 1px 0 rgba(255,255,255,.26)` |
+| Transition | `transform, box-shadow 300ms` | |
+
+It lifts rather than scaling: scaling enlarges the shadow too and reads as
+zooming. (`accent@28%` = the accent hex with alpha `47`; `@35%` = alpha `59`.)
+
+#### Hover — everything else
+
+| Element | Hover |
+|---|---|
+| Suggestion chips (launcher and messenger) | `inset 0 0 0 1.5px stroke` + `inset 0 0 0 999px wash` over the chip's own shadow. Light: stroke `color-mix(in srgb, accent 45%, transparent)`, no wash. Dark: stroke `color-mix(in oklab, liteOf 88%, transparent)`, wash `rgba(255,255,255,.07)` |
+| Header back / menu / close, reply toolbar icons | background `paper`, glyph `ink` (from `secondary`) |
+| Composer launcher control disc | light `rgba(15,17,26,.055)` → `.11`; dark `rgba(255,255,255,.08)` → `.16` |
+| Send / mic disc | `opacity .8` (messenger) or `brightness(.95)` (launcher field) |
+
+#### "AI is thinking" — the shimmering line
+
+| | Value |
+|---|---|
+| Mark | the configured thinking mark beside it (sparkle by default) |
+| Text | 14px medium; the phrase cycles: "AI is thinking…", "Still thinking…", "Thinking some more…", "Almost done…" (or the tenant's own single line) |
+| Phrase hold | `min(1500, 520 + 190 × words)` ms each |
+| Shimmer | text filled by `linear-gradient(90deg, ink 0%, ink 40%, shine 50%, ink 60%, ink 100%)`, `background-size: 200% 100%`, clipped to the text (`background-clip: text`, transparent fill) |
+| Sweep | `text-shimmer`: `background-position` 150% → −50%, **2.2s linear infinite** |
+| Light | `ink` = `color-mix(in oklab, brand 78%, black)`, `shine` = `color-mix(in oklab, brand 45%, white)` |
+| Dark | `ink` = `color-mix(in oklab, brand 45%, white)`, `shine` = `#FFFFFF` (the light pair is a black line on charcoal) |
+
+#### The sparkle at work
+
+| | Value |
+|---|---|
+| Star | `sparkle-turn` **4200ms** `cubic-bezier(.4,0,.6,1)` infinite: rotate 0 → 180° → 360°, scale .94 → 1.06 → .94 |
+| Bloom behind it | `sparkle-bloom` **1800ms** ease-in-out infinite: opacity .35 → .70, scale .92 → 1.12. A different period from the star on purpose, so the two never land on the same beat |
+| Gradient | four stops from the accent (§11) |
+| Dark | ink from `liteOf(accent)` |
+
+#### Arrivals
+
+| Element | Animation |
+|---|---|
+| A reply, word by word | `word-in` **320ms** `cubic-bezier(.2,.6,.2,1)` per word: opacity 0 → 1, `translateY(3px)` → 0, `blur(1.5px)` → 0. Words start **36ms** apart. Bullets' dots arrive with their line's first word. Turns already there when the panel opens are not animated |
+| User bubble | `bubble-in` **240ms** `cubic-bezier(.2,.6,.2,1)`: opacity 0 → 1, `translateY(6px)` → 0 |
+| Suggestion chips | `reply-in`: opacity 0 → 1, `translateY(6px)` → 0, `cubic-bezier(0.16, 1, 0.3, 1)`, one after another, not as a block. In the messenger **260ms** each, staggered so the whole set lands within **210ms** (`REPLY_RUN_MS ÷ count`); above the button launcher **320ms** each |
+| Messenger opening from the composer launcher | `launcher-open`: opacity 0 → 1, `translateY(10px) scale(.90)` → none, anchored to the launcher's corner; width / height grow with `launcher-grow`. **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Composer launcher widening on hover | `width` over **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Notice strip swap (disclaimer ↔ credit ↔ typing hint) | 200ms, opacity + 3px vertical slide |
+
+#### Recording and unread
+
+| | Value |
+|---|---|
+| Mic listening | `mic-pulse` **1600ms** ease-out infinite on a `rgba(255,255,255,.3)` layer inside the disc: opacity .45 → 0, scale .85 → 1.35 |
+| Unread buzz | `mark-nudge` 2400ms (see §7) and the count badge's `badge-swell` 12 → 16px on the same clock |
+| Read-aloud highlight | 100ms slide between words (§14, *Read aloud*) |
+
 ---
 
 ## 12. Still open
@@ -588,7 +680,7 @@ component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
 - **Suggestion chips**: 14px/400, padding 16 × 8, full radius, fill
   `color-mix(var(--brand) 14%, white)`, ink
   `color-mix(var(--brand) 75%, black)`. Hover adds an inset 1.5px ring at 45%.
-- **Travelling highlight**: 2px, one revolution per 5200ms.
+- **Travelling highlight**: 2px, one revolution per 5200ms. Full spec in §11.2.
 
 ### Messenger
 
