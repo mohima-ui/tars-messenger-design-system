@@ -26,8 +26,8 @@ Fathom recording of the review: shared separately.
      muted text fell to 3.4 : 1 on Warm / Cool dark.
    - "Thought for Ns" label in the trace: held to 4.5 : 1 in dark.
 2. **Read aloud with a word highlight.** The speaker under a reply reads it with
-   the browser voice. The spoken word gets a background of the ink at **8%**
-   (light) / **16%** (dark), no colour or weight change, 100ms slide. Speaker
+   the browser voice. The spoken word gets a background of the accent's soft tint
+   (pale in light, deep in dark), no colour or weight change, 100ms slide. Speaker
    becomes a stop button while reading. Falls back to a 170 wpm clock when the
    voice sends no word positions. → HANDOFF §14 Conversation, *Read aloud*
 3. **User bubble.**

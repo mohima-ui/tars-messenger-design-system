@@ -7059,9 +7059,11 @@ function AgentPreview({
      Dark takes twice as much: a step up off charcoal needs more than a step
      down off white to be seen moving. The word keeps its colour; on this
      ground it stays above 8:1 in every dark palette. */
-  const readHighlight = `color-mix(in srgb, ${neutral.ink} ${
-    theme.mode === "dark" ? 16 : 8
-  }%, transparent)`;
+  /* The accent's own soft tint, in both modes — the `soft` of the accent
+     trio (deriveShades). Light: OKLCH L 0.93, C ≤ 0.03; dark: L 0.40,
+     C ≤ 0.08; accent hue either way. The word being read is marked in the
+     tenant's colour and the ink on it stays ≥ 14 : 1 light, ≥ 8 : 1 dark. */
+  const readHighlight = theme.bubbleFill;
 
   /* thread | history. The back arrow in the header moves between them; the two
      sit side by side in one clipped frame and slide, so the panel reads as a

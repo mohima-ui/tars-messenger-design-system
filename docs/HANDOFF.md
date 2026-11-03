@@ -503,11 +503,18 @@ applied to the shared fills yet — decision pending.
 
 #### Read-aloud highlight
 
-See §14 Conversation → *Read aloud*. Highlight is
-`color-mix(in srgb, ink 8%, transparent)` light /
-`color-mix(in srgb, ink 16%, transparent)` dark — resolves to `#ECEDED` on
-white (ink on it 15.1 : 1) and `#4B4B4F` on the dark surface (ink on it
-7.6 : 1; Warm 7.6, Cool 7.5).
+See §14 Conversation → *Read aloud*. The highlight is the accent's dark `soft`
+tint (OKLCH L 0.40, C ≤ 0.08, accent hue):
+
+| Tenant | Highlight | ink on it |
+|---|---|---|
+| Tars | `#503C6B` | 8.3 : 1 |
+| Global Payments | `#334673` | 8.1 : 1 |
+| Vodafone | `#6C352E` | 8.4 : 1 |
+| Amex | `#264972` | 8.0 : 1 |
+| Brightline | `#633F0C` | 8.1 : 1 |
+
+Light uses the light `soft` (L 0.93) — ≈ 14.4 : 1 for every tenant.
 
 #### Still to do
 
@@ -719,7 +726,7 @@ component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
 | User bubble tail | An SVG on the bubble's bottom-right, **15 × 20**, positioned `bottom: 0; right: -6px`, filled with the bubble's own fill. Path `M0 0 H9 C9 9 10.5 15.5 15 20 H0 Z`: runs down the bubble's right edge and flicks out 6px past it to a point on the baseline. Bordered palettes also stroke the outer curve (`M8.5 0 C8.5 9 10 15.5 13.8 19.5 H2`, 1px, `bubbleBorder`) so the outline is continuous. Pointer-events none |
 | Action row | 24 buttons, 2 gaps, 14px icons — the speaker is 16 because at a matched box it carries visibly less ink. Row pulled 6px left so the first glyph aligns with the text above it |
 | Read aloud | The speaker reads that reply with the browser's speech synthesis. While reading, the button shows a **filled 10px square (stop)** on a `paper` disc in `ink`; pressing again stops. One message at a time — starting another stops the first. Citations (`[2]`) are not spoken; `**bold**` is spoken as plain text |
-| Read-aloud highlight | The word being spoken gets a background only — **`color-mix(in srgb, ink 8%, transparent)` light, `ink 16%` dark**, `box-shadow: 0 0 0 2px` of the same colour (so it costs no width), radius 3. Text colour and weight never change (no reflow). `transition: background-color, box-shadow 100ms`; none under `prefers-reduced-motion` |
+| Read-aloud highlight | The word being spoken gets a background only — **the accent's soft tint in both modes** (`soft` from `deriveShades`, accent hue). Light: OKLCH L 0.93, C ≤ 0.03 — Tars `#EBE4F9`, GP `#DEE8FD`, Brightline `#F5E5D3`; ink on it ≈ 14.4 : 1. Dark: L 0.40, C ≤ 0.08 — Tars `#503C6B`, GP `#334673`, Brightline `#633F0C`; ink on it ≥ 8.0 : 1, `box-shadow: 0 0 0 2px` of the same colour (so it costs no width), radius 3. Text colour and weight never change (no reflow). `transition: background-color, box-shadow 100ms`; none under `prefers-reduced-motion` |
 | Read-aloud timing | Position comes from the voice's `boundary` events (char offset → word). If no boundary arrives within **700ms** of starting (some voices never send them), a clock takes over at **170 wpm**, × 1.8 on a word ending `. ! ?`. The first word is lit the moment it starts |
 | Suggestion chips | right-aligned, one row, horizontal scroll, gap 8, chip spec as above |
 | Disclaimer | 12px, `--note`, centred, max width 500 centred / 320 in a corner, truncated with the remainder on a hover tail |
