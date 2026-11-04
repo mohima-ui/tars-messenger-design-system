@@ -35,7 +35,12 @@ disagree, HANDOFF has the numbers; this file has the list.
 6. **Button launcher on a tablet now reveals its suggestions on scroll.**
    Before this, with a greeting set, they never showed (no hover on touch, and
    the scroll reveal was phone-only).
-7. **Motion spec written down:** opening and closing the messenger,
+7. **Recent conversation, composer launcher expanded: "or start new".**
+   After "Continue your conversation" in the field. "or" is plain text;
+   "start new" is a ghost button (accent, underlined, medium weight) that
+   opens a new conversation. On a phone the label
+   truncates and the link stays whole. → HANDOFF §5 *Recent, expanded*
+8. **Motion spec written down:** opening and closing the messenger,
    suggestions arriving (staggered, y axis only), loading, and one
    desktop / tablet / phone table. → HANDOFF §11.3
 

@@ -10753,6 +10753,18 @@ function LauncherPreview({
             ? s.placeholder
             : cur.typed;
 
+  /* Recent conversation, expanded: the field still says it continues, and
+     beside it the other way in — a fresh start, without making the visitor
+     find the back arrow and the history first. Only where the field is
+     showing the resume line; a draft or an unread has its own words there. */
+  const offerNew =
+    barOpen &&
+    session === "recent" &&
+    !chipShut &&
+    !hasDraft &&
+    !announces &&
+    !unread;
+
   /* ── geometry ── */
   /* On a phone the composer spans most of the width, so left and right land in
      nearly the same place and only read as off-centre — it is forced centre,
@@ -11661,7 +11673,7 @@ function LauncherPreview({
                   <span
                     className={`min-w-0 flex-1 truncate px-3 text-[14px] tracking-[0.01em] ${
                       hasDraft || onResume ? "font-normal" : "font-light"
-                    }`}
+                    } ${offerNew ? "flex items-baseline gap-1" : ""}`}
                     /* Ink, not placeholder grey, for the two cases where the
                      line is real text rather than a hint: an unread is
                      something the agent said, and a draft is something the
@@ -11678,7 +11690,42 @@ function LauncherPreview({
                             : L.hint,
                     }}
                   >
-                    {placeholderText || " "}
+                    {offerNew ? (
+                      <>
+                        {/* The label gives way first: on a narrow pill it
+                            truncates, and the way out stays whole. */}
+                        <span className="min-w-0 truncate">{RESUME_LABEL}</span>
+                        {/* "or" is part of the sentence, not the control, so it
+                            keeps the label's look — but it stays with the
+                            control rather than truncating with the label. */}
+                        <span className="shrink-0">or</span>
+                        {/* A ghost button inside the field. The field itself is a
+                            button, so this one stops the press from reaching
+                            it — in production the two should be sibling
+                            controls rather than one nested in the other. */}
+                        <span
+                          role="link"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openChat(undefined, true);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openChat(undefined, true);
+                            }
+                          }}
+                          className="shrink-0 cursor-pointer font-medium underline underline-offset-2"
+                          style={{ color: readableOn(accent, L.surface) }}
+                        >
+                          start new
+                        </span>
+                      </>
+                    ) : (
+                      placeholderText || " "
+                    )}
                   </span>
                 )}
                 <span

@@ -180,6 +180,24 @@ Six states. The strip under the preview in `/design` is these, in order.
 
 A conversation **auto-closes after 7 days**.
 
+**Recent, expanded (composer launcher).** When the pane opens (hover on
+desktop, scroll on touch), the field reads **"Continue your conversation"**,
+followed by **"or start new"**. Only **"start new"** is the control: a ghost
+button that starts a new conversation. "or" is part of the sentence.
+
+| | Value |
+|---|---|
+| "Continue your conversation" and "or" | the field's placeholder style: 14px, light 300, `hint` colour. Pressing the field continues the thread, as before |
+| "start new" | ghost button: no fill, no border. 14px, **medium 500**, the accent made readable on the surface (`readableOn(accent, surface)`, §11.1), **underlined**, 2px underline offset |
+| Spacing | 4px between "Continue your conversation", "or" and "start new" |
+| Pressing "start new" | opens the messenger on a **new** conversation. The old thread stays in history |
+| Narrow pill (phone) | the label truncates with "…"; "or start new" never shrinks or wraps |
+| Not shown | at rest (the field reads "Continue your conversation..." alone), or when the field holds a draft or an unread |
+
+In `/design` the link sits inside the field, which is itself a button, so the
+link stops its press from reaching the field. In production, build them as
+**two sibling controls** rather than one nested in the other.
+
 **Priority**, when more than one applies: unsent draft → unread → open →
 recent. Ordered by closeness to the next turn: a draft is a sentence already
 begun; an unread is something that arrived; the rest is memory.
