@@ -877,6 +877,14 @@ const iconFor = (key: string) =>
    edge, so three long questions wrap to three lines against a side and the pill
    turns into a paragraph. Short ones sit on one line centred and two on an edge,
    which is the shape the launcher was drawn for. */
+/* The length that note asks for, as a number the layout can read: a
+   suggestion set averaging more than this is long, and gets two lines on a
+   small screen rather than one. */
+const CHIP_CHARS = 24;
+/* Bigger screens: the suggestion block is at most this many lines tall. One
+   line is a chip — 14px type at 1.5 plus 8px above and below. */
+const REPLY_LINES = 4;
+const CHIP_LINE_PX = 14 * 1.5 + 16;
 const GENERATED: { host: RegExp; prompts: string[] }[] = [
   {
     host: /hellotars\./i,
@@ -1652,6 +1660,13 @@ export default function DesignPage() {
      never marks the design dirty. Nobody can review a returning visitor by
      waiting a day, so the four states have to be reachable by clicking. */
   const [session, setSession] = useState<SessionState>("first");
+  /* A second lens beside the visitor's state: the messenger on a bigger or a
+     smaller screen, opened on a turn whose suggestions are long — the case
+     the layout rule is for. Null shows the launcher as usual. */
+  const [screenLens, setScreenLens] = useState<ScreenLens | null>(null);
+  /* Which suggestion set the screen lens opens on: long questions, or short
+     ones — the two cases the layout rule splits on. */
+  const [lensLen, setLensLen] = useState<"long" | "short">("long");
   /* "off" is a state of the strip, not of the card: the messenger tab is the
      demo conversation by default, and the scheduler is a lens you put over
      it. */
@@ -2056,7 +2071,35 @@ export default function DesignPage() {
               className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-5"
               style={{ fontFamily: fontStack(font) }}
             >
-              {tab === "launcher" ? (
+              {tab === "launcher" && screenLens ? (
+                <AgentPreview
+                  key={`lens-${screenLens}-${lensLen}-${tenant}`}
+                  theme={t}
+                  name={name}
+                  subtitle={subtitle}
+                  placeholder={launcher.placeholder}
+                  /* Three short ones on a phone — one line, nearly all of it
+                     in view. A bigger screen gets the full set. */
+                  suggestions={
+                    screenLens === "small" && lensLen === "short"
+                      ? LENS_PROMPTS.short.slice(0, 3)
+                      : LENS_PROMPTS[lensLen]
+                  }
+                  disclaimer={disclaimer}
+                  disclaimerOn={disclaimerOn}
+                  brandingOn={brandingOn}
+                  avatar={avatar}
+                  logoLook={logoLook}
+                  logoOnly={logoOnly}
+                  accent={accent}
+                  thinkMark={thinkMark}
+                  thinkMarkSrc={thinkMarkSrc}
+                  thinkLabel={thinkLabel}
+                  device={screenLens === "big" ? "desktop" : "mobile"}
+                  width={screenLens === "big" ? 600 : undefined}
+                  height={screenLens === "big" ? 620 : 680}
+                />
+              ) : tab === "launcher" ? (
                 <LauncherPreview
                   key={tenant}
                   accent={accent}
@@ -2140,9 +2183,12 @@ export default function DesignPage() {
                     {SESSIONS.map((o) => (
                       <button
                         key={o.id}
-                        onClick={() => setSession(o.id)}
+                        onClick={() => {
+                          setSession(o.id);
+                          setScreenLens(null);
+                        }}
                         className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
-                          session === o.id
+                          session === o.id && !screenLens
                             ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
                             : "font-medium text-[#666] hover:bg-[#F4F4F5] hover:text-[#333]"
                         }`}
@@ -2150,12 +2196,61 @@ export default function DesignPage() {
                         {o.label}
                       </button>
                     ))}
+                    {/* The visitor's states end here. What follows is not a
+                        state but a screen size — the suggestion layout on each. */}
+                    <span
+                      aria-hidden
+                      className="mx-1 h-4 w-px bg-[#E2E2E5]"
+                    />
+                    {SCREEN_LENSES.map((o) => (
+                      <button
+                        key={o.id}
+                        onClick={() =>
+                          setScreenLens(screenLens === o.id ? null : o.id)
+                        }
+                        className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                          screenLens === o.id
+                            ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
+                            : "font-medium text-[#666] hover:bg-[#F4F4F5] hover:text-[#333]"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                    {screenLens && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="mx-1 h-4 w-px bg-[#E2E2E5]"
+                        />
+                        {(
+                          [
+                            ["long", "Long questions"],
+                            ["short", "Short questions"],
+                          ] as const
+                        ).map(([v, label]) => (
+                          <button
+                            key={v}
+                            onClick={() => setLensLen(v)}
+                            className={`rounded-full px-3 py-1 text-[12px] transition-colors ${
+                              lensLen === v
+                                ? "bg-[#F6F0FF] font-semibold text-[#6D33AA]"
+                                : "font-medium text-[#666] hover:bg-[#F4F4F5] hover:text-[#333]"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </>
+                    )}
                   </div>
                   {/* The rule this state is standing for, in words. The picker
                       on its own shows what happens; this says why, which is the
                       part that has to survive the meeting. */}
                   <p className="mt-1.5 text-[11px] leading-snug text-[#8A8A8A]">
-                    {SESSIONS.find((o) => o.id === session)?.note}
+                    {screenLens
+                      ? SCREEN_LENSES.find((o) => o.id === screenLens)?.note
+                      : SESSIONS.find((o) => o.id === session)?.note}
                   </p>
                 </>
               )}
@@ -6048,6 +6143,38 @@ const DRAFT = "Can you send me a quote for";
 
 type SessionOption = { id: SessionState; label: string; note: string };
 
+type ScreenLens = "big" | "small";
+const SCREEN_LENSES: { id: ScreenLens; label: string; note: string }[] = [
+  {
+    id: "big",
+    label: "Bigger screen",
+    note: "Desktop and tablet. No sideways scroll. Suggestions wrap against the right edge — short ones share a line two or three at a time, long ones take a line each — and the block climbs upward from the field to at most four lines.",
+  },
+  {
+    id: "small",
+    label: "Small screen",
+    note: "Phone. Suggestions scroll sideways — one line while they are short, two lines once they are long, so two are in view at once rather than one and the edge of the next.",
+  },
+];
+/* Long, contextual suggestions from a pricing page — the case that decides
+   between one line and two on a phone. */
+const LENS_PROMPTS: Record<"long" | "short", string[]> = {
+  long: [
+    "What happens to my agents when I upgrade?",
+    "Can I check the paid plan prices first?",
+    "Can I try WhatsApp before upgrading?",
+    "Which paid plan includes WhatsApp?",
+  ],
+  /* The same four questions, cut down — short enough that two or three
+     share a line on a bigger screen. */
+  short: [
+    "My agents after upgrade?",
+    "See plan prices",
+    "Try WhatsApp first?",
+    "Which plan has WhatsApp?",
+  ],
+};
+
 const SESSIONS: SessionOption[] = [
   {
     id: "first",
@@ -7045,6 +7172,22 @@ function AgentPreview({
   /* The panel's own device, which AgentPreview already receives — the
      suggestion rail wraps to two rows on a phone and holds one on a desktop. */
   const onPhone = device === "mobile";
+  /* On a small screen the suggestions scroll sideways: one line while they
+     are short, two once they are long. Long is measured against the length
+     suggestions are written to (see CHIP_CHARS) — past it, one line shows a
+     single suggestion and the edge of the next, which reads as a banner
+     rather than a set of choices. Two lines put two in view at once. The
+     first half goes on the top line, so they still read in order. */
+  const replyRows: string[][] = !quickReplies
+    ? []
+    : onPhone &&
+        quickReplies.length > 2 &&
+        quickReplies.join("").length / quickReplies.length > CHIP_CHARS
+      ? [
+          quickReplies.slice(0, Math.ceil(quickReplies.length / 2)),
+          quickReplies.slice(Math.ceil(quickReplies.length / 2)),
+        ]
+      : [quickReplies];
 
   const [headerMenu, setHeaderMenu] = useState(false);
   /* Off, and off by default forever. Auto-read is an accessibility affordance
@@ -7970,24 +8113,50 @@ function AgentPreview({
 
                    It stays off the scrolling row for the reason above: on that
                    one it spills the first chips off the left. */
-                className={`chip-rail mb-3 ml-auto mt-auto flex w-max max-w-full gap-2 overflow-x-auto pt-3 ${
-                  onPhone ? "flex-wrap justify-end" : "flex-nowrap"
+                className={`chip-rail mb-3 ml-auto mt-auto w-max max-w-full pt-3 ${
+                  /* Bigger screens: stacked. Every suggestion on show, laid
+                     against the right edge, and whatever does not fit on the
+                     bottom row wraps upward — the first ones stay nearest the
+                     field. Nothing is hidden, so there is nothing to scroll.
+
+                     Small screens: sideways. One line, or two when the
+                     suggestions are long — see replyRows. */
+                  onPhone
+                    ? "overflow-x-auto"
+                    : "flex flex-wrap-reverse justify-end gap-2 overflow-hidden"
                 }`}
-                style={{
-                  /* No measure. It existed to force the wrap into a tidy block;
-                 the row scrolls now, so a cap only decides where the chips
-                 start disappearing — and the full width is what makes it
-                 obvious there are more of them. */
-                  /* Two rows on a phone: enough for the wrap Vinit asked for, and
-                 a hard stop before it becomes the block it used to be. */
-                  maxHeight: onPhone ? 96 : undefined,
-                }}
+                /* At most four lines on a bigger screen. The block grows
+                   upward, so anything past the fourth line is cut from the
+                   top — the last suggestions go, the first ones by the field
+                   stay. Four chip lines, the three gaps between them, and the
+                   rail's own 12px top padding. */
+                style={
+                  onPhone
+                    ? undefined
+                    : {
+                        maxHeight:
+                          12 + REPLY_LINES * CHIP_LINE_PX + (REPLY_LINES - 1) * 8,
+                      }
+                }
               >
-                {quickReplies.map((b, i) => (
-                  <button
+                {onPhone ? (
+                  /* Both lines in one scroller, so they move together and a
+                     chip stays over the one it sat over. */
+                  <div className="flex w-max flex-col items-end gap-2">
+                    {replyRows.map((row, k) => (
+                      <div key={k} className="flex gap-2">
+                        {row.map((b) => {
+                          const i = quickReplies.indexOf(b);
+                          return (
+                            <button
                     key={b}
                     onClick={() => send(b)}
-                    className="starter-chip shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out"
+                    className={`starter-chip shrink-0 rounded-full px-4 py-2 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out ${
+                      /* Stacked, a suggestion longer than the panel wraps
+                         inside its own chip rather than running off the side
+                         — there is no scroll to reach it with. */
+                      onPhone ? "whitespace-nowrap" : "max-w-full text-left"
+                    }`}
                     style={{
                       color: theme.bubbleInk,
                       backgroundColor: theme.bubbleFill,
@@ -8003,7 +8172,39 @@ function AgentPreview({
                   >
                     {b}
                   </button>
-                ))}
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  quickReplies.map((b, i) => (
+                    <button
+                    key={b}
+                    onClick={() => send(b)}
+                    className={`starter-chip shrink-0 rounded-full px-4 py-2 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out ${
+                      /* Stacked, a suggestion longer than the panel wraps
+                         inside its own chip rather than running off the side
+                         — there is no scroll to reach it with. */
+                      onPhone ? "whitespace-nowrap" : "max-w-full text-left"
+                    }`}
+                    style={{
+                      color: theme.bubbleInk,
+                      backgroundColor: theme.bubbleFill,
+                      ["--chip-stroke" as string]: chip.stroke,
+                      ["--chip-wash" as string]: chip.wash,
+                      /* The step is the whole run divided by the set, so three
+                     arrive in the same time four would — the sequence keeps its
+                     length instead of growing with the number of options. */
+                      animation: `reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) ${
+                        (i * REPLY_RUN_MS) / Math.max(quickReplies.length, 1)
+                      }ms both`,
+                    }}
+                  >
+                    {b}
+                  </button>
+                  ))
+                )}
               </div>
             )}
 
