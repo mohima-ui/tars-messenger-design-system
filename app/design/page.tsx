@@ -2095,9 +2095,28 @@ export default function DesignPage() {
                   thinkMark={thinkMark}
                   thinkMarkSrc={thinkMarkSrc}
                   thinkLabel={thinkLabel}
-                  device={screenLens === "big" ? "desktop" : "mobile"}
-                  width={screenLens === "big" ? 600 : undefined}
-                  height={screenLens === "big" ? 620 : 680}
+                  device={
+                    screenLens === "loading"
+                      ? device === "mobile"
+                        ? "mobile"
+                        : "desktop"
+                      : screenLens === "big"
+                        ? "desktop"
+                        : "mobile"
+                  }
+                  width={
+                    screenLens === "loading"
+                      ? device === "mobile"
+                        ? undefined
+                        : 380
+                      : screenLens === "big"
+                        ? 600
+                        : undefined
+                  }
+                  height={
+                    screenLens === "big" ? 620 : screenLens === "loading" && device !== "mobile" ? 650 : 680
+                  }
+                  loading={screenLens === "loading"}
                 />
               ) : tab === "launcher" ? (
                 <LauncherPreview
@@ -2217,7 +2236,7 @@ export default function DesignPage() {
                         {o.label}
                       </button>
                     ))}
-                    {screenLens && (
+                    {screenLens && screenLens !== "loading" && (
                       <>
                         <span
                           aria-hidden
@@ -4409,6 +4428,13 @@ function useTruncated(text: string) {
 /* How long a set of suggestions takes to finish arriving, however many there
    are. Short enough to read as one gesture rather than a queue. */
 const REPLY_RUN_MS = 210;
+/* The open's curve, cubic-bezier(0.16, 1, 0.3, 1), mirrored — what closing
+   the messenger runs on. An ease-in: it leaves slowly and finishes fast. */
+const CLOSE_EASE = "cubic-bezier(0.7, 0, 0.84, 0)";
+/* Quicker than the open's 280. Opening is something arriving, worth watching;
+   closing is the visitor done with it, and 280 on an ease-in read as the
+   panel lingering. */
+const CLOSE_MS = 200;
 
 /* How long a hovered launcher takes to lay its suggestions out, however many
    there are. Longer than the messenger's run because this one is answering a
@@ -6143,7 +6169,7 @@ const DRAFT = "Can you send me a quote for";
 
 type SessionOption = { id: SessionState; label: string; note: string };
 
-type ScreenLens = "big" | "small";
+type ScreenLens = "big" | "small" | "loading";
 const SCREEN_LENSES: { id: ScreenLens; label: string; note: string }[] = [
   {
     id: "big",
@@ -6154,6 +6180,11 @@ const SCREEN_LENSES: { id: ScreenLens; label: string; note: string }[] = [
     id: "small",
     label: "Small screen",
     note: "Phone. Suggestions scroll sideways — one line while they are short, two lines once they are long, so two are in view at once rather than one and the edge of the next.",
+  },
+  {
+    id: "loading",
+    label: "Loading",
+    note: "The panel is open and the conversation is still on its way. A skeleton of the shape that is arriving, in the tenant's colour — never a spinner in an empty box. Header and composer are already known, so they are real.",
   },
 ];
 /* Long, contextual suggestions from a pricing page — the case that decides
@@ -6868,6 +6899,68 @@ function Rule({
   );
 }
 
+/* ── loading: the shape of what is arriving ──────────────────────────────
+   Never a spinner in an empty box. The thread is drawn as the conversation it
+   is about to be — the visitor's turns on the right, the agent's on the left —
+   so the panel already has its layout and the messages only fill it in.
+
+   In the tenant's colour rather than grey: the visitor's turns take the user
+   bubble's own fill (the accent's soft tint), the agent's lines the same tint
+   mixed halfway into the canvas, so the agent's side stays quieter, the way
+   its real messages carry no fill at all. Both come off deriveShades, so dark
+   mode and every accent are handled already.
+
+   One slow breath on the whole block, not a sweep per bar: it says "coming",
+   and a dozen shimmering bars say "busy". Off for reduced motion. */
+const SKELETON_TURNS: { from: "ai" | "user"; widths: number[] }[] = [
+  { from: "user", widths: [46] },
+  { from: "ai", widths: [100, 94, 62] },
+  { from: "user", widths: [34] },
+  { from: "ai", widths: [88, 48] },
+];
+
+function ThreadSkeleton({ user, canvas }: { user: string; canvas: string }) {
+  const ai = `color-mix(in oklab, ${user} 55%, ${canvas})`;
+  return (
+    <div
+      aria-busy
+      aria-label="Loading conversation"
+      className="flex flex-col gap-4 motion-reduce:[animation:none]"
+      style={{ animation: "skeleton-breathe 1600ms ease-in-out infinite" }}
+    >
+      <style>{`
+        @keyframes skeleton-breathe {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.55; }
+        }
+      `}</style>
+      {SKELETON_TURNS.map((t, i) =>
+        t.from === "user" ? (
+          /* The user bubble's own silhouette: radius 24, 4 on the
+             bottom-right where its tail sits. */
+          <div
+            key={i}
+            className="ml-auto h-10 rounded-[24px] rounded-br-[4px]"
+            style={{ width: `${t.widths[0]}%`, background: user }}
+          />
+        ) : (
+          /* Lines at the AI message's own rhythm: 14px type at 1.625 is a
+             ~23px line, so 12px bars 11px apart. */
+          <div key={i} className="flex flex-col gap-[11px] py-1">
+            {t.widths.map((w, k) => (
+              <div
+                key={k}
+                className="h-3 rounded-full"
+                style={{ width: `${w}%`, background: ai }}
+              />
+            ))}
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
 function AgentPreview({
   theme,
   name,
@@ -6897,6 +6990,7 @@ function AgentPreview({
   placeholder,
   suggestions,
   scheduler,
+  loading = false,
 }: {
   theme: ReturnType<typeof useTheme>;
   name: string;
@@ -6919,6 +7013,10 @@ function AgentPreview({
   device: Device;
   width?: number;
   height?: number;
+  /* The panel is open and the conversation is still on its way: the thread
+     shows its skeleton instead (ThreadSkeleton). Header and composer are
+     already known, so they are drawn for real. */
+  loading?: boolean;
   initialPrompt?: string;
   /* an existing conversation to open on, for a returning visitor */
   seed?: Msg[] | null;
@@ -7822,7 +7920,12 @@ function AgentPreview({
             className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-4"
           >
             {/* live conversation */}
-            {convo.map((m, i) => (
+            {loading ? (
+              <ThreadSkeleton
+                user={theme.bubbleFill}
+                canvas={neutral.canvas}
+              />
+            ) : convo.map((m, i) => (
               <Fragment key={i}>
                 {/* Where a resumed thread stops being now. Only drawn on the
                     turn that starts a new stretch of time, so a conversation
@@ -8068,7 +8171,7 @@ function AgentPreview({
               </div>
               </Hot>
             )}
-            {quickReplies && quickReplies.length > 0 && (
+            {!loading && quickReplies && quickReplies.length > 0 && (
               /* Last in the thread, inside the scroll area, so it travels with the
             onversation instead of hovering over it. Look back through a long
             xchange and the suggestions go with the turn that prompted them —
@@ -10315,9 +10418,27 @@ function LauncherPreview({
      the panel — so no mouseleave ever fires and the flag is still set when the
      panel goes. Closing then revealed a launcher already expanded, offering the
      suggestions of a conversation the visitor had just finished with. */
+  /* Closing goes back the way it came (HANDOFF §11.3): the panel stays
+     mounted while it plays the open in reverse, and only then unmounts and
+     hands the corner back to the launcher — so the two are never on screen
+     together. Someone who has asked the system for less motion gets the
+     instant close. */
+  const [closing, setClosing] = useState(false);
   const closeChat = () => {
-    setOpen(false);
     setHoverOpen(false);
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setOpen(false);
+      return;
+    }
+    setClosing(true);
+  };
+  const finishClose = (e: React.AnimationEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !closing) return;
+    setClosing(false);
+    setOpen(false);
   };
 
   /* ── entrance: the launcher is absent until the delay elapses ──
@@ -10840,6 +10961,27 @@ function LauncherPreview({
           from { opacity: 0; transform: translateY(10px) scale(0.90); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        /* The two opens, backwards. Their own keyframes rather than
+           animation-direction: reverse on the same name, which a browser
+           treats as the same animation and does not restart. The curve is
+           the open's mirrored — cubic-bezier(0.16, 1, 0.3, 1) turned end over
+           end — so it leaves gently and is gone quickly. */
+        @keyframes launcher-shrink {
+          from {
+            left: var(--to-x);
+            width: var(--to-w);
+            height: var(--to-h);
+          }
+          to {
+            left: var(--from-x);
+            width: var(--from-w);
+            height: var(--from-h);
+          }
+        }
+        @keyframes launcher-close {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to   { opacity: 0; transform: translateY(10px) scale(0.90); }
+        }
       `}</style>
 
       {/* ── the page the launcher sits on. The frame is the viewport; this
@@ -10916,10 +11058,12 @@ function LauncherPreview({
         isMobile ? (
           <div
             className="absolute inset-0 z-10"
+            onAnimationEnd={finishClose}
             style={{
               transformOrigin: "bottom center",
-              animation:
-                "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
+              animation: closing
+                ? `launcher-close ${CLOSE_MS}ms ${CLOSE_EASE} both`
+                : "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
             }}
           >
             <AgentPreview
@@ -10952,6 +11096,7 @@ function LauncherPreview({
              Entrance only. Closing still unmounts this whole branch, untouched. */
           <div
             className="absolute z-10 flex items-end overflow-hidden"
+            onAnimationEnd={finishClose}
             style={
               {
                 bottom: 24,
@@ -10963,8 +11108,9 @@ function LauncherPreview({
                       : "center",
                 borderRadius: 32,
                 boxShadow: "0 12px 40px -8px rgba(0,0,0,0.18)",
-                animation:
-                  "launcher-grow 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
+                animation: closing
+                  ? `launcher-shrink ${CLOSE_MS}ms ${CLOSE_EASE} both`
+                  : "launcher-grow 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
                 "--from-x": `${xFor(V6.widthShut)}px`,
                 "--to-x": `${xFor(chatW)}px`,
                 "--from-w": `${V6.widthShut}px`,
@@ -10997,9 +11143,11 @@ function LauncherPreview({
           <div className="absolute z-10" style={position}>
             <div
               className="origin-bottom"
+              onAnimationEnd={finishClose}
               style={{
-                animation:
-                  "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
+                animation: closing
+                  ? `launcher-close ${CLOSE_MS}ms ${CLOSE_EASE} both`
+                  : "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
               }}
             >
               <AgentPreview
@@ -11735,10 +11883,13 @@ function LauncherPreview({
                  under the cursor. A gesture that takes something off the screen
                  and puts nothing in its place is a bug wearing a transition. */
               hoverReveal={!isTouch && !holdsMessage}
-              /* On a phone the chips are held back until the page moves, which
-                 is what hover does on a desktop. Same exception: a message on
-                 the card stays put while the page scrolls under it. */
-              promptsOpen={isMobile && !holdsMessage ? scrolled : undefined}
+              /* On touch — phone and tablet — the chips are held back until
+                 the page moves, which is what hover does on a desktop. It was
+                 wired to phones only, so a tablet (no hover either) never
+                 showed them at all while a greeting was set. Same exception:
+                 a message on the card stays put while the page scrolls under
+                 it. */
+              promptsOpen={isTouch && !holdsMessage ? scrolled : undefined}
               /* Beside the button, always. Above it the callout was a
                  banner over a menu; on the same line it is a remark next to
                  the thing that made it — and on hover the suggestions take

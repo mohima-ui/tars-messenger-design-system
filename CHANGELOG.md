@@ -4,6 +4,43 @@ Design changes for engineering. Newest first. Each entry says what changed in
 `/design` and where the full spec lives in `docs/HANDOFF.md`. Where the two
 disagree, HANDOFF has the numbers; this file has the list.
 
+## 2026-11-04 — layouts and motion, from the review with engineering
+
+### Changed in the design
+
+1. **Suggestions in the messenger, by screen size.** → HANDOFF §11.3
+   *Desktop, tablet, phone*
+   - **Desktop and tablet: stacked.** No sideways scroll. They wrap against the
+     right edge, with short ones sharing a line, and climb upward from the
+     field to **at most 4 lines**. The first suggestions stay nearest the field.
+   - **Phone: sideways scroll.** One line, or **two lines** that scroll
+     together once the set averages over **24 characters**.
+   - **The launcher's own suggestions are unchanged:** one line, scrolled
+     sideways, on every device.
+   - In `/design`: Launcher tab → Visitor strip → Bigger screen / Small screen
+     → Long questions / Short questions.
+2. **Closing the messenger is animated:** the open in reverse, 200ms (quicker than the open's 280), ease-in
+   `cubic-bezier(0.7, 0, 0.84, 0)`. The composer shrinks back into the pill;
+   the button launcher's panel and the phone's full screen sink and fade
+   toward the bottom. The launcher returns only when the close finishes.
+   → HANDOFF §11.3 *Closing the messenger*
+3. **Loading skeleton.** The thread is drawn as the conversation it is about
+   to be (visitor turns right, agent lines left) in the accent's soft tint,
+   breathing at 1600ms. Header and composer are real. In `/design`: Visitor
+   strip → Loading. → HANDOFF §11.3 *Loading*
+4. **Button launcher on a tablet now reveals its suggestions on scroll.**
+   Before this, with a greeting set, they never showed (no hover on touch, and
+   the scroll reveal was phone-only).
+5. **Motion spec written down:** opening and closing the messenger,
+   suggestions arriving (staggered, y axis only), loading, and one
+   desktop / tablet / phone table. → HANDOFF §11.3
+
+### Engineering to note
+
+- The **composer launcher's suggestions** arrive with the pane in the design,
+  as one row with no per-chip stagger. Production staggers them. If that stays,
+  use the button launcher's values (HANDOFF §11.3 *Suggestions arriving*).
+
 ## 2026-11-03 — from the launch review with engineering
 
 Fathom recording of the review: shared separately.

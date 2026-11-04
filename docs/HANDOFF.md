@@ -208,6 +208,11 @@ asks, never instructions aimed at them.
 - At rest the composer launcher **cycles these through its placeholder**; the
   placeholder text itself is the label on the input, shown once open.
 
+- **Layout.** In the launcher: always one line, scrolled sideways. In the
+  messenger: stacked on desktop and tablet (up to 4 lines, no scroll),
+  sideways on a phone (one line, or two when the suggestions are long).
+  Full rule and how they arrive: §11.3.
+
 Open: how these interact with an agent's own configured buttons — §12.
 
 ---
@@ -604,8 +609,8 @@ zooming. (`accent@28%` = the accent hex with alpha `47`; `@35%` = alpha `59`.)
 |---|---|
 | A reply, word by word | `word-in` **320ms** `cubic-bezier(.2,.6,.2,1)` per word: opacity 0 → 1, `translateY(3px)` → 0, `blur(1.5px)` → 0. Words start **36ms** apart. Bullets' dots arrive with their line's first word. Turns already there when the panel opens are not animated |
 | User bubble | `bubble-in` **240ms** `cubic-bezier(.2,.6,.2,1)`: opacity 0 → 1, `translateY(6px)` → 0 |
-| Suggestion chips | `reply-in`: opacity 0 → 1, `translateY(6px)` → 0, `cubic-bezier(0.16, 1, 0.3, 1)`, one after another, not as a block. In the messenger **260ms** each, staggered so the whole set lands within **210ms** (`REPLY_RUN_MS ÷ count`); above the button launcher **320ms** each |
-| Messenger opening from the composer launcher | `launcher-open`: opacity 0 → 1, `translateY(10px) scale(.90)` → none, anchored to the launcher's corner; width / height grow with `launcher-grow`. **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Suggestion chips | One after another, never as a block. Exact values per surface in §11.3 *Suggestions arriving* |
+| Messenger opening | §11.3 *Opening the messenger* |
 | Composer launcher widening on hover | `width` over **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` |
 | Notice strip swap (disclaimer ↔ credit ↔ typing hint) | 200ms, opacity + 3px vertical slide |
 
@@ -616,6 +621,144 @@ zooming. (`accent@28%` = the accent hex with alpha `47`; `@35%` = alpha `59`.)
 | Mic listening | `mic-pulse` **1600ms** ease-out infinite on a `rgba(255,255,255,.3)` layer inside the disc: opacity .45 → 0, scale .85 → 1.35 |
 | Unread buzz | `mark-nudge` 2400ms (see §7) and the count badge's `badge-swell` 12 → 16px on the same clock |
 | Read-aloud highlight | 100ms slide between words (§14, *Read aloud*) |
+
+### 11.3 Transitions and devices
+
+What the Nov 4 review asked for: how the messenger opens and closes, how the
+suggestions arrive, the loading state, and one table of what changes between
+desktop, tablet and phone. Every value here is what `/design` runs.
+
+#### One curve for opening
+
+Every open uses **`cubic-bezier(0.16, 1, 0.3, 1)`** over **280ms**
+(`V6.panelEase`, `V6.panelMs`). In the review this was called "ease in, ease
+out". Strictly, it is an ease-*out*: it starts fast and lands softly, which is
+what makes the open feel like one surface settling rather than a box popping
+in. Use this curve for every open.
+
+#### Opening the messenger
+
+It rises from the launcher, bottom to top. The bottom edge stays where the
+launcher was, and the panel grows up from it.
+
+| From | Device | What moves | Values |
+|---|---|---|---|
+| Composer launcher | Desktop, tablet | **One surface changing size**, not a panel arriving. A box starts at the pill's exact rect (340 × 64) and grows to the panel's rect: `left`, `width` and `height` animate together (`launcher-grow`). Centred, it opens out both ways; on an edge, it grows inward from the same margin. The chat inside is laid out once at its **final** size and uncovered by the growing box (`overflow: hidden`), never scaled or re-flowed. The first frame therefore shows the chat's own composer exactly where the pill was | 280ms, the curve above. Box: radius 32, shadow `0 12px 40px -8px rgba(0,0,0,.18)` on the growing box (not on the chat), bottom 24 |
+| Button launcher | Desktop, tablet | The panel appears above the button: `launcher-open`, opacity 0 → 1, `translateY(10px) scale(.90)` → none, `transform-origin: bottom` | 280ms, the curve above |
+| Either launcher | Phone | Full screen. `launcher-open` as above, `transform-origin: bottom center` | 280ms, the curve above |
+
+The scale starts at **.90**: .97 was too shallow to read as growth.
+
+Panel sizes: centred **600 × 580**, on an edge **380 × 650**, each clamped to
+the frame less 48 (a tablet's centred panel is ~532 wide).
+
+#### Closing the messenger
+
+It goes back **the same way it came**: the open, played in reverse.
+
+| From | Device | What moves | Values |
+|---|---|---|---|
+| Composer launcher | Desktop, tablet | The box shrinks from the panel's rect back to the pill's (`launcher-shrink`: `left`, `width`, `height`), with the chat clipped inside it | **200ms**, `cubic-bezier(0.7, 0, 0.84, 0)` |
+| Button launcher | Desktop, tablet | `launcher-close`: opacity 1 → 0, `translateY(0)` → `10px`, scale 1 → .90, `transform-origin: bottom` | the same |
+| Either launcher | Phone | `launcher-close`, `transform-origin: bottom center` | the same |
+
+- **The curve** is the open's, mirrored end over end
+  (`0.16, 1, 0.3, 1` → `0.7, 0, 0.84, 0`). It is an ease-*in*: it leaves
+  slowly and finishes fast, so the launcher is back without a long tail.
+- **200ms, quicker than the open's 280.** Opening is something arriving and
+  is worth watching; closing is the visitor done with it, and at 280 the
+  panel lingered.
+- **The panel stays mounted until the close finishes**, then unmounts, and the
+  launcher returns on that frame. The two are never on screen together.
+- The close runs on its **own keyframes**, not `animation-direction: reverse`
+  on the open's: a browser treats a direction change on the same animation
+  name as the same animation, and does not replay it.
+- **Reduced motion** (`prefers-reduced-motion: reduce`): no close animation;
+  the panel goes at once.
+
+#### Suggestions arriving
+
+Wherever chips stagger, each one arrives on its own, one after another. They
+rise a few pixels on the **y axis only**; there is no x slide. In the messenger
+and the button launcher, the stagger is a fixed total divided by the count, so
+three chips take as long as four would: the set keeps its length instead of
+growing with the number of options.
+
+| Where | Trigger | Animation | Stagger (chip *i*, from 0) |
+|---|---|---|---|
+| Messenger, under a reply | the reply has finished writing | `reply-in` **260ms**, `cubic-bezier(0.16, 1, 0.3, 1)`: opacity 0 → 1, `translateY(6px)` → 0 | `i × 210 ÷ count` ms (`REPLY_RUN_MS = 210`) |
+| Composer launcher | hover (desktop), scroll down (touch, §9) | **No per-chip animation.** The row unfolds with the pane: `grid-template-rows` 0fr → 1fr while the pill widens, both **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`. The row is pinned to the open width, so the chips do not reflow while it travels | none: the row arrives as one |
+| Button launcher, desktop | hover | CSS transition **200ms** `ease-out` on opacity and transform: opacity 0 → 1, `translateY(4px)` → 0 | `i × 260 ÷ count` ms on the way **in** (`REVEAL_RUN_MS = 260`). On the way out they all go together, with no delay |
+| Button launcher, phone | scroll down (§9) | `chip-in` **200ms**, `cubic-bezier(0.16, 1, 0.3, 1)`: opacity 0 → 1, `translateY(4px)` → none | `i × 260 ÷ count` ms, the same as hover |
+| Under a floating message | the message has arrived | `reply-in` **320ms**, the same curve | 120ms after the last message starts, then **60ms** apart |
+
+The composer launcher's row in production now staggers (engineering's change,
+shown in the review). The design does not stagger it. If the stagger stays,
+use the button launcher's values.
+
+The button launcher takes longer than the messenger (260 against 210) because it is
+answering a gesture: the visitor has only just arrived at it, and a set that
+finishes before they have focused on it may as well have been there already.
+
+#### Loading
+
+When the panel is open and the conversation is still on its way: **a skeleton
+of the shape that is arriving, in the tenant's colour**, never a spinner in an
+empty box. The header and the composer are already known, so they are drawn
+for real; only the thread is a skeleton.
+
+| | Value |
+|---|---|
+| Order, top to bottom | visitor turn · agent turn (3 lines) · visitor turn · agent turn (2 lines) |
+| Visitor turn | right-aligned, **40** tall, radius **24** with **4** bottom-right (the user bubble's own silhouette). Widths **46%**, then **34%** |
+| Agent turn | left-aligned bars, **12** tall, fully rounded, **11** apart (the AI message's 14px / 1.625 line rhythm), 4px above and below. Widths **100 / 94 / 62%**, then **88 / 48%** |
+| Gap between turns | 16, the thread's own |
+| Visitor colour | the user bubble's fill, `theme.bubbleFill` (the accent's soft tint) |
+| Agent colour | `color-mix(in oklab, bubbleFill 55%, canvas)`: the same tint, quieter, because the agent's real messages carry no fill |
+| Motion | the whole block breathes together, `skeleton-breathe` **1600ms** ease-in-out infinite, opacity 1 → .55 → 1. One breath for the block, not a sweep per bar. Off under reduced motion |
+| Dark mode | handled by the same tokens (`bubbleFill` and `canvas` are both per-mode) |
+| Accessibility | `aria-busy`, labelled "Loading conversation" |
+
+See it in `/design`: Launcher tab → Visitor strip → **Loading**. It follows the
+device switch at the top (panel 380 × 650 on desktop and tablet, full width on a
+phone).
+
+#### Desktop, tablet, phone
+
+**Tablet counts as touch** (§9). It is wide enough to lay out like a desktop,
+but it has no pointer to hover with.
+
+| | Desktop | Tablet | Phone |
+|---|---|---|---|
+| Input | pointer | touch | touch |
+| Launcher reveals its suggestions on | **hover** | **scroll down** (6px threshold); scroll up hides them at once; they fold away 4500ms after the page stops | the same as tablet |
+| Composer launcher width | 340 → 600 centred, 400 on an edge | clamped to the frame less 48 (~532 centred) | 250 → 342, always centred |
+| Placement | composer: left / centre / right. Button: left / right | the same as desktop | composer: forced centre. Button: left / right |
+| Launcher suggestions | one line, sideways scroll | one line, sideways scroll | one line, sideways scroll |
+| Messenger opens as | panel, 600 × 580 centred / 380 × 650 on an edge | the same, clamped to the frame | full screen |
+| Open motion | composer grows from the pill; button rises from its corner | the same as desktop | rises from the bottom |
+| Close motion | the open in reverse | the same as desktop | the open in reverse |
+| Loading | skeleton in the panel | the same as desktop | skeleton, full screen |
+| Suggestions in the messenger | **stacked**: wrap against the right edge, short ones sharing a line, climbing upward from the field, **at most 4 lines**, no sideways scroll | stacked, the same as desktop | **sideways scroll**: one line, or **two lines** that scroll together once they average over **24 characters** |
+
+Suggestion layout in the messenger, in detail:
+
+- **Stacked (desktop and tablet).** The first suggestions sit on the bottom
+  line, nearest the field. A suggestion wider than the panel wraps inside its
+  own chip. Past four lines, the extra lines are cut from the top, so the last
+  suggestions go and the first ones stay.
+- **Sideways (phone).** "Long" is the set's average length against
+  `CHIP_CHARS = 24`, the length suggestions are written to. On two lines, the
+  first half goes on the top line so they still read in order, and both lines
+  sit in one scroller so a chip stays above the one it sat above.
+- See it in `/design`: Launcher tab → **Visitor** strip → **Bigger screen** /
+  **Small screen**, then **Long questions** / **Short questions**.
+
+#### Fixed on Nov 4
+
+- **Button launcher on a tablet** never revealed its suggestions while a
+  greeting was set: hover was off (a tablet is touch) and the scroll reveal was
+  wired to phones only. It now takes the scroll reveal, the same as the phone.
 
 ---
 
