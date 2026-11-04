@@ -6925,8 +6925,9 @@ function ThreadSkeleton({ user, canvas }: { user: string; canvas: string }) {
     <div
       aria-busy
       aria-label="Loading conversation"
-      className="flex flex-col gap-4 motion-reduce:[animation:none]"
-      style={{ animation: "skeleton-breathe 1600ms ease-in-out infinite" }}
+      /* In the class, not inline: an inline animation outranks the
+         reduced-motion rule and the breath would never stop. */
+      className="flex flex-col gap-4 animate-[skeleton-breathe_1600ms_ease-in-out_infinite] motion-reduce:animate-none"
     >
       <style>{`
         @keyframes skeleton-breathe {
@@ -11099,7 +11100,11 @@ function LauncherPreview({
             onAnimationEnd={finishClose}
             style={
               {
-                bottom: 24,
+                /* The pill's own bottom, so the growth starts on the exact rect
+                   the launcher occupied. It was a fixed 24 from when the
+                   offset defaulted to 16, and once the offset became 40 the
+                   open began with a 16px drop. */
+                bottom: s.offsetY,
                 justifyContent:
                   side === "left"
                     ? "flex-start"

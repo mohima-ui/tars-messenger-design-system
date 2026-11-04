@@ -28,10 +28,14 @@ disagree, HANDOFF has the numbers; this file has the list.
    to be (visitor turns right, agent lines left) in the accent's soft tint,
    breathing at 1600ms. Header and composer are real. In `/design`: Visitor
    strip → Loading. → HANDOFF §11.3 *Loading*
-4. **Button launcher on a tablet now reveals its suggestions on scroll.**
+4. **The composer's open no longer starts 16px low.** The growing box now
+   starts at the launcher's own vertical offset (it was a fixed 24, left over
+   from the old 16 default).
+5. **Loading skeleton stops breathing under reduced motion.**
+6. **Button launcher on a tablet now reveals its suggestions on scroll.**
    Before this, with a greeting set, they never showed (no hover on touch, and
    the scroll reveal was phone-only).
-5. **Motion spec written down:** opening and closing the messenger,
+7. **Motion spec written down:** opening and closing the messenger,
    suggestions arriving (staggered, y axis only), loading, and one
    desktop / tablet / phone table. → HANDOFF §11.3
 

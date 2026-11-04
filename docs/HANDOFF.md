@@ -208,8 +208,8 @@ asks, never instructions aimed at them.
 - At rest the composer launcher **cycles these through its placeholder**; the
   placeholder text itself is the label on the input, shown once open.
 
-- **Layout.** In the launcher: always one line, scrolled sideways. In the
-  messenger: stacked on desktop and tablet (up to 4 lines, no scroll),
+- **Layout.** In the composer launcher: always one line, scrolled sideways.
+  Above the button launcher: a stack, one per line. In the messenger: stacked on desktop and tablet (up to 4 lines, no scroll),
   sideways on a phone (one line, or two when the suggestions are long).
   Full rule and how they arrive: §11.3.
 
@@ -643,14 +643,18 @@ launcher was, and the panel grows up from it.
 
 | From | Device | What moves | Values |
 |---|---|---|---|
-| Composer launcher | Desktop, tablet | **One surface changing size**, not a panel arriving. A box starts at the pill's exact rect (340 × 64) and grows to the panel's rect: `left`, `width` and `height` animate together (`launcher-grow`). Centred, it opens out both ways; on an edge, it grows inward from the same margin. The chat inside is laid out once at its **final** size and uncovered by the growing box (`overflow: hidden`), never scaled or re-flowed. The first frame therefore shows the chat's own composer exactly where the pill was | 280ms, the curve above. Box: radius 32, shadow `0 12px 40px -8px rgba(0,0,0,.18)` on the growing box (not on the chat), bottom 24 |
-| Button launcher | Desktop, tablet | The panel appears above the button: `launcher-open`, opacity 0 → 1, `translateY(10px) scale(.90)` → none, `transform-origin: bottom` | 280ms, the curve above |
+| Composer launcher | Desktop, tablet | **One surface changing size**, not a panel arriving. A box starts at the pill's exact rect (340 × 64) and grows to the panel's rect: `left`, `width` and `height` animate together (`launcher-grow`). Centred, it opens out both ways; on an edge, it grows inward from the same margin. The chat inside is laid out once at its **final** size and uncovered by the growing box (`overflow: hidden`), never scaled or re-flowed. The first frame therefore shows the chat's own composer exactly where the pill was | 280ms, the curve above. Box: radius 32, shadow `0 12px 40px -8px rgba(0,0,0,.18)` on the growing box (not on the chat). Its bottom is the launcher's own vertical offset (§4), so it starts on the pill's exact rect |
+| Button launcher | Desktop, tablet | The panel takes the button's place: same corner, same offsets (§4), its bottom edge where the button's was. The button is hidden while it is open. `launcher-open`: opacity 0 → 1, `translateY(10px) scale(.90)` → none, `transform-origin: bottom` | 280ms, the curve above |
 | Either launcher | Phone | Full screen. `launcher-open` as above, `transform-origin: bottom center` | 280ms, the curve above |
 
 The scale starts at **.90**: .97 was too shallow to read as growth.
 
-Panel sizes: centred **600 × 580**, on an edge **380 × 650**, each clamped to
-the frame less 48 (a tablet's centred panel is ~532 wide).
+Panel sizes:
+
+- **Composer launcher:** centred **600 × 580**, on an edge **380 × 650**. Each
+  is clamped to the frame less 48, so a tablet's centred panel is ~532 wide.
+- **Button launcher:** always **380** wide, **650** tall, with the height
+  clamped to the frame less 48. The button is never centred.
 
 #### Closing the messenger
 
@@ -689,8 +693,8 @@ growing with the number of options.
 | Messenger, under a reply | the reply has finished writing | `reply-in` **260ms**, `cubic-bezier(0.16, 1, 0.3, 1)`: opacity 0 → 1, `translateY(6px)` → 0 | `i × 210 ÷ count` ms (`REPLY_RUN_MS = 210`) |
 | Composer launcher | hover (desktop), scroll down (touch, §9) | **No per-chip animation.** The row unfolds with the pane: `grid-template-rows` 0fr → 1fr while the pill widens, both **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`. The row is pinned to the open width, so the chips do not reflow while it travels | none: the row arrives as one |
 | Button launcher, desktop | hover | CSS transition **200ms** `ease-out` on opacity and transform: opacity 0 → 1, `translateY(4px)` → 0 | `i × 260 ÷ count` ms on the way **in** (`REVEAL_RUN_MS = 260`). On the way out they all go together, with no delay |
-| Button launcher, phone | scroll down (§9) | `chip-in` **200ms**, `cubic-bezier(0.16, 1, 0.3, 1)`: opacity 0 → 1, `translateY(4px)` → none | `i × 260 ÷ count` ms, the same as hover |
-| Under a floating message | the message has arrived | `reply-in` **320ms**, the same curve | 120ms after the last message starts, then **60ms** apart |
+| Button launcher, phone and tablet | scroll down (§9) | `chip-in` **200ms**, `cubic-bezier(0.16, 1, 0.3, 1)`: opacity 0 → 1, `translateY(4px)` → none | `i × 260 ÷ count` ms, the same as hover |
+| Under a floating message | the message has arrived | `reply-in` **320ms**, the same curve | **120ms** after the last message starts, then **60ms** apart. (On the opening replay the messages themselves start 90ms apart; once the conversation is live, a new message starts at once) |
 
 The composer launcher's row in production now staggers (engineering's change,
 shown in the review). The design does not stagger it. If the stagger stays,
@@ -731,11 +735,12 @@ but it has no pointer to hover with.
 | | Desktop | Tablet | Phone |
 |---|---|---|---|
 | Input | pointer | touch | touch |
-| Launcher reveals its suggestions on | **hover** | **scroll down** (6px threshold); scroll up hides them at once; they fold away 4500ms after the page stops | the same as tablet |
+| Launcher reveals its suggestions on (button launcher: only while a greeting is set; with no greeting its suggestions rest on show) | **hover** | **scroll down** (6px threshold); scroll up hides them at once; they fold away 4500ms after the page stops | the same as tablet |
 | Composer launcher width | 340 → 600 centred, 400 on an edge | clamped to the frame less 48 (~532 centred) | 250 → 342, always centred |
 | Placement | composer: left / centre / right. Button: left / right | the same as desktop | composer: forced centre. Button: left / right |
-| Launcher suggestions | one line, sideways scroll | one line, sideways scroll | one line, sideways scroll |
-| Messenger opens as | panel, 600 × 580 centred / 380 × 650 on an edge | the same, clamped to the frame | full screen |
+| Launcher suggestions, composer | one line, sideways scroll | one line, sideways scroll | one line, sideways scroll |
+| Launcher suggestions, button | a stack, one per line, beside the button (in the greeting's place) | the same as desktop | a stack, one per line, above the button |
+| Messenger opens as | panel: composer 600 × 580 centred / 380 × 650 on an edge; button 380 × 650 | the same, clamped to the frame | full screen |
 | Open motion | composer grows from the pill; button rises from its corner | the same as desktop | rises from the bottom |
 | Close motion | the open in reverse | the same as desktop | the open in reverse |
 | Loading | skeleton in the panel | the same as desktop | skeleton, full screen |
@@ -756,6 +761,12 @@ Suggestion layout in the messenger, in detail:
 
 #### Fixed on Nov 4
 
+- **The composer's open started 16px low.** The growing box was pinned 24px
+  from the bottom, left over from when the offset defaulted to 16; with the
+  offset at 40 the open began with a drop. It now starts at the launcher's own
+  offset, on the pill's exact rect.
+- **Loading skeleton under reduced motion** kept breathing (the animation was
+  inline, which outranks the reduced-motion rule). It now stops.
 - **Button launcher on a tablet** never revealed its suggestions while a
   greeting was set: hover was off (a tablet is touch) and the scroll reveal was
   wired to phones only. It now takes the scroll reveal, the same as the phone.
