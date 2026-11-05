@@ -2640,6 +2640,14 @@ const CARD_HEAD = 48;
 /* the pill and the space round it; the privacy line adds CARD_NOTE */
 const CARD_FOOT = 72;
 const CARD_NOTE = 20;
+/* How long the demo pretends the first turn takes to arrive. Not a design
+   value — in production the skeleton shows for exactly as long as the turn is
+   on its way, and not at all if it is already there when the card opens. */
+const CARD_FETCH_MS = 1400;
+/* The skeleton's own height: three lines of the message and a row of chips,
+   at the card's spacing (12 top, 3 × 12px bars 10 apart, 12, a 30px chip
+   row, 6 under it). The card hugs it the way it hugs the real thing. */
+const CARD_SKELETON_H = 12 + 3 * 12 + 2 * 10 + 12 + 30 + 6;
 
 function Group({
   title,
@@ -11003,6 +11011,8 @@ function LauncherPreview({
   const [pull, setPull] = useState(0);
   /* the message card's thread, at its natural height (see onBodyHeight) */
   const [cardBody, setCardBody] = useState(0);
+  /* the card's first turn has arrived — until then, its skeleton */
+  const [cardReady, setCardReady] = useState(false);
   const pullFrom = useRef<{ y0: number; y: number; t: number; v: number } | null>(null);
   const [peekCloseWith, setPeekCloseWith] = useState<Msg[] | undefined>(undefined);
   /* The sheet at its auto-open height until the visitor says something —
@@ -11051,6 +11061,8 @@ function LauncherPreview({
        A tablet has the width for a panel but is held like a phone and read
        like one, and a 720-tall panel arriving on its own covers most of it. */
     if (compact || device === "tablet") {
+      setCardReady(false);
+      setCardBody(0);
       setPeekGrown(false);
       setPeekClosing(false);
       setPull(0);
@@ -11066,6 +11078,11 @@ function LauncherPreview({
     else openChat(undefined, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoKey, autoSpent, compact, device, s.autoOpenTyping, s.autoOpenStyle]);
+  useEffect(() => {
+    if (!peek || cardReady || s.autoOpenStyle !== "card") return;
+    const id = setTimeout(() => setCardReady(true), CARD_FETCH_MS);
+    return () => clearTimeout(id);
+  }, [peek, cardReady, s.autoOpenStyle]);
   useEffect(() => {
     if (!autoApplies || open || autoSpent === autoKey) return;
     const id = setTimeout(fireAuto, s.autoOpenDelay * 1000);
@@ -12117,7 +12134,9 @@ function LauncherPreview({
         };
         const cardNote = disclaimerOn && disclaimer.trim().length > 0;
         const cardChrome = CARD_HEAD + CARD_FOOT + (cardNote ? CARD_NOTE : 0);
-        const cardH = cardChrome + (cardBody || 120);
+        const cardWaiting = card && !cardReady;
+        const cardH =
+          cardChrome + (cardWaiting ? CARD_SKELETON_H : cardBody || CARD_SKELETON_H);
         /* Floating window: the messenger inset from every edge, so the page
            shows all round it. */
         const win = s.autoOpenStyle === "window" && !grown;
@@ -12311,6 +12330,50 @@ function LauncherPreview({
                 </button>
               </div>
             )}
+            {cardWaiting ? (
+              /* The first turn is on its way: its shape, in the card's own
+                 spacing, with the header and the field already real. Mounting
+                 the thread only once it is here is what makes it arrive word
+                 by word, the suggestions after it, as in the messenger. */
+              <div
+                aria-busy
+                aria-label="Loading"
+                className="px-4 pt-3"
+                style={{ height: CARD_SKELETON_H, background: theme.neutral.canvas }}
+              >
+                {/* The breath on the shapes only — on the card it faded the
+                    card's own surface and let the page through. */}
+                <div className="flex flex-col animate-[skeleton-breathe_1600ms_ease-in-out_infinite] motion-reduce:animate-none">
+                <style>{`
+                  @keyframes skeleton-breathe {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.55; }
+                  }
+                `}</style>
+                <div className="flex flex-col gap-[10px]">
+                  {[92, 78, 54].map((pct) => (
+                    <div
+                      key={pct}
+                      className="h-3 rounded-full"
+                      style={{
+                        width: `${pct}%`,
+                        background: `color-mix(in oklab, ${theme.bubbleFill} 55%, ${theme.neutral.canvas})`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  {[120, 140].map((px) => (
+                    <div
+                      key={px}
+                      className="h-[30px] rounded-full"
+                      style={{ width: px, background: theme.bubbleFill }}
+                    />
+                  ))}
+                </div>
+                </div>
+              </div>
+            ) : (
             <AgentPreview
               seed={null}
               {...agentProps}
@@ -12342,6 +12405,7 @@ function LauncherPreview({
                 setPeekClosing(true);
               }}
             />
+            )}
             {msgSheet && (
               <div
                 className="shrink-0"
