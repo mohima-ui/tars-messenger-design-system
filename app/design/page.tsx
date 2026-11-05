@@ -1841,6 +1841,34 @@ export default function DesignPage() {
 
   const [name, setName] = useState("Tars");
   const [subtitle, setSubtitle] = useState("Virtual Assistant");
+  /* The language being edited and previewed, and the customer's own text in
+     each language past the default. The default's text is name, subtitle and
+     callout themselves. */
+  const [langs, setLangs] = useState<Record<LangUnit, LangId>>({
+    header: DEFAULT_LANG,
+    callout: DEFAULT_LANG,
+    placeholder: DEFAULT_LANG,
+  });
+  const setUnitLang = (u: LangUnit) => (l: LangId) =>
+    setLangs((x) => ({ ...x, [u]: l }));
+  const [langText, setLangText] = useState<Partial<Record<LangId, LangText>>>({});
+  /* The button launcher's callout. Empty: the conversation's own greeting. */
+  const [callout, setCallout] = useState("");
+  const editTx = (field: keyof LangText) => (v: string) =>
+    setLangText((t) => {
+      const l = langs[UNIT_OF[field]];
+      return { ...t, [l]: { ...t[l], [field]: v } };
+    });
+  const inLang = (field: keyof LangText, base: string) => {
+    const l = langs[UNIT_OF[field]];
+    return l === DEFAULT_LANG ? base : langText[l]?.[field]?.trim() || base;
+  };
+  /* the field's own text in its picked language, empty when not written */
+  const txt = (field: keyof LangText, base: string) => {
+    const l = langs[UNIT_OF[field]];
+    return l === DEFAULT_LANG ? base : (langText[l]?.[field] ?? "");
+  };
+  const isBase = (field: keyof LangText) => langs[UNIT_OF[field]] === DEFAULT_LANG;
   const [disclaimer, setDisclaimer] = useState(
     "AI can make mistakes. Check important info.",
   );
@@ -2197,6 +2225,19 @@ export default function DesignPage() {
                 <LauncherControls
                   s={launcher}
                   set={patchLauncher}
+                  lang={langs.callout}
+                  setLang={setUnitLang("callout")}
+                  callout={txt("callout", callout)}
+                  setCallout={isBase("callout") ? setCallout : editTx("callout")}
+                  phLang={langs.placeholder}
+                  setPhLang={setUnitLang("placeholder")}
+                  placeholder={txt("placeholder", launcher.placeholder)}
+                  setPlaceholder={
+                    isBase("placeholder")
+                      ? (placeholder: string) => patchLauncher({ placeholder })
+                      : editTx("placeholder")
+                  }
+                  baseCallout={callout.trim() || GREETING.text}
                   siteUrl={siteUrl}
                   setSiteUrl={setSiteUrl}
                   siteShot={siteShot}
@@ -2208,10 +2249,14 @@ export default function DesignPage() {
 
               {tab === "agent" && (
                 <AppearanceControls
-                  name={name}
-                  setName={setName}
-                  subtitle={subtitle}
-                  setSubtitle={setSubtitle}
+                  lang={langs.header}
+                  setLang={setUnitLang("header")}
+                  baseName={name}
+                  baseSubtitle={subtitle}
+                  name={txt("name", name)}
+                  setName={isBase("name") ? setName : editTx("name")}
+                  subtitle={txt("subtitle", subtitle)}
+                  setSubtitle={isBase("subtitle") ? setSubtitle : editTx("subtitle")}
                   disclaimer={disclaimer}
                   setDisclaimer={setDisclaimer}
                   disclaimerOn={disclaimerOn}
@@ -2257,9 +2302,9 @@ export default function DesignPage() {
                 <AgentPreview
                   key={`lens-${screenLens}-${lensLen}-${tenant}`}
                   theme={t}
-                  name={name}
-                  subtitle={subtitle}
-                  placeholder={launcher.placeholder}
+                  name={inLang("name", name)}
+                  subtitle={inLang("subtitle", subtitle)}
+                  placeholder={inLang("placeholder", launcher.placeholder)}
                   /* Three short ones on a phone — one line, nearly all of it
                      in view. A bigger screen gets the full set. */
                   suggestions={
@@ -2305,15 +2350,19 @@ export default function DesignPage() {
                   key={tenant}
                   accent={accent}
                   theme={t}
-                  settings={launcher}
+                  settings={{
+                    ...launcher,
+                    placeholder: inLang("placeholder", launcher.placeholder),
+                  }}
                   siteUrl={siteUrl}
                   siteShot={siteShot}
                   thinkMark={thinkMark}
                   thinkMarkSrc={thinkMarkSrc}
                   thinkLabel={thinkLabel}
                   device={device}
-                  name={name}
-                  subtitle={subtitle}
+                  name={inLang("name", name)}
+                  subtitle={inLang("subtitle", subtitle)}
+                  callout={inLang("callout", callout.trim() || GREETING.text)}
                   disclaimer={disclaimer}
                   disclaimerOn={disclaimerOn}
                   brandingOn={brandingOn}
@@ -2325,9 +2374,9 @@ export default function DesignPage() {
               ) : (
                 <AgentPreview
                   theme={t}
-                  name={name}
-                  subtitle={subtitle}
-                  placeholder={launcher.placeholder}
+                  name={inLang("name", name)}
+                  subtitle={inLang("subtitle", subtitle)}
+                  placeholder={inLang("placeholder", launcher.placeholder)}
                   /* The greeting's own options, off the script. This tab has
                      no page to be contextual about — it is the messenger by
                      itself — so it resolved to the configured fallback and the
@@ -2586,6 +2635,142 @@ function loadFont(family: string) {
   link.rel = "stylesheet";
   link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@400;700&display=swap`;
   document.head.appendChild(link);
+}
+
+/* ── Languages ────────────────────────────────────────────────────────────
+   The languages set in Configure → Language, which already exists in 3.0:
+   the primary language and the additional ones. This does not add languages,
+   it lets the text a customer writes here — the agent's name, the subtitle,
+   the callout — follow them. The primary is the default: every field has it,
+   and a field left empty in another language shows the primary's text rather
+   than nothing. Stand-in list: prod's languages, English primary. */
+type LangId = string;
+/* Prod's list, in prod's order (Configure → Language), primary first. */
+const LANGS: { id: LangId; label: string; native: string; flag: string }[] = [
+  { id: "en", label: "English", native: "English", flag: "🇬🇧" },
+  { id: "ar", label: "Arabic", native: "العربية", flag: "🇸🇦" },
+  { id: "bn", label: "Bengali", native: "বাংলা", flag: "🇮🇳" },
+  { id: "zh", label: "Chinese", native: "中文", flag: "🇨🇳" },
+  { id: "hr", label: "Croatian", native: "hrvatski", flag: "🇭🇷" },
+  { id: "cs", label: "Czech", native: "čeština", flag: "🇨🇿" },
+  { id: "da", label: "Danish", native: "dansk", flag: "🇩🇰" },
+  { id: "nl", label: "Dutch", native: "Nederlands", flag: "🇳🇱" },
+  { id: "el", label: "Greek", native: "Ελληνικά", flag: "🇬🇷" },
+  { id: "fi", label: "Finnish", native: "suomi", flag: "🇫🇮" },
+  { id: "fr", label: "French", native: "français", flag: "🇫🇷" },
+  { id: "de", label: "German", native: "Deutsch", flag: "🇩🇪" },
+  { id: "he", label: "Hebrew", native: "עברית", flag: "🇮🇱" },
+  { id: "hi", label: "Hindi", native: "हिन्दी", flag: "🇮🇳" },
+  { id: "hu", label: "Hungarian", native: "magyar", flag: "🇭🇺" },
+  { id: "id", label: "Indonesian", native: "Bahasa Indonesia", flag: "🇮🇩" },
+  { id: "it", label: "Italian", native: "italiano", flag: "🇮🇹" },
+  { id: "ja", label: "Japanese", native: "日本語", flag: "🇯🇵" },
+  { id: "ko", label: "Korean", native: "한국어", flag: "🇰🇷" },
+  { id: "ms", label: "Malay", native: "Bahasa Melayu", flag: "🇲🇾" },
+  { id: "no", label: "Norwegian", native: "norsk", flag: "🇳🇴" },
+  { id: "pl", label: "Polish", native: "polski", flag: "🇵🇱" },
+  { id: "pt", label: "Portuguese", native: "português", flag: "🇵🇹" },
+  { id: "ro", label: "Romanian", native: "română", flag: "🇷🇴" },
+  { id: "ru", label: "Russian", native: "русский", flag: "🇷🇺" },
+  { id: "es", label: "Spanish", native: "español", flag: "🇪🇸" },
+  { id: "sv", label: "Swedish", native: "svenska", flag: "🇸🇪" },
+  { id: "ta", label: "Tamil", native: "தமிழ்", flag: "🇮🇳" },
+  { id: "th", label: "Thai", native: "ไทย", flag: "🇹🇭" },
+  { id: "tr", label: "Turkish", native: "Türkçe", flag: "🇹🇷" },
+  { id: "uk", label: "Ukrainian", native: "українська", flag: "🇺🇦" },
+  { id: "ur", label: "Urdu", native: "اردو", flag: "🇵🇰" },
+  { id: "vi", label: "Vietnamese", native: "Tiếng Việt", flag: "🇻🇳" },
+];
+const DEFAULT_LANG: LangId = "en";
+/* What a customer writes per language, beyond the primary. */
+type LangText = {
+  name?: string;
+  subtitle?: string;
+  callout?: string;
+  placeholder?: string;
+};
+/* Each part of the widget has its own language picker, because they are
+   written separately: the header can be in Arabic while the callout and the
+   placeholder are still in English. The header's two lines go together. */
+type LangUnit = "header" | "callout" | "placeholder";
+const UNIT_OF: Record<keyof LangText, LangUnit> = {
+  name: "header",
+  subtitle: "header",
+  callout: "callout",
+  placeholder: "placeholder",
+};
+
+/* The languages this agent speaks, as set in Configure → Language — the
+   primary first. Only these get a chip; adding a language there adds a chip
+   on every translatable field here. Stand-in: prod's test agent. */
+const CONFIGURED_LANGS: LangId[] = ["en", "ar", "zh", "bn", "cs"];
+
+/* Which language a field is showing — and the preview with it, so what is
+   being typed is what is on screen. Sits inside the field's right end, like
+   a phone number's country picker: flag and code, opening the configured
+   languages. Every translatable field has one, all bound to the same
+   choice. The parent is `relative`; `top` puts it in a textarea's corner. */
+function LangSwitch({
+  lang,
+  setLang,
+  top = false,
+}: {
+  lang: LangId;
+  setLang: (l: LangId) => void;
+  top?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const langs = CONFIGURED_LANGS.map((id) => LANGS.find((l) => l.id === id)!);
+  const cur = langs.find((l) => l.id === lang) ?? langs[0];
+  return (
+    <div className={`absolute right-1.5 ${open ? "z-40" : ""} ${top ? "top-1.5" : "top-1/2 -translate-y-1/2"}`}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Language: ${cur.label}`}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-6 items-center gap-1 rounded-md pl-1.5 pr-1 text-[11px] font-medium uppercase text-[#555] bg-[#F4F4F5] hover:bg-[#ECECEE]"
+      >
+        <span className="text-[12px] leading-none">{cur.flag}</span>
+        {cur.id}
+        <ChevronDown className="size-3 text-[#9A9A9A]" />
+      </button>
+      {open && (
+        <>
+          <span className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <ul
+            role="listbox"
+            aria-label="Language"
+            className="absolute right-0 top-7 z-40 w-[180px] rounded-lg border border-[#E5E5E5] bg-white p-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.15)]"
+          >
+            {langs.map((l) => (
+              <li key={l.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={l.id === lang}
+                  onClick={() => {
+                    setLang(l.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-left text-[13px] text-[#222] ${
+                    l.id === lang ? "bg-[#F4F2F8]" : "hover:bg-[#F6F6F6]"
+                  }`}
+                >
+                  <span className="text-[13px] leading-none">{l.flag}</span>
+                  {l.label}
+                  {l.id === lang && (
+                    <Check className="ml-auto size-3.5 shrink-0 text-[#333]" strokeWidth={2} />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -3334,6 +3519,15 @@ function IconOptions({
 function LauncherControls({
   s,
   set,
+  lang,
+  setLang,
+  callout,
+  setCallout,
+  baseCallout,
+  phLang,
+  setPhLang,
+  placeholder,
+  setPlaceholder,
   siteUrl,
   setSiteUrl,
   siteShot,
@@ -3343,6 +3537,18 @@ function LauncherControls({
 }: {
   s: LauncherSettings;
   set: (patch: Partial<LauncherSettings>) => void;
+  lang: LangId;
+  setLang: (l: LangId) => void;
+  /* the placeholder has its own language, apart from the callout's */
+  phLang: LangId;
+  setPhLang: (l: LangId) => void;
+  placeholder: string;
+  setPlaceholder: (v: string) => void;
+  /* the callout's text in the language being edited; empty falls back */
+  callout: string;
+  setCallout: (v: string) => void;
+  /* what shows when it is empty: the default language's callout */
+  baseCallout: string;
   siteUrl: string;
   setSiteUrl: (v: string) => void;
   siteShot: SiteShot | null;
@@ -3815,6 +4021,26 @@ function LauncherControls({
           <p className="text-[11px] leading-snug text-[#A8A8A8]">
             Shown beside the button. The conversation still opens with it.
           </p>
+          {/* The callout's words, per language — as in 2.0. */}
+          <div className="mt-3">
+            <FieldLabel>Message</FieldLabel>
+          </div>
+          <div className="relative">
+          <textarea
+            value={callout}
+            onChange={(e) => setCallout(e.target.value)}
+            placeholder={baseCallout}
+            rows={3}
+            disabled={!s.greetingOn}
+            className="block w-full resize-none rounded-lg border border-[#E5E5E5] py-2 pl-3 pr-[68px] text-[13px] leading-snug text-[#333] outline-none focus:border-[#C9C9C9] disabled:bg-[#FAFAFA] disabled:text-[#AAA]"
+          />
+          {s.greetingOn && <LangSwitch lang={lang} setLang={setLang} top />}
+          </div>
+          {lang === DEFAULT_LANG && (
+            <p className="mt-1 text-[11px] leading-snug text-[#A8A8A8]">
+              Left empty, it uses the conversation&rsquo;s first message.
+            </p>
+          )}
         </Group>
       )}
 
@@ -3838,12 +4064,15 @@ function LauncherControls({
             ? "Shown in the expanded launcher and the messenger. At rest it cycles the suggestions."
             : "Shown in the messenger's message field."}
         </span>
-        <input
-          value={s.placeholder}
-          onChange={(e) => set({ placeholder: e.target.value })}
-          placeholder="Ask me anything…"
-          className="w-full rounded-lg border border-[#E5E5E5] px-3 py-2 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
-        />
+        <div className="relative">
+          <input
+            value={placeholder}
+            onChange={(e) => setPlaceholder(e.target.value)}
+            placeholder={phLang === DEFAULT_LANG ? "Ask me anything…" : s.placeholder}
+            className="w-full rounded-lg border border-[#E5E5E5] py-2 pl-3 pr-[68px] text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
+          />
+          <LangSwitch lang={phLang} setLang={setPhLang} />
+        </div>
       </Group>
 
       {/* ── AUTO-OPEN ── */}
@@ -3971,6 +4200,10 @@ function LauncherControls({
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
 function AppearanceControls({
+  lang,
+  setLang,
+  baseName,
+  baseSubtitle,
   name,
   setName,
   subtitle,
@@ -4006,6 +4239,12 @@ function AppearanceControls({
   thinkLabel,
   setThinkLabel,
 }: {
+  lang: LangId;
+  setLang: (l: LangId) => void;
+  /* the default language's name and subtitle — the fallback when a
+     translation is empty */
+  baseName: string;
+  baseSubtitle: string;
   name: string;
   setName: (v: string) => void;
   subtitle: string;
@@ -4258,21 +4497,27 @@ function AppearanceControls({
           </p>
         )}
 
+        {/* The two lines in the header follow the visitor's language: a
+            language picker inside each field. */}
         <div className="mt-4">
           <FieldLabel>
-            Agent name <span className="text-[#D03A3A]">*</span>
+            Agent name{" "}
+            {lang === DEFAULT_LANG && <span className="text-[#D03A3A]">*</span>}
           </FieldLabel>
+          <div className="relative">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Bot name"
+            placeholder={lang === DEFAULT_LANG ? "Bot name" : baseName}
             disabled={logoOnly}
-            className={`h-9 w-full rounded-lg border px-3 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9] disabled:bg-[#FAFAFA] disabled:text-[#AAA] ${
-              !logoOnly && !name.trim()
+            className={`h-9 w-full rounded-lg border pl-3 pr-[68px] text-[13px] text-[#333] outline-none focus:border-[#C9C9C9] disabled:bg-[#FAFAFA] disabled:text-[#AAA] ${
+              !logoOnly && lang === DEFAULT_LANG && !name.trim()
                 ? "border-[#F0C4C4]"
                 : "border-[#E5E5E5]"
             }`}
           />
+          {!logoOnly && <LangSwitch lang={lang} setLang={setLang} />}
+          </div>
         </div>
 
         <div className="mt-4">
@@ -4280,13 +4525,20 @@ function AppearanceControls({
             Subtitle{" "}
             <span className="font-normal text-[#A8A8A8]">· optional</span>
           </FieldLabel>
+          <div className="relative">
           <input
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
-            placeholder="e.g. AI Agent · online"
+            placeholder={
+              lang === DEFAULT_LANG || !baseSubtitle
+                ? "e.g. AI Agent · online"
+                : baseSubtitle
+            }
             disabled={logoOnly}
-            className="h-9 w-full rounded-lg border border-[#E5E5E5] px-3 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9] disabled:bg-[#FAFAFA] disabled:text-[#AAA]"
+            className="h-9 w-full rounded-lg border border-[#E5E5E5] pl-3 pr-[68px] text-[13px] text-[#333] outline-none focus:border-[#C9C9C9] disabled:bg-[#FAFAFA] disabled:text-[#AAA]"
           />
+          {!logoOnly && <LangSwitch lang={lang} setLang={setLang} />}
+          </div>
         </div>
 
       </Group>
@@ -10597,6 +10849,7 @@ function LauncherPreview({
   device,
   name,
   subtitle,
+  callout,
   disclaimer,
   disclaimerOn,
   brandingOn,
@@ -10623,6 +10876,8 @@ function LauncherPreview({
      were gone. Drives the resting launcher and what the panel opens on. */
   session: SessionState;
   name: string;
+  /* the callout beside the button, in the language being previewed */
+  callout: string;
   subtitle: string;
   disclaimer: string;
   disclaimerOn: boolean;
@@ -13392,7 +13647,7 @@ function LauncherPreview({
                             ? lineNow
                             : !s.greetingOn
                             ? null
-                            : GREETING.text
+                            : callout
               }
               /* White, not the accent's soft tint. These sit on the customer's
                  own page rather than inside the panel, where the tint is what
