@@ -139,7 +139,153 @@ type LauncherSettings = {
   delay: number;
   soundOn: boolean;
   sound: SoundId;
+  /* Opens the agent on its own after a wait. Off by default — it is a tool a
+     customer reaches for to lift engagement, not the product's posture.
+     Never full screen: at 480px and up it opens the normal panel; below that
+     (phones) it opens the compact card at the foot of the screen, and the
+     visitor's own tap is what takes it full screen. */
+  autoOpen: boolean;
+  autoOpenOn: AutoOpenOn;
+  autoOpenDelay: number;
+  /* What auto-open looks like on phones and tablets — five candidates, kept
+     side by side for review. Desktop always opens the panel. */
+  autoOpenStyle: AutoOpenStyle;
+  /* A typing bubble for 1.5s before the message, on the styles that show a
+     message above the launcher. */
+  autoOpenTyping: boolean;
+  /* The line follows the page: pricing gets a pricing line, and so on. */
+  autoOpenPageLine: boolean;
 };
+
+type AutoOpenStyle =
+  | "handle"
+  | "card"
+  | "sheet"
+  | "stops"
+  | "floating"
+  | "nudge"
+  | "banner"
+  | "speaks"
+  | "question"
+  | "ready"
+  | "answer"
+  | "window";
+/* Sheet-with-stops resting heights, as shares of the screen. */
+const STOPS = [0.3, 0.65, 1];
+/* The short line the light styles (floating, nudge, banner) carry — they have
+   room for a sentence, not a first turn. Brightline's first turn opens on a
+   bare hello and a consent paragraph, neither of which is an offer, so it
+   gets the line its launcher greeting would carry. */
+/* What the three launcher-led styles say, per tenant. The yes/no answers are
+   sent as the visitor's own words, so each one has a reply written for it. */
+const NUDGE_COPY: Record<
+  Tenant,
+  {
+    question: { ask: string; yes: [string, string]; no: [string, string] };
+    ready: (path: string) => string;
+    answer: string;
+  }
+> = {
+  brightline: {
+    question: {
+      ask: "Is this for your child?",
+      yes: ["Yes", "Yes, it's for my child"],
+      no: ["No, for me", "No, it's for me"],
+    },
+    ready: (path) =>
+      path.startsWith("/pricing")
+        ? "Do you take insurance?"
+        : path.startsWith("/locations")
+          ? "Is online therapy available?"
+          : "How do I get started?",
+    answer:
+      "Most families start with a 3-session evaluation — online or in person — before any treatment is recommended.",
+  },
+  gp: {
+    question: {
+      ask: "Do you already take payments online?",
+      yes: ["Yes", "Yes, I already take payments online"],
+      no: ["Not yet", "Not yet — I want to start"],
+    },
+    ready: (path) =>
+      path.startsWith("/pricing") ? "How much does it cost?" : "Can I accept payments online?",
+    answer:
+      "Global Payments works with 30+ payment providers, and most businesses go live in a few days.",
+  },
+};
+const NUDGE_REPLIES: Record<string, Omit<Msg, "from">> = {
+  "Yes, it's for my child": {
+    text: "Thanks for telling me. We work with kids and teens up to 18, plus support for the parents around them.\n\nMost families start with a **diagnostic evaluation** — three sessions that give a full picture before we recommend therapy, psychiatry or testing. What would help most?",
+    followUps: ["💳 Insurance & pricing", "📅 How do I get started?", "🧠 How does care work?"],
+  },
+  "No, it's for me": {
+    text: "Brightline focuses on kids and teens — but if you're a parent or caregiver, we offer **parenting support** too, and I can tell you how that works.\n\nIf you're looking for care for yourself, I can point you to where to start.",
+    followUps: ["📅 How do I get started?", "💬 Something else"],
+  },
+};
+
+/* The line a page gets, when "Line for the page" is on. Brightline's real
+   sections first; for anyone else a contextual rule's label stands in. */
+const PAGE_LINES: { tenant: Tenant; match: string; line: string }[] = [
+  { tenant: "brightline", match: "/pricing", line: "Looking at pricing? I can check what your insurance covers." },
+  { tenant: "brightline", match: "/what-we-treat", line: "Wondering if we can help? I can explain how the first evaluation works." },
+  { tenant: "brightline", match: "/what-we-offer", line: "Comparing therapy, psychiatry and testing? I can help you pick." },
+  { tenant: "brightline", match: "/locations", line: "Looking for a clinic near you, or care online? I can check both." },
+  { tenant: "brightline", match: "/about", line: "Want to know more about our clinicians? Ask me anything." },
+  { tenant: "gp", match: "/pricing", line: "Looking at pricing? I can work out which plan fits your business." },
+];
+const pageLine = (path: string, rules: ContextRule[]) => {
+  const hit = PAGE_LINES.filter(
+    (l) => l.tenant === TENANT && path.startsWith(l.match),
+  ).sort((a, b) => b.match.length - a.match.length)[0];
+  if (hit) return hit.line;
+  const rule = rules
+    .filter((r) => r.match.trim().length > 1 && path.startsWith(r.match.trim()))
+    .sort((a, b) => b.match.length - a.match.length)[0];
+  return rule ? `Looking at ${rule.label.toLowerCase()}? I can help with that.` : null;
+};
+const shortLine = () =>
+  TENANT === "brightline"
+    ? "Hi there! Questions about care, insurance or getting started? I can help."
+    : GREETING.text;
+/* Auto-open opens the real messenger. On a small screen the only question
+   is its shape — never the whole screen — so these are the three shapes.
+   (The lighter nudges explored on the way are still in the code below but
+   are not offered: they are not the messenger.) */
+const AUTO_OPEN_STYLES: { v: AutoOpenStyle; label: string; note: string }[] = [
+  {
+    v: "handle",
+    label: "Message sheet",
+    note: "The bottom sheet at 45%, showing only the first message and its suggestions, with a handle. Pull up to grow it into the messenger, down to put it away.",
+  },
+  {
+    v: "card",
+    label: "Message card",
+    note: "A card floating just above the bottom edge, as tall as its message (never over 45%). The agent's name and one ✕ on top; the first message and its suggestions; an Ask a question pill that opens the messenger. Pull up to open, down to put it away.",
+  },
+  {
+    v: "sheet",
+    label: "Bottom sheet",
+    note: "The messenger on the bottom edge, full width, 65% tall. Full screen once they chat.",
+  },
+  {
+    v: "stops",
+    label: "Sheet with stops",
+    note: "Opens short (30%). Drag the handle to 65% or full; drag down to dismiss. Full screen once they chat.",
+  },
+];
+
+/* Phone means under the compact breakpoint (see COMPACT_BELOW); desktop
+   means everything at or above it, tablets included. */
+type AutoOpenOn = "all" | "mobile" | "desktop";
+
+/* Below this width — or below COMPACT_SHORT_BELOW in height — the 400px
+   panel plus a 16px margin either side (432) no longer fits as a popup, so
+   the messenger goes full screen when the visitor opens it, and auto-open
+   shows the compact card instead of opening anything. 480 leaves a 24px
+   margin and catches the largest phones and folded foldables. */
+const COMPACT_BELOW = 480;
+const COMPACT_SHORT_BELOW = 560;
 
 const DEFAULT_LAUNCHER: LauncherSettings = {
   type: "composer",
@@ -203,6 +349,14 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
   delay: 0.5,
   soundOn: false,
   sound: "chime",
+  autoOpen: false,
+  autoOpenOn: "all",
+  autoOpenDelay: 4,
+  autoOpenStyle: "handle",
+  /* No longer offered in the settings (not in the product): auto-open shows
+     the greeting as it is, straight away. */
+  autoOpenTyping: false,
+  autoOpenPageLine: false,
 };
 
 /* ─── /composer-launcher/v6 ───────────────────────────────────────────────
@@ -1134,6 +1288,9 @@ function liteOf(accent: string) {
   return oklchToHex(0.61, Math.min(0.21, C * 1.25), H);
 }
 
+/* Link colour in messages. */
+const LINK_BLUE = "#2563EB";
+
 /* WCAG contrast between two hexes. */
 function contrast(a: string, b: string) {
   const lum = (h: string) => {
@@ -1664,6 +1821,9 @@ export default function DesignPage() {
      smaller screen, opened on a turn whose suggestions are long — the case
      the layout rule is for. Null shows the launcher as usual. */
   const [screenLens, setScreenLens] = useState<ScreenLens | null>(null);
+  /* The strip under the preview can be put away, for a clean look at the
+     preview; a small tab brings it back. */
+  const [stripOpen, setStripOpen] = useState(true);
   /* Which suggestion set the screen lens opens on: long questions, or short
      ones — the two cases the layout rule splits on. */
   const [lensLen, setLensLen] = useState<"long" | "short">("long");
@@ -1736,7 +1896,21 @@ export default function DesignPage() {
 
   // preview-only, so deliberately outside the saved config — pointing the
   // preview at a site isn't a change to the customer's launcher
-  const [siteUrl, setSiteUrl] = useState("");
+  const [siteUrl, setSiteUrlRaw] = useState("");
+  /* Pointing the preview at brightline.com loads Brightline's own name, mark,
+     notice and placeholder — once, on the switch, so edits made after it
+     stick. */
+  const setSiteUrl = (v: string) => {
+    if (tenantFor(v) === "brightline" && tenantFor(siteUrl) !== "brightline") {
+      setName(BL_BRAND.name);
+      setSubtitle(BL_BRAND.subtitle);
+      setAvatar(BL_BRAND.avatar);
+      setDisclaimer(BL_BRAND.disclaimer);
+      setDisclaimerOn(true);
+      setLauncher((l) => ({ ...l, placeholder: BL_BRAND.placeholder }));
+    }
+    setSiteUrlRaw(v);
+  };
   /* Set during render, before any preview reads the script. */
   const tenant = tenantFor(siteUrl);
   setTenant(tenant);
@@ -1746,7 +1920,15 @@ export default function DesignPage() {
      the upload falls back to whatever was typed. */
   const [siteShot, setSiteShot] = useState<SiteShot | null>(null);
 
-  const [launcher, setLauncher] = useState<LauncherSettings>(DEFAULT_LAUNCHER);
+  const [rawLauncher, setLauncher] = useState<LauncherSettings>(DEFAULT_LAUNCHER);
+  /* Every field present, always: settings held from before a field existed
+     (a live reload, or a saved design from an older version) take the
+     default for it instead of reading as undefined — which is how "Open
+     after" came to say NaN. */
+  const launcher = useMemo(
+    () => ({ ...DEFAULT_LAUNCHER, ...rawLauncher }),
+    [rawLauncher],
+  );
   const patchLauncher = useCallback(
     (patch: Partial<LauncherSettings>) =>
       setLauncher((l) => ({ ...l, ...patch })),
@@ -2192,7 +2374,25 @@ export default function DesignPage() {
                 Messenger tab has already skipped past; the booking gambit is a
                 question about a turn inside the conversation, which the
                 launcher never reaches. */}
-            <div className="shrink-0 border-t border-[#E7E7E9] bg-white px-5 py-3">
+            {!stripOpen && (
+              <div className="relative h-0 shrink-0">
+                <button
+                  onClick={() => setStripOpen(true)}
+                  className="absolute bottom-3 right-4 z-30 rounded-full border border-[#E5E5E5] bg-white px-3 py-1.5 text-[12px] font-medium text-[#666] shadow-sm hover:text-[#333]"
+                >
+                  {tab === "launcher" ? "Visitor" : "Scheduler"}
+                </button>
+              </div>
+            )}
+            {stripOpen && (
+            <div className="relative shrink-0 border-t border-[#E7E7E9] bg-white py-3 pl-5 pr-12">
+              <button
+                onClick={() => setStripOpen(false)}
+                aria-label="Close this panel"
+                className="absolute right-3 top-2.5 grid size-7 place-items-center rounded-full text-[#9A9A9A] transition-colors hover:bg-[#F4F4F5] hover:text-[#333]"
+              >
+                <X className="size-4" strokeWidth={2} />
+              </button>
               {tab === "launcher" && (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -2311,6 +2511,7 @@ export default function DesignPage() {
                 </>
               )}
             </div>
+            )}
           </main>
         </div>
       </div>
@@ -2399,17 +2600,61 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 /* collapsible group — the launcher panel has more settings than fit on one
    screen, so every group can be folded away once it's set. */
+/* ── Message sheet (auto-open on phones and tablets) ─────────────────────
+   The bottom sheet at 45% with only the thread showing — the first turn and
+   its suggestions, no header, no field — and a handle on top. Up a few
+   millimetres (SHEET_PULL_PX) or a flick grows it, smoothly and in place,
+   into the whole messenger; down the same slides it away; short of either
+   it settles back. A tap on the handle grows it too. */
+const SHEET_PULL_PX = 24;
+/* px per ms: a release this fast is a flick, however short */
+const SHEET_FLICK = 0.35;
+const SHEET_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+/* a sheet going back down: a little longer than the messenger's 200ms
+   close, since it travels the whole height of the sheet */
+const SHEET_DOWN_MS = 260;
+/* the message sheet's resting height, as a share of the screen */
+const MESSAGE_SHEET = 0.45;
+/* clear space under the suggestions, so they do not sit on the screen's
+   bottom edge */
+const MESSAGE_SHEET_FOOT = 28;
+/* The message card leaves out a bare hello that opens a longer turn
+   ("Hi there!" then the consent paragraph): the card is small, and the
+   paragraph after it is the part worth the room. */
+const dropHello = (text: string) => {
+  const [first, ...rest] = text.split("\n\n");
+  return rest.length && first.trim().length <= 24 ? rest.join("\n\n") : text;
+};
+/* ── Message card ────────────────────────────────────────────────────────
+   A small card inset CARD_GAP from the sides and bottom, rounded all round:
+   the first message and its suggestions in smaller type, no header, no
+   handle, no action items, and exactly as tall as what it holds — nothing
+   scrolls. Under the thread, a pill that looks like the field but is a
+   button, so the keyboard comes up in the full messenger and never over a
+   floating card. */
+const CARD_GAP = 10;
+/* a set width, sat against the right edge — where the launcher lives */
+const MSG_CARD_W = 320;
+/* the agent's logo and name over the message — part of the card, not a bar */
+const CARD_HEAD = 48;
+/* the pill and the space round it; the privacy line adds CARD_NOTE */
+const CARD_FOOT = 72;
+const CARD_NOTE = 20;
+
 function Group({
   title,
   children,
   defaultOpen = true,
   badge,
   action,
+  info,
 }: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
   badge?: string;
+  /* what the group does, behind an ⓘ beside the title, on hover */
+  info?: string;
   /* sits between the title and the chevron. Rendered outside the collapse
      button, since a control nested inside a button is neither valid nor
      clickable without swallowing the collapse. */
@@ -2421,11 +2666,29 @@ function Group({
       <div className="flex items-center py-2.5">
         <button
           onClick={() => setOpen(!open)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          className="relative flex min-w-0 flex-1 items-center gap-1.5 text-left"
         >
           <span className="text-[11px] font-semibold uppercase tracking-wider text-[#9A9A9A]">
             {title}
           </span>
+          {info && (
+            /* Hover only: a click on the icon does not fold the group. The
+               tip hangs from the start of the title, not the icon, so it
+               stays inside the settings column. */
+            <span
+              className="group/info flex items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Info
+                className="size-3.5 cursor-help text-[#B8B8B8]"
+                strokeWidth={2}
+                aria-label={info}
+              />
+              <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-max max-w-[250px] rounded-md bg-[#333] px-2 py-1 text-[11px] font-normal normal-case leading-snug tracking-normal text-white opacity-0 shadow-md transition-opacity group-hover/info:opacity-100">
+                {info}
+              </span>
+            </span>
+          )}
           {badge && (
             <span className="rounded bg-[#F1ECFB] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#7C3AED]">
               {badge}
@@ -3575,6 +3838,64 @@ function LauncherControls({
         />
       </Group>
 
+      {/* ── AUTO-OPEN ── */}
+      <Group
+        title="Auto-open"
+        info="Opens the messenger on its own after a wait. Desktop opens the panel; phones and tablets open it as a sheet at the bottom, never more than 65% of the screen, and full screen once they chat."
+        action={
+          <Toggle
+            on={s.autoOpen}
+            onChange={(autoOpen) => set({ autoOpen })}
+            size="sm"
+          />
+        }
+      >
+        {s.autoOpen && (
+          <div>
+            <Segmented
+              value={s.autoOpenOn}
+              onChange={(autoOpenOn) => set({ autoOpenOn })}
+              options={[
+                { v: "all" as AutoOpenOn, label: "All devices", Icon: Monitor },
+                { v: "mobile" as AutoOpenOn, label: "Mobile", Icon: Smartphone },
+                { v: "desktop" as AutoOpenOn, label: "Desktop", Icon: Monitor },
+              ]}
+            />
+            <div className="mt-3" />
+            <NumberField
+              label="Open after"
+              value={s.autoOpenDelay}
+              onChange={(autoOpenDelay) => set({ autoOpenDelay })}
+              min={1}
+              max={60}
+              step={1}
+              suffix="s"
+            />
+            <div className="mt-4" />
+            <FieldLabel>On phones and tablets</FieldLabel>
+            <div className="relative">
+              <select
+                value={s.autoOpenStyle}
+                onChange={(e) =>
+                  set({ autoOpenStyle: e.target.value as AutoOpenStyle })
+                }
+                className="h-9 w-full appearance-none rounded-lg border border-[#E5E5E5] bg-white pl-3 pr-9 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
+              >
+                {AUTO_OPEN_STYLES.map((o) => (
+                  <option key={o.v} value={o.v}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]"
+                strokeWidth={2}
+              />
+            </div>
+          </div>
+        )}
+      </Group>
+
       {/* ── BEHAVIOUR ── */}
       <Group title="Entrance">
         <NumberField
@@ -4471,13 +4792,23 @@ const traceSecs = (t: string) =>
    because there is only one list for the two of them to disagree about. */
 type Tok =
   | { kind: "space"; text: string }
-  | { kind: "word"; text: string; bold: boolean; n: number }
+  | { kind: "word"; text: string; bold: boolean; n: number; href?: string }
   | { kind: "cite"; text: string; n: number };
 type Block = { bullet: boolean; lead: Tok[]; rest: Tok[] };
 
 function tokenize(text: string): Block[] {
   let n = 0;
+  /* [label](url) first: each word of the label is a word token carrying the
+     link, so it reveals, is spoken and is highlighted like any other word. */
   const run = (str: string): Tok[] =>
+    str.split(/(\[[^\]]+\]\([^)]+\))/).flatMap((chunk) => {
+      const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(chunk);
+      if (!link) return runText(chunk);
+      return runText(link[1]).map((t) =>
+        t.kind === "word" ? { ...t, href: link[2] } : t,
+      );
+    });
+  const runText = (str: string): Tok[] =>
     str.split(/(\*\*[^*]+\*\*)/).flatMap((seg) => {
       const strong = /^\*\*([^*]+)\*\*$/.exec(seg);
       const body = strong ? strong[1] : seg;
@@ -4579,16 +4910,36 @@ function RichText({
             {t.text}
           </span>
         );
-      return (
+      const word = (
         <span
           key={`${key}-${i}`}
           className={`inline-block transition-[background-color,box-shadow] duration-100 motion-reduce:transition-none ${
-            t.bold ? "font-semibold" : ""
+            t.bold ? "font-semibold" : t.href ? "font-medium" : ""
+          } ${
+            /* On the word itself: an underline on the <a> does not reach
+               into inline-block children. */
+            t.href ? "underline decoration-1 underline-offset-2" : ""
           }`}
           style={{ ...reveal(t.n), ...lit(t.n) }}
         >
           {t.text}
         </span>
+      );
+      /* Links in a message are link blue, underlined — the colour people
+         read as "this goes somewhere", whatever the tenant's accent. Held to
+         4.5:1 on the surface, so dark mode gets a lighter blue. */
+      return t.href ? (
+        <a
+          key={`${key}-a${i}`}
+          href={href(t.href)}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: readableOn(LINK_BLUE, neutral.surface) }}
+        >
+          {word}
+        </a>
+      ) : (
+        word
       );
     });
 
@@ -5191,6 +5542,9 @@ type Msg = {
      message's own — not a separate entry in the thread that could be scrolled
      away from the sentence explaining it. */
   card?: "scheduler";
+  /* An image the turn opens with — Brightline's greeting illustration. Drawn
+     above the text, in the thread only; the auto-open card leaves it out. */
+  image?: string;
 };
 
 /* live "thinking" indicator — sparkle + cycling shimmer phrase (matches /web) */
@@ -6748,12 +7102,38 @@ let SCRIPT: Msg[] = GP_SCRIPT;
    greeting and its four prompts, then a walk down the first path a parent
    takes — getting started — with each reply's own follow-ups under it. */
 const BL = BRIGHTLINE_CONTENT;
+/* The live bot's first turn, as it ships today: the illustration, a hello,
+   the consent paragraph with its three links, and four buttons. */
 const BL_GREETING: Omit<Msg, "from"> = {
-  text: [BL.greeting?.text, BL.greeting?.then?.text].filter(Boolean).join("\n\n"),
+  image: "/brightline/greeting-mark.png",
+  text: [
+    "Hi there!",
+    "By starting this chat, you agree to our [privacy policy](https://www.hellobrightline.com/privacy-policy). This AI chatbot only provides information about our services and does NOT provide medical advice, therapy, or other medical professional services. If you wish to speak to a human, please contact us at [info@hellobrightline.com](mailto:info@hellobrightline.com) or call [(888) 255-1401](tel:+18882551401) (8am–7pm ET, Mon–Fri).",
+  ].join("\n\n"),
+};
+const BL_PROMPTS = [
+  "💳 Insurance & pricing",
+  "📅 How do I get started?",
+  "🧠 How does care work?",
+  "💬 Something else",
+];
+/* The replies are keyed by the words; the buttons carry an emoji in front. */
+const blKey = (t: string) => t.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+/* What the preview takes on when it is pointed at brightline.com — the live
+   bot's name, mark, notice and field, so the page and the agent in front of
+   it are one customer. Applied once, on the switch; all of it stays editable. */
+const BL_BRAND = {
+  name: "Brightline AI Info Agent",
+  subtitle: "",
+  avatar: "/brightline/logo-mark.png",
+  disclaimer: BL.disclaimer ?? "",
+  placeholder: "Type your message...",
 };
 function brightlineReply(text: string): Omit<Msg, "from"> {
+  const written = NUDGE_REPLIES[text.trim()];
+  if (written) return { ...written, thoughtSecs: 2 };
   const key = Object.keys(BL.replies ?? {}).find(
-    (k) => k.trim().toLowerCase() === text.trim().toLowerCase(),
+    (k) => k.trim().toLowerCase() === blKey(text).toLowerCase(),
   );
   if (!key)
     return {
@@ -6773,18 +7153,20 @@ const BL_SCRIPT: Msg[] = (() => {
       from: "ai",
       ...BL_GREETING,
       steps: ["Read the page", "Loaded the agent's brief"],
-      followUps: BL.greeting?.then?.prompts ?? BL.starters,
+      followUps: BL_PROMPTS,
     },
   ];
   /* Follow the first suggestion each turn offers, for as long as there is a
      written reply to it — the same depth the Global Payments script runs. */
   let ask: string | undefined = out[0].followUps?.[1];
   for (let i = 0; ask && i < 5; i++) {
-    if (!BL.replies?.[ask]) break;
+    if (!BL.replies?.[blKey(ask)]) break;
     out.push({ from: "user", text: ask });
     const turn = brightlineReply(ask);
     out.push({ from: "ai", ...turn });
-    ask = turn.followUps?.find((f) => BL.replies?.[f] && !out.some((m) => m.text === f));
+    ask = turn.followUps?.find(
+      (f) => BL.replies?.[blKey(f)] && !out.some((m) => m.text === f),
+    );
   }
   return out;
 })();
@@ -6988,6 +7370,11 @@ function AgentPreview({
   opening,
   offerNewChat,
   onClose,
+  squareFoot = false,
+  onEngage,
+  bodyOnly = false,
+  mini = false,
+  onBodyHeight,
   placeholder,
   suggestions,
   scheduler,
@@ -7030,7 +7417,23 @@ function AgentPreview({
      open conversation gets one: after a day a fresh start is genuinely likely,
      where inside a day it is not and the three-dot menu is enough. */
   offerNewChat?: boolean;
-  onClose?: () => void;
+  /* Handed the conversation as it stands, so whoever opened the panel can
+     offer it back once it is closed. */
+  onClose?: (convo: Msg[]) => void;
+  /* Square bottom corners — for the auto-open sheet, which sits on the
+     bottom edge of the screen and is rounded only where it meets the page. */
+  squareFoot?: boolean;
+  /* Called when the visitor sends something — the auto-open sheet grows to
+     the messenger's full size on it. */
+  onEngage?: () => void;
+  /* The message sheet: only the thread — the first turn and its
+     suggestions — with no header and no field, until it grows. */
+  bodyOnly?: boolean;
+  /* The message card's height follows its content: handed the thread's
+     natural height whenever it changes. */
+  onBodyHeight?: (px: number) => void;
+  /* The message card: smaller type and chips, no action items, no scroll. */
+  mini?: boolean;
   placeholder: string;
   /* whatever the launcher is offering — the opening turn hands the same set on */
   suggestions: string[];
@@ -7395,6 +7798,7 @@ function AgentPreview({
   const send = (text: string) => {
     const msg = text.trim();
     if (!msg || thinking) return;
+    onEngage?.();
     setDraft("");
     setConvo((c) => [
       ...c,
@@ -7458,6 +7862,68 @@ function AgentPreview({
     };
   }, []);
 
+  /* The message sheet is short, so it always shows its end: the latest
+     message and the suggestions under it. The watcher above follows only the
+     message list and lets go once the visitor scrolls; here anything that
+     makes the thread taller or the sheet shorter — the first turn arriving,
+     the suggestions arriving after it, the sheet being pulled — brings the
+     end back into view. */
+  useEffect(() => {
+    if (!bodyOnly) return;
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const c = contentRef.current;
+      if (!c || !onBodyHeight) return;
+      /* Summed rather than read off the last child's edge: the suggestions
+         are pushed to the foot of a stretched column, so the edge is the
+         card's current height, not what the content needs. */
+      const kids = Array.from(c.children).filter(
+        (k) => (k as HTMLElement).offsetHeight > 0,
+      );
+      const gap = parseFloat(getComputedStyle(c).rowGap) || 0;
+      const pad = parseFloat(getComputedStyle(el).paddingTop) || 0;
+      const sum = kids.reduce(
+        (n, k) =>
+          n +
+          (k as HTMLElement).offsetHeight +
+          (parseFloat(getComputedStyle(k).marginBottom) || 0),
+        0,
+      );
+      let need = Math.ceil(pad + sum + gap * Math.max(0, kids.length - 1));
+      /* Anything still clipped — a late reflow, a font arriving — wins:
+         the card grows to whatever overflows rather than cutting it. */
+      if (el.scrollHeight > el.clientHeight + 1)
+        need = Math.max(need, el.scrollHeight);
+      if (sum > 0) onBodyHeight(need);
+    };
+    const toEnd = () => {
+      measure();
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    };
+    const ro = new ResizeObserver(toEnd);
+    const watch = () => {
+      ro.disconnect();
+      ro.observe(el);
+      Array.from(el.children).forEach((c) => ro.observe(c));
+      Array.from(contentRef.current?.children ?? []).forEach((c) =>
+        ro.observe(c),
+      );
+    };
+    watch();
+    const mo = new MutationObserver(() => {
+      watch();
+      toEnd();
+    });
+    mo.observe(el, { childList: true, subtree: true });
+    el.scrollTop = el.scrollHeight;
+    measure();
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [bodyOnly, onBodyHeight]);
+
   // docked launcher: start the conversation from the tapped prompt (once)
   useEffect(() => {
     if (!initialPrompt || started.current) return;
@@ -7472,7 +7938,13 @@ function AgentPreview({
          elements — 32 on the panel's top corners, 32 on the composer's
          bottom — which come to the same window; here the two are one
          container, so it carries all four. */
-      className="flex flex-col overflow-hidden rounded-[32px] shadow-[0_12px_40px_-8px_rgba(0,0,0,0.18)]"
+      className={`flex flex-col overflow-hidden ${mini ? "mini-card" : ""} ${
+        bodyOnly
+          ? "" /* inside the message sheet, which has its own edge */
+          : `shadow-[0_12px_40px_-8px_rgba(0,0,0,0.18)] ${
+              squareFoot ? "rounded-t-[32px]" : "rounded-[32px]"
+            }`
+      }`}
       style={
         {
           width: width ?? DEVICE_WIDTH[device],
@@ -7494,7 +7966,7 @@ function AgentPreview({
           thread, or the bare title on the archive. Padding alone made it the
           taller of the two and left the archive's rule a pixel off. */}
       <div
-        className="flex h-[60px] shrink-0 items-center border-b pl-4 pr-5"
+        className={`${bodyOnly ? "hidden" : "flex"} h-[60px] shrink-0 items-center border-b pl-4 pr-5`}
         style={{ borderColor: neutral.line }}
       >
         <Hot
@@ -7657,7 +8129,7 @@ function AgentPreview({
                     the other header: a button where there is something to
                     close, the mark alone where there is not. */}
                 <button
-                  onClick={onClose}
+                  onClick={() => onClose?.(convo)}
                   aria-label="Close"
                   className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
                   style={{ color: neutral.secondary }}
@@ -7857,7 +8329,7 @@ function AgentPreview({
                     there is no click that quietly does nothing. The three-dot
                     menu beside it is drawn the same way. */}
                 <button
-                  onClick={onClose}
+                  onClick={() => onClose?.(convo)}
                   aria-label="Close"
                   className="hdr-action grid size-8 shrink-0 place-items-center rounded-full transition-colors"
                   style={{ color: neutral.secondary }}
@@ -7897,13 +8369,33 @@ function AgentPreview({
           />
         </div>
 
+        {bodyOnly && (
+          /* The chip rail's hidden scrollbar is styled with the composer,
+             which the message sheet and card leave out — so it is repeated
+             here for them. */
+          <style>{`
+            .chip-rail { scrollbar-width: none; -ms-overflow-style: none; }
+            .chip-rail::-webkit-scrollbar { display: none; }
+          `}</style>
+        )}
+        {mini && (
+          /* the message card: small type, small chips, no action items.
+             Here rather than with the chip styles, which sit in the
+             composer — and the card has no composer. */
+          <style>{`
+            .mini-card .ai-actions { display: none; }
+            .mini-card .leading-relaxed { font-size: 13px; line-height: 1.6; }
+            .mini-card .starter-chip { font-size: 13px; padding: 6px 12px; }
+            .mini-card .chip-rail { padding-top: 2px; margin-bottom: 6px; }
+          `}</style>
+        )}
         <div
           ref={scrollRef}
           /* No bottom padding. It was 24, then 12, and both landed between the
            suggestions and the disclaimer on top of the spacing those two
            already carry — the conversation used to end at the last message,
            which is what that padding was for. */
-          className="absolute inset-0 flex flex-col overflow-y-auto px-5 pt-5 transition-transform motion-reduce:transition-none"
+          className={`absolute inset-0 flex flex-col ${mini ? "overflow-hidden px-4 pt-3" : "overflow-y-auto px-5 pt-5"} transition-transform motion-reduce:transition-none`}
           style={{
             transform: view === "history" ? "translateX(100%)" : "none",
             transitionDuration: `${VIEW_SLIDE_MS}ms`,
@@ -7918,7 +8410,7 @@ function AgentPreview({
              was already taller than its container and showed a scrollbar with
              nothing to scroll. Filling the space as a flex child costs no extra
              height. */
-            className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-4"
+            className={`mx-auto flex w-full max-w-[720px] flex-1 flex-col ${mini ? "gap-3" : "gap-4"}`}
           >
             {/* live conversation */}
             {loading ? (
@@ -8070,8 +8562,17 @@ function AgentPreview({
                           : { color: neutral.ink }
                       }
                     >
+                      {m.image && !mini && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={m.image}
+                          alt=""
+                          className="mb-3 block w-[200px] rounded-2xl border"
+                          style={{ borderColor: neutral.line }}
+                        />
+                      )}
                       <RichText
-                        text={m.text}
+                        text={mini ? dropHello(m.text) : m.text}
                         neutral={neutral}
                         instant={i < historyLen}
                         spoken={
@@ -8352,6 +8853,7 @@ function AgentPreview({
           it even when four rows would have fitted. A max-height rather than a
           display swap, so it collapses over the same duration the screens
           slide and the frame is never seen resizing. */}
+      {!bodyOnly && (
       <Hot
         part="composer"
         sel={sel}
@@ -8963,6 +9465,7 @@ function AgentPreview({
         </div>
       </div>
       </Hot>
+      )}
     </div>
   );
 }
@@ -10092,7 +10595,7 @@ function LauncherPreview({
   avatar,
   logoLook,
   logoOnly,
-  session,
+  session: visitor,
 }: {
   accent: string;
   theme: ReturnType<typeof useTheme>;
@@ -10120,6 +10623,19 @@ function LauncherPreview({
   logoLook: LogoLook;
   logoOnly: boolean;
 }) {
+  /* The conversation had in this preview, once it is closed. A visitor who
+     has just been talking is a recent conversation — with their own last
+     exchange on the launcher, not the script's — whatever the strip under
+     the preview says, and auto-open never fires at them again. Cleared when
+     the strip picks a different visitor. */
+  const [live, setLive] = useState<{ for: SessionState; thread: Msg[] } | null>(
+    null,
+  );
+  const liveThread = live && live.for === visitor ? live.thread : null;
+  const session: SessionState = liveThread ? "recent" : visitor;
+  const recentThread = liveThread ?? priorThread();
+  const threadFor = (st: SessionState) =>
+    st === "open" ? openThread() : recentThread;
   const isMobile = device === "mobile";
   /* Layout is one question and interaction is another, and the tablet answers
      them differently: it is wide enough to lay out like a desktop and has no
@@ -10227,7 +10743,6 @@ function LauncherPreview({
   /* With no page switcher the preview otherwise sits on the site root, so the
      contextual suggestions resolve to the fallback set. Page rules still save and
      still apply in the product; they just cannot be exercised from here. */
-  const activePath = "/";
   /* Memoised because the rising prompts time off it: a fresh array each render
      would clear and restart the emission timer on every parent update, so
      nothing would ever be emitted. */
@@ -10242,6 +10757,19 @@ function LauncherPreview({
   }, [siteUrl]);
 
   const trimmed = committedUrl.trim();
+  /* The page is the URL's path — brightline.com/pricing is the pricing page —
+     so contextual suggestions and the page line can be tried for real. */
+  const activePath = (() => {
+    try {
+      const u = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+      return u.pathname.replace(/\/+$/, "") || "/";
+    } catch {
+      return "/";
+    }
+  })();
+  /* The one line the light auto-open styles say. */
+  const lineNow =
+    (s.autoOpenPageLine && pageLine(activePath, s.rules)) || shortLine();
 
   /* Generated suggestions replace the fallback rather than sharing slots with
      it — the same rule the product follows. */
@@ -10253,11 +10781,12 @@ function LauncherPreview({
          set comes off the script, so pressing one carries the conversation on
          instead of starting a different one beside it. */
       resumable
-        ? scriptPrompts(session === "open" ? openThread() : priorThread())
+        ? scriptPrompts(threadFor(session))
         : SCRIPT_SITE.test(trimmed)
           ? scriptPrompts(SCRIPT.slice(0, 1))
           : (generatedFor(trimmed) ?? promptsFor(s, activePath)),
-    [trimmed, s, activePath, resumable, session],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trimmed, s, activePath, resumable, session, liveThread],
   );
   const origin = trimmed
     ? /^https?:\/\//i.test(trimmed)
@@ -10393,7 +10922,11 @@ function LauncherPreview({
   /* What the panel opens on when the field is pressed: whatever has been said
      out here. The launcher opens what it says, and by then it has said several
      things. */
-  const seeded = floating ? floatTurns : fresh ? null : seedFor(session);
+  const seeded = floating
+    ? floatTurns
+    : fresh
+      ? null
+      : liveThread ?? seedFor(session);
   /* Nothing. Continuing means seeing the last message — the agent does not
      announce that it has noticed. An extra "welcome back, still on that?"
      turn is a message the visitor has to read before reaching the one they
@@ -10410,6 +10943,7 @@ function LauncherPreview({
   const opensThread = resumable || hasDraft || unread;
 
   const openChat = (p?: string, startFresh = false) => {
+    setPeek(false);
     setPrompt(p);
     setFresh(startFresh);
     setOpen(true);
@@ -10425,11 +10959,21 @@ function LauncherPreview({
      together. Someone who has asked the system for less motion gets the
      instant close. */
   const [closing, setClosing] = useState(false);
-  const closeChat = () => {
+  const closeChat = (convo?: Msg[]) => {
+    if (convo?.some((m) => m.from === "user"))
+      setLive({ for: visitor, thread: convo });
     setHoverOpen(false);
+    /* Having opened it at all spends the auto-open: nothing pops open again
+       behind a visitor who has just been talking. (While it is open the
+       timer is held off anyway.) */
+    setAutoSpent(autoKey);
+    /* Closed from the auto-open window rather than the panel: there is no
+       panel on screen to play the close on, and a closing flag left set
+       would make the next open close itself. */
     if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      !open ||
+      (typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches)
     ) {
       setOpen(false);
       return;
@@ -10441,6 +10985,97 @@ function LauncherPreview({
     setClosing(false);
     setOpen(false);
   };
+
+  /* ── auto-open ──
+     Once per visit: the key names everything that would make it a different
+     visit in the preview (the settings, the device, the visitor state), and
+     the run is spent the moment it fires or the visitor gets there first. */
+  const compact =
+    siteWidth < COMPACT_BELOW || frameHeight < COMPACT_SHORT_BELOW;
+  const autoKey = `${s.autoOpen}-${s.autoOpenOn}-${s.autoOpenDelay}-${s.autoOpenStyle}-${device}-${session}`;
+  const [autoSpent, setAutoSpent] = useState<string | null>(null);
+  const [peek, setPeek] = useState(false);
+  /* The sheet going back down after its ✕: it stays mounted while it slides
+     off the bottom edge, the way it came in, and only then closes. */
+  const [peekClosing, setPeekClosing] = useState(false);
+  /* Message sheet: how far the handle is pulled (negative is up), and the
+     pointer's last position and speed, read only in the handlers. */
+  const [pull, setPull] = useState(0);
+  /* the message card's thread, at its natural height (see onBodyHeight) */
+  const [cardBody, setCardBody] = useState(0);
+  const pullFrom = useRef<{ y0: number; y: number; t: number; v: number } | null>(null);
+  const [peekCloseWith, setPeekCloseWith] = useState<Msg[] | undefined>(undefined);
+  /* The sheet at its auto-open height until the visitor says something —
+     typed or a suggestion pressed — and the messenger's real size from then
+     on: full screen on a phone, the normal panel on a tablet. Grown in
+     place, so the conversation carries on in the same window. */
+  const [peekGrown, setPeekGrown] = useState(false);
+  /* Sheet with stops: the height it rests at, and whether a drag is live
+     (no easing while the finger is moving it). */
+  const [stop, setStop] = useState(STOPS[0]);
+  const [dragging, setDragging] = useState(false);
+  const dragFrom = useRef<{ y: number; h: number; moved: boolean } | null>(
+    null,
+  );
+  const dismissPeek = () => setPeek(false);
+  /* Typing first: the bubble shows "…" for 1.5s, then the message. */
+  const [typed, setTyped] = useState(true);
+  useEffect(() => {
+    if (!peek || typed) return;
+    const id = setTimeout(() => setTyped(true), 1500);
+    return () => clearTimeout(id);
+  }, [peek, typed]);
+  /* The speaking launcher folds itself away after 12s if left alone, like a
+     launcher expanded by a scroll. */
+  useEffect(() => {
+    if (!peek || s.autoOpenStyle !== "speaks") return;
+    const id = setTimeout(() => setPeek(false), 12000);
+    return () => clearTimeout(id);
+  }, [peek, s.autoOpenStyle]);
+  /* The banner goes on its own after 10s if nobody touches it. */
+  useEffect(() => {
+    if (!peek || s.autoOpenStyle !== "banner") return;
+    const id = setTimeout(() => setPeek(false), 10000);
+    return () => clearTimeout(id);
+  }, [peek, s.autoOpenStyle]);
+  const autoApplies =
+    s.autoOpen &&
+    /* A visitor with a conversation is offered that conversation instead. */
+    session === "first" &&
+    (s.autoOpenOn === "all" ||
+      (s.autoOpenOn === "mobile" ? compact : !compact));
+  const fireAuto = useCallback(() => {
+    if (autoSpent === autoKey) return;
+    setAutoSpent(autoKey);
+    /* Phone and tablet get the card; only desktop opens the panel itself.
+       A tablet has the width for a panel but is held like a phone and read
+       like one, and a 720-tall panel arriving on its own covers most of it. */
+    if (compact || device === "tablet") {
+      setPeekGrown(false);
+      setPeekClosing(false);
+      setPull(0);
+      setStop(STOPS[0]);
+      setTyped(
+        !(
+          s.autoOpenTyping &&
+          ["floating", "nudge", "question", "answer", "handle"].includes(s.autoOpenStyle)
+        ),
+      );
+      setPeek(true);
+    }
+    else openChat(undefined, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoKey, autoSpent, compact, device, s.autoOpenTyping, s.autoOpenStyle]);
+  useEffect(() => {
+    if (!autoApplies || open || autoSpent === autoKey) return;
+    const id = setTimeout(fireAuto, s.autoOpenDelay * 1000);
+    return () => clearTimeout(id);
+  }, [autoApplies, open, autoSpent, autoKey, s.autoOpenDelay, fireAuto]);
+  useEffect(() => {
+    autoOnScroll.current = () => {
+      if (autoApplies && compact && !open && autoSpent !== autoKey) fireAuto();
+    };
+  });
 
   /* ── entrance: the launcher is absent until the delay elapses ──
      Replay re-arms it so you can feel the wait you just dialled in, and
@@ -10498,7 +11133,13 @@ function LauncherPreview({
   const [scrolled, setScrolled] = useState(false);
   const scrollHold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastY = useRef(0);
+  const autoOnScroll = useRef<() => void>(() => {});
   const onSiteScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    /* Phones may open sooner: a third of the way down the page is a visitor
+       who has read something, which is the whole point of waiting. */
+    if (el.scrollTop > (el.scrollHeight - el.clientHeight) / 3)
+      autoOnScroll.current();
     const y = e.currentTarget.scrollTop;
     const dy = y - lastY.current;
     lastY.current = y;
@@ -10526,7 +11167,10 @@ function LauncherPreview({
      the width, whether the typewriter is running — asks whether the pane is
      open, not how it was opened, so the phone's answer is substituted here
      rather than at each of the dozen places that ask. */
-  const barOpen = floating
+  const speaking = peek && !open && s.autoOpenStyle === "speaks";
+  const barOpen = speaking
+    ? true
+    : floating
     ? /* Never, while the conversation is on the page. The pane exists to hand
          over the suggestions the resting launcher cannot show — and out here
          they are already showing, under the turn that asked for them. Opening
@@ -10568,11 +11212,14 @@ function LauncherPreview({
        got back. Not the suggestions with it: those are already the chips one
        hover away, and running them through the same line turns a reminder into
        a menu. */
+    /* The speaking launcher says its line, not the suggestions — those are
+       already open underneath it. */
+    if (speaking) return [lineNow];
     if (chipShut) return base;
     if (session === "recent") return [RESUME_FIELD];
     if (session === "open") return recallLines();
     return base;
-  }, [prompts, session, chipShut]);
+  }, [prompts, session, chipShut, speaking, lineNow]);
   /* The run is stamped with the lines it belongs to, so when the suggestions
      change underneath it the typewriter restarts at the first of the new set
      rather than carrying a half-typed word over from the old one. */
@@ -10970,6 +11617,14 @@ function LauncherPreview({
             height: var(--to-h);
           }
         }
+        @keyframes sheet-up {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        @keyframes sheet-down {
+          from { transform: translateY(var(--from-y, 0px)); }
+          to   { transform: translateY(100%); }
+        }
         @keyframes launcher-open {
           from { opacity: 0; transform: translateY(10px) scale(0.90); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -11066,6 +11721,684 @@ function LauncherPreview({
         </div>
       </div>
 
+      {peek && !open && (s.autoOpenStyle === "question" || s.autoOpenStyle === "ready" || s.autoOpenStyle === "answer") && (() => {
+        /* The launcher-led styles: one small object above the launcher,
+           each asking for as little as possible. */
+        const lift =
+          (centreOnPhone ? MOBILE.bottom : s.offsetY) +
+          (isComposer ? (isMobile ? PILL_MOBILE.height : V6.height) : buttonPx) +
+          12;
+        const side: CSSProperties = isMobile
+          ? { left: 16, right: 16 }
+          : s.placement === "center"
+            ? { left: "50%", transform: "translateX(-50%)", width: 360 }
+            : s.placement === "left"
+              ? { left: s.offsetX, width: 340 }
+              : { right: s.offsetX, width: 340 };
+        const copy = NUDGE_COPY[TENANT];
+        const glass = clusterGlass(theme);
+        const mark = avatar ? (
+          <LogoMark src={avatar} look={logoLook} accent={accent} size={24} />
+        ) : (
+          <span
+            className="grid size-6 shrink-0 place-items-center rounded-full"
+            style={{ background: theme.bubbleFill }}
+          >
+            <Bot className="size-3" style={{ color: theme.bubbleInk }} strokeWidth={2} />
+          </span>
+        );
+        const close = (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissPeek();
+            }}
+            aria-label="Close"
+            className="-mr-1 -mt-0.5 grid size-6 shrink-0 place-items-center rounded-full"
+            style={{ color: theme.neutral.secondary }}
+          >
+            <X className="size-3.5" strokeWidth={2} />
+          </button>
+        );
+        const dots = (
+          <span aria-label="Typing" className="flex h-[22.75px] items-center gap-1 px-1">
+            {[0, 1, 2].map((d) => (
+              <span
+                key={d}
+                className="size-1.5 rounded-full"
+                style={{
+                  background: theme.neutral.secondary,
+                  animation: `typing-dot 1.2s ease-in-out ${d * 0.15}s infinite`,
+                }}
+              />
+            ))}
+          </span>
+        );
+        const card: CSSProperties = {
+          background: glass.background,
+          boxShadow: glass.shadow,
+          animation: "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        };
+        return (
+          <div
+            className="absolute z-20 flex flex-col items-end gap-2"
+            style={{ ...side, bottom: lift }}
+          >
+            {s.autoOpenStyle === "question" && (
+              <div className="w-full rounded-[20px] px-3.5 pb-3 pt-3" style={card}>
+                <div className="flex items-start gap-2.5">
+                  {mark}
+                  {typed ? (
+                    <p
+                      className="min-w-0 flex-1 text-[15px] font-medium leading-snug"
+                      style={{ color: theme.neutral.ink, animation: "fade-in 200ms ease-out both" }}
+                    >
+                      {copy.question.ask}
+                    </p>
+                  ) : (
+                    <span className="flex-1">{dots}</span>
+                  )}
+                  {close}
+                </div>
+                {typed && (
+                  /* Two answers, side by side and the same size: neither is
+                     the "right" one. Each is sent as the visitor's words. */
+                  <div className="mt-3 grid grid-cols-2 gap-2 pl-[34px]">
+                    {[copy.question.yes, copy.question.no].map(([label, said], i) => (
+                      <button
+                        key={label}
+                        onClick={() => openChat(said, true)}
+                        className="starter-chip h-10 rounded-full text-[14px] font-medium transition-[background-color,box-shadow] duration-200"
+                        style={
+                          {
+                            backgroundColor: theme.bubbleFill,
+                            color: theme.bubbleInk,
+                            "--chip-stroke": chip.stroke,
+                            "--chip-wash": chip.wash,
+                            animation: `reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) ${80 + i * 70}ms both`,
+                          } as CSSProperties
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {s.autoOpenStyle === "ready" && (
+              /* Looks like the field with the question already typed in it —
+                 the send disc is the whole ask. */
+              <div className="flex w-full items-center gap-2.5 rounded-full py-1.5 pl-3 pr-1.5" style={card}>
+                {mark}
+                <button
+                  onClick={() => openChat(copy.ready(activePath), true)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                >
+                  <span
+                    className="min-w-0 flex-1 truncate text-[14px]"
+                    style={{ color: theme.neutral.ink }}
+                  >
+                    {copy.ready(activePath)}
+                  </span>
+                  <span
+                    className="grid size-9 shrink-0 place-items-center rounded-full"
+                    style={{ background: accent, color: "#FFFFFF" }}
+                  >
+                    <ArrowUp className="size-4" strokeWidth={2} />
+                  </span>
+                </button>
+                {close}
+              </div>
+            )}
+            {s.autoOpenStyle === "answer" && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => openChat(undefined, true)}
+                className="w-full cursor-pointer rounded-[20px] px-3.5 py-3"
+                style={card}
+              >
+                <div className="flex items-start gap-2.5">
+                  {mark}
+                  {typed ? (
+                    <div className="min-w-0 flex-1" style={{ animation: "fade-in 200ms ease-out both" }}>
+                      <p className="text-[14px] leading-relaxed" style={{ color: theme.neutral.ink }}>
+                        {copy.answer}
+                      </p>
+                      <span
+                        className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-medium"
+                        style={{ color: readableOn(accent, theme.neutral.surface) }}
+                      >
+                        Ask me more
+                        <ArrowUp className="size-3.5 rotate-90" strokeWidth={2.2} />
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="flex-1">{dots}</span>
+                  )}
+                  {close}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+      {peek && !open && s.autoOpenStyle === "banner" && (
+        /* Slim banner: one line across the top of the screen. */
+        <div
+          className="absolute inset-x-3 top-3 z-20 flex items-center gap-2.5 rounded-2xl py-2 pl-3 pr-1.5"
+          style={{
+            background: clusterGlass(theme).background,
+            boxShadow: clusterGlass(theme).shadow,
+            animation: "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+          }}
+        >
+          {avatar ? (
+            <LogoMark src={avatar} look={logoLook} accent={accent} size={24} />
+          ) : (
+            <span
+              className="grid size-6 shrink-0 place-items-center rounded-full"
+              style={{ background: theme.bubbleFill }}
+            >
+              <Bot className="size-3" style={{ color: theme.bubbleInk }} strokeWidth={2} />
+            </span>
+          )}
+          <p
+            className="min-w-0 flex-1 truncate text-[13px]"
+            style={{ color: theme.neutral.ink }}
+          >
+            <span className="font-semibold">{name || "Agent"}:</span>{" "}
+            {lineNow}
+          </p>
+          <button
+            onClick={() => {
+              setPeek(false);
+              openChat(undefined, true);
+            }}
+            className="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium"
+            style={{ background: accent, color: "#FFFFFF" }}
+          >
+            Chat
+          </button>
+          <button
+            onClick={dismissPeek}
+            aria-label="Close"
+            className="grid size-7 shrink-0 place-items-center rounded-full"
+            style={{ color: theme.neutral.secondary }}
+          >
+            <X className="size-4" strokeWidth={2} />
+          </button>
+        </div>
+      )}
+      {peek && !open && (s.autoOpenStyle === "floating" || s.autoOpenStyle === "nudge") && (() => {
+        /* Above the launcher, on the page — no panel. */
+        const lift =
+          (centreOnPhone ? MOBILE.bottom : s.offsetY) +
+          (isComposer ? (isMobile ? PILL_MOBILE.height : V6.height) : buttonPx) +
+          12;
+        const side: CSSProperties = isMobile
+          ? { left: 16, right: 16 }
+          : s.placement === "center"
+            ? { left: "50%", transform: "translateX(-50%)", width: 360 }
+            : s.placement === "left"
+              ? { left: s.offsetX, width: 340 }
+              : { right: s.offsetX, width: 340 };
+        const nudge = s.autoOpenStyle === "nudge";
+        return (
+          <div
+            className={`absolute z-20 flex flex-col gap-2 ${
+              s.placement === "left" && !isMobile ? "items-start" : "items-end"
+            } ${isMobile && isComposer ? "items-center" : ""}`}
+            style={{ ...side, bottom: lift }}
+          >
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setPeek(false);
+                openChat(undefined, true);
+              }}
+              className="relative flex max-w-full cursor-pointer items-start gap-2.5 rounded-[20px] px-3.5 py-3"
+              style={{
+                background: clusterGlass(theme).background,
+                boxShadow: clusterGlass(theme).shadow,
+                animation: nudge
+                  ? "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both, mark-nudge 2400ms ease-in-out 600ms 2"
+                  : "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+              }}
+            >
+              {avatar ? (
+                <LogoMark src={avatar} look={logoLook} accent={accent} size={24} />
+              ) : (
+                <span
+                  className="grid size-6 shrink-0 place-items-center rounded-full"
+                  style={{ background: theme.bubbleFill }}
+                >
+                  <Bot className="size-3" style={{ color: theme.bubbleInk }} strokeWidth={2} />
+                </span>
+              )}
+              {typed ? (
+                <p
+                  className={`min-w-0 text-[14px] leading-relaxed ${
+                    nudge ? "truncate" : "line-clamp-3"
+                  }`}
+                  style={{
+                    color: theme.neutral.ink,
+                    animation: "fade-in 200ms ease-out both",
+                  }}
+                >
+                  {lineNow}
+                </p>
+              ) : (
+                /* Typing first — three dots on the typing-dot clock. */
+                <span
+                  aria-label="Typing"
+                  className="flex h-[22.75px] items-center gap-1 px-1"
+                >
+                  {[0, 1, 2].map((d) => (
+                    <span
+                      key={d}
+                      className="size-1.5 rounded-full"
+                      style={{
+                        background: theme.neutral.secondary,
+                        animation: `typing-dot 1.2s ease-in-out ${d * 0.15}s infinite`,
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
+              {nudge && (
+                <span
+                  className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full text-[11px] font-semibold text-white"
+                  style={{
+                    background: NOTIFY,
+                    boxShadow: `0 0 0 2px ${theme.neutral.surface}`,
+                    opacity: typed ? 1 : 0,
+                    transition: "opacity 200ms",
+                  }}
+                >
+                  1
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismissPeek();
+                }}
+                aria-label="Close"
+                className="-mr-1 -mt-0.5 grid size-6 shrink-0 place-items-center rounded-full"
+                style={{ color: theme.neutral.secondary }}
+              >
+                <X className="size-3.5" strokeWidth={2} />
+              </button>
+            </div>
+            {!nudge && typed && prompts.length > 0 && (
+              <div className="flex max-w-full gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {prompts.map((p, i) => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setPeek(false);
+                      openChat(p, true);
+                    }}
+                    className="starter-chip shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[14px] transition-[background-color,box-shadow] duration-200 ease-out"
+                    style={
+                      {
+                        backgroundColor: theme.bubbleFill,
+                        color: theme.bubbleInk,
+                        "--chip-stroke": chip.stroke,
+                        "--chip-wash": chip.wash,
+                        "--chip-shadow": BUTTON_SHADOW,
+                        animation: `reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) ${120 + i * 70}ms both`,
+                      } as CSSProperties
+                    }
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+      {peek && !open && (s.autoOpenStyle === "sheet" || s.autoOpenStyle === "stops" || s.autoOpenStyle === "window" || s.autoOpenStyle === "handle" || s.autoOpenStyle === "card") && (() => {
+        /* Auto-open on a phone or tablet: the messenger itself — header,
+           the whole first turn, suggestions, composer — at 65% of the screen
+           instead of all of it, so the page stays visible above. Rounded on
+           top only; the bottom corners are square on the screen's edge.
+           The first thing the visitor sends grows it to the messenger's
+           real size: full screen on a phone, the normal panel on a tablet. */
+        const grown = peekGrown;
+        const stops = s.autoOpenStyle === "stops";
+        const msgSheet = s.autoOpenStyle === "handle" && !grown;
+        const card = s.autoOpenStyle === "card" && !grown;
+        /* both are pulled by the top: up opens, down puts away */
+        const pullable = msgSheet;
+        const pullHandlers = {
+          onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+                  if (e.pointerType === "mouse" && e.button !== 0) return;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  pullFrom.current = { y0: e.clientY, y: e.clientY, t: e.timeStamp, v: 0 };
+                  setDragging(true);
+                },
+          onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+                  const d = pullFrom.current;
+                  if (!d) return;
+                  d.v = (e.clientY - d.y) / Math.max(1, e.timeStamp - d.t);
+                  d.y = e.clientY;
+                  d.t = e.timeStamp;
+                  setPull(d.y - d.y0);
+                },
+          onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
+                  const d = pullFrom.current;
+                  pullFrom.current = null;
+                  setDragging(false);
+                  if (!d) return;
+                  const moved = e.clientY - d.y0;
+                  const v = e.timeStamp - d.t > 80 ? 0 : d.v;
+                  if (Math.abs(moved) < 6 || moved < -SHEET_PULL_PX || v < -SHEET_FLICK) {
+                    setPull(0);
+                    setPeekGrown(true);
+                    return;
+                  }
+                  if (moved > SHEET_PULL_PX || v > SHEET_FLICK) {
+                    setPeekCloseWith(undefined);
+                    setPeekClosing(true);
+                    return;
+                  }
+                  setPull(0);
+                },
+          onPointerCancel: () => {
+                  pullFrom.current = null;
+                  setDragging(false);
+                  setPull(0);
+                },
+        };
+        const cardNote = disclaimerOn && disclaimer.trim().length > 0;
+        const cardChrome = CARD_HEAD + CARD_FOOT + (cardNote ? CARD_NOTE : 0);
+        const cardH = cardChrome + (cardBody || 120);
+        /* Floating window: the messenger inset from every edge, so the page
+           shows all round it. */
+        const win = s.autoOpenStyle === "window" && !grown;
+        const gap = 12;
+        const panelW = Math.min(
+          s.placement === "center" ? 600 : 380,
+          siteWidth - 48,
+        );
+        const panelH = Math.min(
+          s.placement === "center" ? 580 : 650,
+          frameHeight - 48,
+        );
+        const w = card
+          ? Math.min(MSG_CARD_W, siteWidth - CARD_GAP * 2)
+          : compact
+          ? win
+            ? siteWidth - gap * 2
+            : siteWidth
+          : grown
+            ? panelW
+            : Math.min(s.placement === "center" && !card ? 600 : 400, siteWidth - 32);
+        const h = grown
+          ? compact
+            ? frameHeight
+            : panelH
+          : card
+            ? cardH
+            : Math.min(
+              frameHeight,
+              Math.round(
+                frameHeight * (stops ? stop : msgSheet ? MESSAGE_SHEET : 0.65),
+              ) - (msgSheet ? Math.min(pull, 0) : 0),
+            );
+        const bottom =
+          (grown || win || card) && !compact ? s.offsetY : 0;
+        const place: CSSProperties = card
+          ? {
+              left: siteWidth - w - (compact ? CARD_GAP : s.offsetX),
+              bottom: compact ? CARD_GAP : s.offsetY,
+            }
+          : compact
+          ? win
+            ? { left: gap, bottom: gap }
+            : { left: 0, bottom: 0 }
+          : s.placement === "center"
+            ? { left: (siteWidth - w) / 2, bottom }
+            : s.placement === "left"
+              ? { left: s.offsetX, bottom }
+              : { left: siteWidth - s.offsetX - w, bottom };
+        return (
+          <div
+            className="absolute z-20 overflow-hidden"
+            style={{
+              ...place,
+              width: w,
+              height: h,
+              borderRadius: grown
+                ? compact
+                  ? 0
+                  : 32
+                : win
+                  ? 32
+                  : card
+                    ? 28
+                    : "32px 32px 0 0",
+              boxShadow: clusterGlass(theme).shadow,
+              transformOrigin: "bottom center",
+              transition: dragging
+                ? "none"
+                : `transform 260ms ${SHEET_EASE}, height ${V6.panelMs}ms ${V6.panelEase}, width ${V6.panelMs}ms ${V6.panelEase}, left ${V6.panelMs}ms ${V6.panelEase}, bottom ${V6.panelMs}ms ${V6.panelEase}, border-radius ${V6.panelMs}ms ${V6.panelEase}`,
+              /* A sheet comes up from the bottom edge and goes back down it.
+                 The floating window keeps the launcher's grow. */
+              transform:
+                pullable && pull > 0 && !peekClosing
+                  ? `translateY(${pull}px)`
+                  : undefined,
+              ...({ "--from-y": `${pullable ? Math.max(pull, 0) : 0}px` } as CSSProperties),
+              animation: peekClosing
+                ? `${win ? "launcher-close" : "sheet-down"} ${win ? CLOSE_MS : SHEET_DOWN_MS}ms ${CLOSE_EASE} both`
+                : win
+                  ? "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both"
+                  : `sheet-up 320ms ${SHEET_EASE} both`,
+            }}
+            onAnimationEnd={(e) => {
+              if (e.target !== e.currentTarget || !peekClosing) return;
+              setPeekClosing(false);
+              setPeek(false);
+              closeChat(peekCloseWith);
+            }}
+          >
+            {stops && !grown && (
+              /* The handle: drag to move between the stops, tap to go up one,
+                 drag below the first stop to put it away. */
+              <div
+                className="absolute inset-x-0 top-0 z-30 flex h-6 cursor-grab touch-none justify-center pt-2 active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  dragFrom.current = { y: e.clientY, h: stop, moved: false };
+                  setDragging(true);
+                }}
+                onPointerMove={(e) => {
+                  const d = dragFrom.current;
+                  if (!d) return;
+                  const dy = e.clientY - d.y;
+                  if (Math.abs(dy) > 4) d.moved = true;
+                  setStop(clamp(d.h - dy / frameHeight, 0.1, 1));
+                }}
+                onPointerUp={() => {
+                  const d = dragFrom.current;
+                  dragFrom.current = null;
+                  setDragging(false);
+                  if (!d) return;
+                  if (!d.moved) {
+                    const next = STOPS.find((x) => x > d.h + 0.01) ?? 1;
+                    if (next >= 1) setPeekGrown(true);
+                    else setStop(next);
+                    return;
+                  }
+                  if (stop < STOPS[0] * 0.6) return dismissPeek();
+                  const near = STOPS.reduce((a, b) =>
+                    Math.abs(b - stop) < Math.abs(a - stop) ? b : a,
+                  );
+                  if (near >= 1) setPeekGrown(true);
+                  else setStop(near);
+                }}
+              >
+                <span
+                  className="h-[5px] w-9 rounded-full"
+                  style={{ background: theme.neutral.line }}
+                />
+              </div>
+            )}
+            {msgSheet && (
+              /* The handle: pull up a few millimetres and let go to grow it
+                 into the messenger; pull down to put it away. */
+              <div
+                className="flex h-7 shrink-0 cursor-grab touch-none select-none justify-center pt-2.5 active:cursor-grabbing"
+                style={{ background: theme.neutral.canvas }}
+                {...pullHandlers}
+              >
+                <span
+                  className="h-[5px] w-10 rounded-full"
+                  style={{ background: theme.neutral.line }}
+                />
+              </div>
+            )}
+            {card && (
+              /* Who is talking: the logo and the agent's name, on the card's
+                 own surface with no rule under it. */
+              <div
+                className="flex shrink-0 items-end gap-2.5 px-4"
+                style={{ height: CARD_HEAD, background: theme.neutral.canvas }}
+              >
+                {avatar && !logoOnly ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={avatar}
+                    alt=""
+                    className="size-6 shrink-0 rounded-full object-cover"
+                  />
+                ) : !avatar ? (
+                  <span
+                    className="grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+                    style={{ background: accent }}
+                  >
+                    {name.trim().charAt(0).toUpperCase()}
+                  </span>
+                ) : null}
+                {avatar && logoOnly ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={avatar} alt={name} className="h-5 w-auto max-w-[120px] object-contain" />
+                ) : (
+                  <span
+                    className="min-w-0 truncate pb-0.5 text-[14px] font-medium"
+                    style={{ color: theme.neutral.ink }}
+                  >
+                    {name}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="-mr-1.5 ml-auto grid size-8 shrink-0 place-items-center rounded-full transition-colors hover:bg-black/5"
+                  style={{ color: theme.neutral.secondary }}
+                  onClick={() => {
+                    setPeekCloseWith(undefined);
+                    setPeekClosing(true);
+                  }}
+                >
+                  <X className="size-[18px]" strokeWidth={2} />
+                </button>
+              </div>
+            )}
+            <AgentPreview
+              seed={null}
+              {...agentProps}
+              bodyOnly={msgSheet || card}
+              mini={card}
+              onBodyHeight={card ? setCardBody : undefined}
+              device={compact ? "mobile" : "desktop"}
+              width={w}
+              /* the handle above, and room under the suggestions below */
+              height={
+                msgSheet
+                  ? h - 28 - MESSAGE_SHEET_FOOT
+                  : card
+                    ? Math.max(0, h - cardChrome)
+                    : h
+              }
+              squareFoot={!grown && !win}
+              onEngage={() => setPeekGrown(true)}
+              onClose={(convo) => {
+                if (
+                  typeof window !== "undefined" &&
+                  window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                ) {
+                  setPeek(false);
+                  closeChat(convo);
+                  return;
+                }
+                setPeekCloseWith(convo);
+                setPeekClosing(true);
+              }}
+            />
+            {msgSheet && (
+              <div
+                className="shrink-0"
+                style={{ height: MESSAGE_SHEET_FOOT, background: theme.neutral.canvas }}
+              />
+            )}
+            {card && (
+              /* Looks like the field, is a button: the keyboard comes up in
+                 the full messenger, never over a floating card. */
+              <div
+                className="shrink-0 px-4 pt-1"
+                style={{
+                  height: CARD_FOOT + (cardNote ? CARD_NOTE : 0),
+                  background: theme.neutral.canvas,
+                }}
+              >
+                {cardNote && (
+                  /* over the field, as in the messenger */
+                  <p
+                    className="mb-2 truncate text-center text-[11px] leading-snug"
+                    style={{ color: theme.neutral.secondary }}
+                  >
+                    {/* the first sentence only — the card has one line for
+                        it — trailing off, since the rest is in the messenger */}
+                    {(disclaimer.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? disclaimer).replace(/[.!?]$/, "")}…
+                  </p>
+                )}
+                {/* The real composer, smaller: the mic disc on the
+                    right as it is with nothing typed; no attach. The
+                    whole of it opens the messenger. */}
+                <button
+                  type="button"
+                  onClick={() => setPeekGrown(true)}
+                  className="flex h-12 w-full items-center gap-1 rounded-full p-1.5 text-left"
+                  style={{
+                    background: theme.neutral.surface,
+                    boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${liteOf(accent)} 55%, transparent)`,
+                  }}
+                >
+                  <span
+                    className="min-w-0 flex-1 truncate px-3 text-[13px] font-light tracking-[0.01em]"
+                    style={{ color: theme.neutral.secondary }}
+                  >
+                    {s.placeholder}
+                  </span>
+                  <span
+                    className="grid size-9 shrink-0 place-items-center rounded-full"
+                    style={{ background: accent, color: "#fff" }}
+                  >
+                    <Mic className="size-[18px]" strokeWidth={1.5} />
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       {open ? (
         /* ── opened chat — docked on the site (full-screen on mobile) ── */
         isMobile ? (
@@ -11347,7 +12680,7 @@ function LauncherPreview({
                           className="shrink-0 text-[10px]"
                           style={{ color: readableOn(accent, theme.neutral.surface) }}
                         >
-                          {LAST_SEEN}
+                          {liveThread ? "Just now" : LAST_SEEN}
                         </span>
                       </div>
 
@@ -11363,7 +12696,7 @@ function LauncherPreview({
                           color: L.inkMute,
                         }}
                       >
-                        {recallAsk(session)}
+                        {lastPair(threadFor(session)).ask}
                       </span>
 
                       {/* The answer, unattributed. The rule beside the question
@@ -11375,7 +12708,7 @@ function LauncherPreview({
                         className="line-clamp-2 text-[14px] leading-snug"
                         style={{ color: L.ink }}
                       >
-                        {recallReply(session)}
+                        {lastPair(threadFor(session)).reply}
                       </span>
                     </div>
                   ) : unreadOpen ? (
@@ -11445,13 +12778,13 @@ function LauncherPreview({
                     </div>
                   ) : (
                     <div
-                      /* One row that scrolls, not a block that wraps. Wrapped,
-                         a set that does not fit changes the pane's height as
-                         well as its width, so the launcher grows upward as it
-                         opens and the suggestions arrive on a line that was not
-                         there a moment ago. Scrolled, the row is one line
-                         whatever is in it, and the set can be as long as the
-                         page deserves.
+                      /* One row that scrolls, on every device and placement —
+                         the launcher's suggestions never wrap. Wrapped, a set
+                         that does not fit changes the pane's height as well as
+                         its width, so the launcher grows upward as it opens and
+                         the suggestions arrive on a line that was not there a
+                         moment ago. Scrolled, the row is one line whatever is in
+                         it, and the set can be as long as the page deserves.
 
                          The bar is hidden because the chips already show they
                          continue — the third one runs off the edge, which is the
@@ -11463,11 +12796,6 @@ function LauncherPreview({
                          first two chips. */
                       style={{ width: centreOnPhone ? "100%" : paneOpen }}
                     >
-                      {/* Always the same three, whatever the visitor's state.
-                        Everything a returning visitor is offered is carried by
-                        the field — the resume line, the greeting, their own
-                        draft — so the row never gives a slot up, and the pane is
-                        the same height for everybody. */}
                       {prompts.map((p, i) => (
                         <button
                           key={`${activePath}-${i}-${p}`}
@@ -11996,7 +13324,9 @@ function LauncherPreview({
                         ? `“${DRAFT}…”`
                         : resuming
                           ? RESUME_LABEL
-                          : !s.greetingOn
+                          : speaking
+                            ? lineNow
+                            : !s.greetingOn
                             ? null
                             : GREETING.text
               }
@@ -12027,9 +13357,16 @@ function LauncherPreview({
                          as well for the one from last week. "10:24 AM" on
                          something eight days old is a launcher that has lost
                          track of when it happened. */
-                      when: session === "open" ? WHEN_OPEN : LAST_SEEN,
-                      ask: recallAsk(session),
-                      reply: recallReply(session),
+                      /* The one they just had is "Just now" — a clock time
+                         on a conversation from a minute ago reads as the
+                         launcher not knowing it was them. */
+                      when: liveThread
+                        ? "Just now"
+                        : session === "open"
+                          ? WHEN_OPEN
+                          : LAST_SEEN,
+                      ask: lastPair(threadFor(session)).ask,
+                      reply: lastPair(threadFor(session)).reply,
                     }
                   : null
               }
