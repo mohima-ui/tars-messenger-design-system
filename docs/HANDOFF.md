@@ -6,7 +6,7 @@ Written against the code at `app/design/page.tsx` (the design tool) and
 so where this document and the code disagree, the code is right and this is a
 bug report.
 
-Signed off at the design review on 11 September 2026. Four things are still
+Signed off at the design review on 11 September 2026. Five things are still
 open — they are at the end, and the first of them blocks the event schema.
 
 ---
@@ -286,6 +286,59 @@ shared table, so one customer's shorter window does not become everyone's.
   composer launcher's resting mic, for every tenant. Listening keeps the fill,
   swaps the glyph for a tick and adds a pulsing `rgba(255,255,255,.3)` ring.
   (Was a `paper` disc in `ink` at rest.)
+
+### Text in more than one language
+
+The words the customer writes for the widget can be written per language.
+This builds on **Configure → Language**, which already exists in 3.0; it does
+not add languages, it lets these fields follow the ones configured there.
+
+**Which text.** Four fields, in three parts:
+
+| Part | Fields | Where in `/design` |
+|---|---|---|
+| Header | Agent name, Subtitle | Messenger tab → Brand identity |
+| Callout | The greeting's message | Launcher tab → Greeting |
+| Placeholder | The field's placeholder | Launcher tab → Placeholder |
+
+**Each part has its own language.** The header can be written in Arabic while
+the callout and placeholder are still in English — they are written at
+different times, and one picker over all of them would overwrite the wrong
+field. The header's two lines go together, under one picker.
+
+**The picker sits inside the field**, at its right end, like a phone number's
+country picker (in a textarea, the top-right corner):
+
+| | Value |
+|---|---|
+| Trigger | flag + language code, uppercase, 11px medium `#555`, chevron 12px `#9A9A9A` |
+| Trigger fill | `#F4F4F5` at rest, `#ECECEE` on hover, radius 6, height 24 |
+| Input padding | right **68** so text never runs under the trigger |
+| Menu | 180 wide, radius 8, rows of flag + language name 13px, a tick on the one in use, `#F4F2F8` behind it |
+| Options | **only the agent's configured languages**, primary first — not every language there is |
+
+Choosing a language shows that language in the field **and in the preview**,
+so what is being typed is what is on screen.
+
+**Rules for the build**
+
+1. **The primary language is required, the rest are optional.** Agent name
+   is required (red star, red border when empty) in the primary only.
+2. **Empty falls back to the primary.** A field left empty in another
+   language shows the primary's text — in the editor as the field's grey
+   placeholder, and to visitors as the text itself. Visitors never see a blank
+   name, callout or placeholder.
+3. **Which language a visitor gets** is the same choice Configure → Language
+   already makes for the conversation. The widget's text follows it; it does
+   not detect language on its own.
+4. **No machine translation.** What the customer typed is what shows. A brand
+   name like "Tars" stays as typed in every language.
+5. **Removing a language in Configure hides its picker option** but keeps the
+   text, so adding it back restores it.
+6. **Storage:** per field, per language code — e.g.
+   `{ name: { en: "Tars", ar: "تارس" } }`.
+
+Right-to-left (Arabic, Hebrew, Urdu) is not designed yet — see §12.
 
 ---
 
@@ -793,7 +846,7 @@ Suggestion layout in the messenger, in detail:
 
 ## 12. Still open
 
-These four need answers before or during the build. The first one blocks the
+These five need answers before or during the build. The first one blocks the
 event schema.
 
 1. **Recent vs Open windows.** Currently 24 hours and 7 days. Vinit's note was
@@ -811,6 +864,11 @@ event schema.
    animation** — replaying it on every page makes the widget look like it is
    relaunching. If it was closed, it stays closed. `sessionStorage`, and how
    long "open" survives is answered by #1.
+
+5. **Right-to-left text in the header and callout.** Arabic, Hebrew and Urdu
+   are configurable languages, but the header and callout are only laid out
+   left-to-right. Design to come: mirroring the header (logo right, actions
+   left) and right-aligning the callout when that language is shown.
 
 ---
 

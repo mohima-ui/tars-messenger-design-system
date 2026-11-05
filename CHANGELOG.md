@@ -4,6 +4,23 @@ Design changes for engineering. Newest first. Each entry says what changed in
 `/design` and where the full spec lives in `docs/HANDOFF.md`. Where the two
 disagree, HANDOFF has the numbers; this file has the list.
 
+## 2026-11-05 — text in more than one language
+
+### Added to the design
+
+1. **Header, callout and placeholder can be written per language.** →
+   HANDOFF §8 *Text in more than one language*
+   - A flag-and-code picker inside each field lists **only the languages set
+     in Configure → Language**.
+   - **The header, callout and placeholder each pick their language
+     separately**; the header's name and subtitle go together.
+   - **An empty translation falls back to the primary language**, so visitors
+     never see a blank. No machine translation; brand names stay as typed.
+   - In `/design`: Messenger tab → Brand identity; Launcher tab → Greeting
+     and Placeholder.
+2. **Still open:** right-to-left layout for Arabic, Hebrew and Urdu. →
+   HANDOFF §12 #5
+
 ## 2026-11-04 — layouts and motion, from the review with engineering
 
 ### Changed in the design
