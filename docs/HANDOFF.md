@@ -842,6 +842,157 @@ Suggestion layout in the messenger, in detail:
   greeting was set: hover was off (a tablet is touch) and the scroll reveal was
   wired to phones only. It now takes the scroll reveal, the same as the phone.
 
+### 11.4 Auto-open — the Message card
+
+The agent opens on its own after a wait. On a desktop that is the messenger
+itself; on a **phone or tablet** it is the **Message card**: a small card
+holding the agent's first message and its suggestions, which grows out of the
+launcher and shrinks back into it. Every value here is what `/design` runs —
+Launcher tab → **Auto-open** → on, style **Message card** (the default).
+
+#### When it opens
+
+| | |
+|---|---|
+| Setting | **Auto-open** on / off — **off** by default |
+| Show on | **All devices** (default) / **Mobile** / **Desktop**. "Mobile" means the compact layout only (see *Phone* below); a tablet counts as "Desktop" for this setting, but still gets the card, not the panel |
+| Open after | **4s** by default (stepper, seconds) after the page loads |
+| Sooner on a phone | on the compact layout it also opens as soon as the visitor has scrolled **a third** of the page, if that comes before the wait |
+| Who | a **first visit** only — a visitor with a conversation is offered that conversation instead (§5) |
+| How often | **once per visit**: after it has opened, or the visitor has opened the messenger themselves, it does not open again |
+| Desktop | opens the messenger panel itself, exactly as a click on the launcher does (§11.3) |
+| Phone and tablet | the Message card, below |
+
+**Phone** is the compact layout: a frame under **480** wide or under **560**
+tall (`COMPACT_BELOW`, `COMPACT_SHORT_BELOW`). **Tablet** is the tablet device;
+it is not compact, so it keeps the launcher's own offsets.
+
+#### The card
+
+| Part | Value |
+|---|---|
+| Width | **320**, but never wider than the screen less **10** a side |
+| Height | **hugs its content** — nothing inside scrolls (see *Height* below) |
+| Position | always on the **right**, whatever the launcher's placement. Phone: **10** from the right and **10** from the bottom (`CARD_GAP`). Tablet: the launcher's own offsets (`offsetX` from the right, `offsetY` from the bottom) |
+| Radius | **28**, all four corners |
+| Surface | `canvas` |
+| Shadow | the cluster's card shadow (`clusterGlass`): light — `inset 0 0 0 1px rgba(18,21,33,.06)` plus `CARD_SHADOW` (`0 1px 1px`, `0 2px 4px`, `0 4px 8px`, `0 8px 16px` at `rgba(18,21,33,.045)`; `0 16px 32px` at `.05`; `0 32px 56px -20px` at `.10`). Dark — `inset 0 0 0 1px line`, `0 10px 30px rgba(0,0,0,.34)`, `0 28px 60px -20px rgba(0,0,0,.38)` |
+| Horizontal padding | **16** everywhere: header, message, suggestions, footer |
+
+Top to bottom:
+
+**1. Header — 48 tall** (`CARD_HEAD`), on the card's own surface, no rule under it. Contents sit on its bottom edge (`align-items: flex-end`), 10 apart.
+
+| | |
+|---|---|
+| Logo | the uploaded logo, **24 × 24**, round, `object-fit: cover`. No logo: a **24** accent disc with the name's initial, 11px semibold white. Logo-only setting: the wordmark at **20** tall, max 120 wide, and no name |
+| Agent name | **14px medium (500)**, `ink`, truncated, 2px off the bottom |
+| ✕ | a **32** round button at the far right, pulled 6 into the padding; **18px** X, stroke 2, `secondary`; hover `rgba(0,0,0,.05)`. Closes the card (see *Closing*) |
+
+**2. The first message**
+
+| | |
+|---|---|
+| Padding | 12 top, 16 sides |
+| Message | **13px / 1.6**, regular, `ink` — the messenger's AI message, smaller. No image, no action row (read aloud, 👍 👎, copy, time) |
+| Opening line dropped | if the message's first paragraph is **24 characters or fewer** (a "Hi there 👋"), it is left out of the card; the rest is shown |
+| Gap | **12** between the message and the suggestions |
+
+**3. Suggestions** — the messenger's chips, smaller: **13px**, padding
+**6 × 12**, the messenger's fill, colours and hover. The row sits **2** below
+the message's gap and **6** above the footer. Layout follows the device, as in
+the messenger (§11.3 *Desktop, tablet, phone*): phone — sideways scroll, one
+line (two once they average over 24 characters), **scrollbar hidden**; tablet —
+stacked against the right edge. Pressing one opens the messenger and sends it.
+
+**4. Footer — 72 tall** (`CARD_FOOT`), **+20** when the disclaimer is on (`CARD_NOTE`). Padding 4 top, 16 sides; the field leaves **20** under it.
+
+| | |
+|---|---|
+| Disclaimer | over the field, as in the messenger: **11px**, `secondary`, centred, one line, 8 below it. **Only its first sentence**, with the full stop replaced by **"…"** — e.g. "AI Agent replies are not medical advice…". Hidden when the disclaimer is off or empty |
+| Field | looks like the composer, **is a button**: **48** tall, fully round, padding **6**, `surface`, ring `inset 0 0 0 1px color-mix(in srgb, liteOf(accent) 55%, transparent)` |
+| Placeholder | the launcher's placeholder, **13px light (300)**, tracking .01em, `secondary`, **18** in from the field's edge (6 padding + 12), truncated |
+| Mic | a **36** accent disc on the right, white **18px** mic, stroke 1.5. No attach button |
+| Pressing it | anywhere on the field opens the messenger (see *Into the messenger*). The keyboard never comes up over the card |
+
+#### Arriving
+
+1. **The card grows out of the launcher.** It starts on the launcher's exact
+   box — the composer pill or the button, at their real size, position and
+   corner radius, read from the page at the moment it fires — and grows to its
+   own: `left`, `bottom`, `width`, `height` and `border-radius` together,
+   **340ms** on the open curve `cubic-bezier(0.16, 1, 0.3, 1)`
+   (`CARD_GROW_MS`; a touch longer than the panel's 280 because it travels
+   across the screen as well as growing).
+2. **The launcher is hidden on that same frame** — at once, not faded — so
+   there are never two of it. It stays hidden while the card or the messenger
+   it grows into is up.
+3. **The contents are laid out once, at full size,** pinned to the card's
+   bottom-right corner, and uncovered by the growing box (`overflow: hidden`) —
+   never scaled or re-flowed. The first frame shows the card's own field where
+   the launcher was.
+4. **The launcher's colour fades off it.** A layer filled with the launcher's
+   own fill (its colour or gradient) covers the card and fades **1 → 0** over
+   the first **204ms** (60% of the growth), `ease-out` — so a purple button
+   does not turn white in a frame.
+
+**Loading.** Until the first turn has arrived the card shows its skeleton,
+with the header and the footer already real:
+
+| | |
+|---|---|
+| Height | **116** (12 top + three **12** bars **10** apart + 12 + a **30** chip row + 6) — the card hugs it |
+| Message bars | **12** tall, fully round, widths **92 / 78 / 54%**, `color-mix(in oklab, bubbleFill 55%, canvas)` |
+| Chip row | two **30**-tall round pills, **120** and **140** wide, 8 apart, `bubbleFill` |
+| Motion | the shapes breathe — not the card's surface — `skeleton-breathe` **1600ms** ease-in-out infinite, opacity 1 → .55 → 1. Off under reduced motion |
+| How long | exactly as long as the turn takes to arrive; not at all if it is already there when the card opens. (`/design` fakes **1400ms**, `CARD_FETCH_MS` — not a design value) |
+
+**Then the message writes itself** word by word, exactly as a reply in the
+messenger (§11.2 *Arrivals*: `word-in` 320ms, words 36ms apart), and the
+suggestions arrive after it as they do there (§11.3 *Suggestions arriving*).
+
+#### Height
+
+- The card is **exactly as tall as what it holds**: header + message +
+  suggestions + footer. Nothing scrolls inside it.
+- **It only grows while the turn arrives, never shrinks.** The suggestions'
+  row is held open, empty, from the first word, so the card is its final
+  height while the message is still writing, rather than settling short and
+  growing again when the suggestions land.
+- The one movement left is from the skeleton's 116 to the real content's
+  height, once, on the open curve (280ms).
+- **Nothing scrolls the card** while the words arrive.
+
+#### Closing — ✕
+
+The arrival, in reverse: the card shrinks from its own box back to the
+launcher's (`left`, `bottom`, `width`, `height`, `border-radius`), **200ms**
+`cubic-bezier(0.7, 0, 0.84, 0)` — the close curve of §11.3. The launcher's
+fill comes back over it in the second half (opacity 0 until 45%, then → 1), so
+the last frames are the launcher. The card unmounts when the shrink ends and
+the launcher reappears **at once, on that frame** (no fade) — never both on
+screen. Auto-open does not fire again on this visit.
+
+#### Into the messenger
+
+Pressing the field, or a suggestion, grows the card **in place** into the
+messenger, keeping the conversation:
+
+| | Phone | Tablet |
+|---|---|---|
+| Becomes | full screen, radius **0** | the messenger panel — composer launcher **600 × 580** centred / **380 × 650** on an edge; button launcher **380 × 650** — clamped to the frame less 48; radius **32**; bottom at the launcher's `offsetY` |
+| Motion | `left`, `bottom`, `width`, `height` and radius transition together, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` | the same |
+| Then | the messenger as it always is (header, action items, its own type sizes) | the same |
+| Closing it | slides down off the bottom, **260ms** `cubic-bezier(0.7, 0, 0.84, 0)` (`sheet-down`); the launcher returns when it has gone | the same |
+
+#### Not covered in `/design`
+
+- **Reduced motion** is not applied to the card's grow, shrink and veil yet
+  (the skeleton's breath does stop). The messenger's rule should carry over:
+  no animation, the card simply appears and goes.
+- The other phone styles in the dropdown (Message sheet, Bottom sheet, Sheet
+  with stops) were explored and are **not** part of this handoff.
+
 ---
 
 ## 12. Still open

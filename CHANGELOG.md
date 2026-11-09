@@ -4,6 +4,30 @@ Design changes for engineering. Newest first. Each entry says what changed in
 `/design` and where the full spec lives in `docs/HANDOFF.md`. Where the two
 disagree, HANDOFF has the numbers; this file has the list.
 
+## 2026-11-09 — auto-open on phones and tablets, the Message card
+
+### Added to the design
+
+1. **Auto-open opens the Message card on phones and tablets.** →
+   HANDOFF §11.4 *Auto-open — the Message card*
+   - A **320** card on the right (10 from the edges on a phone, the
+     launcher's offsets on a tablet), radius 28, **as tall as its content**:
+     the logo, the agent's name and ✕; the agent's first message at 13px;
+     its suggestions at 13px; the disclaimer's first sentence + "…"; a field
+     with the mic that opens the messenger.
+   - **It grows out of the launcher** — composer pill or button — from the
+     launcher's exact box, in **340ms**, while the launcher is hidden on the
+     same frame and its colour fades off the card. **✕ shrinks it back into
+     the launcher** in 200ms.
+   - A **skeleton** until the first turn arrives, then the message **word by
+     word** and the suggestions after it. The card only grows, never
+     shrinks, while the turn arrives.
+   - Pressing the field or a suggestion grows the card **in place** into the
+     messenger: full screen on a phone, the panel on a tablet.
+   - Desktop is unchanged: auto-open opens the messenger panel.
+   - In `/design`: Launcher tab → Auto-open → on → style **Message card**
+     (the default).
+
 ## 2026-11-05 — text in more than one language
 
 ### Added to the design

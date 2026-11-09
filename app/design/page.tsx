@@ -73,6 +73,8 @@ import {
   Type,
   Link2,
   Link2Off,
+  MessageCircle,
+  PanelBottom,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -135,6 +137,11 @@ type LauncherSettings = {
   defaultPrompts: string[];
   contextualOn: boolean;
   greetingOn: boolean;
+  /* Button launcher: what sits above the button on a first visit. The
+     greeting bubble, whose suggestions come on hover or scroll; or the
+     message card — the agent's first message and its suggestions in one
+     card, always showing, with nothing to reveal. */
+  buttonPopup: "greeting" | "card";
   rules: ContextRule[];
   delay: number;
   soundOn: boolean;
@@ -254,19 +261,19 @@ const shortLine = () =>
    are not offered: they are not the messenger.) */
 const AUTO_OPEN_STYLES: { v: AutoOpenStyle; label: string; note: string }[] = [
   {
+    v: "card",
+    label: "Message card",
+    note: "A 320px card at the bottom right, as tall as its message. The logo, the agent's name and a ✕ on top; the first message and its suggestions; a field with the mic that opens the messenger.",
+  },
+  {
     v: "handle",
     label: "Message sheet",
     note: "The bottom sheet at 45%, showing only the first message and its suggestions, with a handle. Pull up to grow it into the messenger, down to put it away.",
   },
   {
-    v: "card",
-    label: "Message card",
-    note: "A card floating just above the bottom edge, as tall as its message (never over 45%). The agent's name and one ✕ on top; the first message and its suggestions; an Ask a question pill that opens the messenger. Pull up to open, down to put it away.",
-  },
-  {
     v: "sheet",
     label: "Bottom sheet",
-    note: "The messenger on the bottom edge, full width, 65% tall. Full screen once they chat.",
+    note: "The messenger on the bottom edge, full width, 45% tall, in the message card's type, header and composer. Full screen once they chat.",
   },
   {
     v: "stops",
@@ -324,6 +331,7 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
      it off. The composer launcher has no equivalent — it is the ChatGPT
      pattern, where nothing speaks first. */
   greetingOn: true,
+  buttonPopup: "greeting",
   rules: [
     {
       id: "pricing",
@@ -352,7 +360,7 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
   autoOpen: false,
   autoOpenOn: "all",
   autoOpenDelay: 4,
-  autoOpenStyle: "handle",
+  autoOpenStyle: "card",
   /* No longer offered in the settings (not in the product): auto-open shows
      the greeting as it is, straight away. */
   autoOpenTyping: false,
@@ -2818,6 +2826,10 @@ const dropHello = (text: string) => {
    button, so the keyboard comes up in the full messenger and never over a
    floating card. */
 const CARD_GAP = 10;
+/* The card growing out of the launcher — the messenger's own open (280ms on
+   the panel's curve), a touch longer because it travels across the screen
+   as well as growing. */
+const CARD_GROW_MS = 340;
 /* a set width, sat against the right edge — where the launcher lives */
 const MSG_CARD_W = 320;
 /* the agent's logo and name over the message — part of the card, not a bar */
@@ -4021,6 +4033,18 @@ function LauncherControls({
           <p className="text-[11px] leading-snug text-[#A8A8A8]">
             Shown beside the button. The conversation still opens with it.
           </p>
+          {s.greetingOn && (
+            <div className="mt-3">
+              <Segmented
+                value={s.buttonPopup}
+                onChange={(buttonPopup) => set({ buttonPopup })}
+                options={[
+                  { v: "greeting" as const, label: "Greeting", Icon: MessageCircle },
+                  { v: "card" as const, label: "Message card", Icon: PanelBottom },
+                ]}
+              />
+            </div>
+          )}
           {/* The callout's words, per language — as in 2.0. */}
           <div className="mt-3">
             <FieldLabel>Message</FieldLabel>
@@ -7634,6 +7658,7 @@ function AgentPreview({
   onEngage,
   bodyOnly = false,
   mini = false,
+  smallType = false,
   onBodyHeight,
   placeholder,
   suggestions,
@@ -7694,6 +7719,10 @@ function AgentPreview({
   onBodyHeight?: (px: number) => void;
   /* The message card: smaller type and chips, no action items, no scroll. */
   mini?: boolean;
+  /* The message card's type sizes on a whole messenger — name 14 medium,
+     messages and chips 13, disclaimer 11, field 13 — and nothing else of
+     the card's. The auto-open bottom sheet. */
+  smallType?: boolean;
   placeholder: string;
   /* whatever the launcher is offering — the opening turn hands the same set on */
   suggestions: string[];
@@ -8159,6 +8188,10 @@ function AgentPreview({
     };
     const toEnd = () => {
       measure();
+      /* The card never scrolls — it grows to its content — so it is left
+         at the top. Scrolling it on every word while its height was still
+         catching up moved the message up and back: the flicker. */
+      if (mini) return;
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     };
     const ro = new ResizeObserver(toEnd);
@@ -8176,13 +8209,13 @@ function AgentPreview({
       toEnd();
     });
     mo.observe(el, { childList: true, subtree: true });
-    el.scrollTop = el.scrollHeight;
+    if (!mini) el.scrollTop = el.scrollHeight;
     measure();
     return () => {
       ro.disconnect();
       mo.disconnect();
     };
-  }, [bodyOnly, onBodyHeight]);
+  }, [bodyOnly, onBodyHeight, mini]);
 
   // docked launcher: start the conversation from the tapped prompt (once)
   useEffect(() => {
@@ -8198,7 +8231,7 @@ function AgentPreview({
          elements — 32 on the panel's top corners, 32 on the composer's
          bottom — which come to the same window; here the two are one
          container, so it carries all four. */
-      className={`flex flex-col overflow-hidden ${mini ? "mini-card" : ""} ${
+      className={`flex flex-col overflow-hidden ${mini ? "mini-card" : ""} ${smallType ? "small-type" : ""} ${
         bodyOnly
           ? "" /* inside the message sheet, which has its own edge */
           : `shadow-[0_12px_40px_-8px_rgba(0,0,0,0.18)] ${
@@ -8225,8 +8258,49 @@ function AgentPreview({
           same height whatever it is carrying: the agent's 36px avatar in the
           thread, or the bare title on the archive. Padding alone made it the
           taller of the two and left the archive's rule a pixel off. */}
+      {smallType && !bodyOnly && (
+        /* The message card's header: the logo and the agent's name, one ✕,
+           48 tall, no rule under it. No back, no menu, no subtitle — those
+           come with the whole messenger once the sheet grows into it. */
+        <div
+          className="flex h-12 shrink-0 items-end gap-2.5 px-4"
+          style={{ background: neutral.canvas }}
+        >
+          {avatar && !logoOnly ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={avatar} alt="" className="size-6 shrink-0 rounded-full object-cover" />
+          ) : !avatar ? (
+            <span
+              className="grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+              style={{ background: accent }}
+            >
+              {(name || "Agent").trim().charAt(0).toUpperCase()}
+            </span>
+          ) : null}
+          {avatar && logoOnly ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={avatar} alt={name} className="h-5 w-auto max-w-[120px] object-contain" />
+          ) : (
+            <span
+              className="min-w-0 truncate pb-0.5 text-[14px] font-medium"
+              style={{ color: neutral.ink }}
+            >
+              {name || "Agent"}
+            </span>
+          )}
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => onClose?.(convo)}
+            className="-mr-1.5 ml-auto grid size-8 shrink-0 place-items-center rounded-full transition-colors hover:bg-black/5"
+            style={{ color: neutral.secondary }}
+          >
+            <X className="size-[18px]" strokeWidth={2} />
+          </button>
+        </div>
+      )}
       <div
-        className={`${bodyOnly ? "hidden" : "flex"} h-[60px] shrink-0 items-center border-b pl-4 pr-5`}
+        className={`${bodyOnly || smallType ? "hidden" : "flex"} h-[60px] shrink-0 items-center border-b pl-4 pr-5`}
         style={{ borderColor: neutral.line }}
       >
         <Hot
@@ -8287,7 +8361,7 @@ function AgentPreview({
                   </span>
                 ) : (
                   <span
-                    className="text-[14px] font-semibold tracking-tight"
+                    className="agent-name text-[14px] font-semibold tracking-tight"
                     style={{ color: neutral.ink }}
                   >
                     {name || "Agent"}
@@ -8458,7 +8532,7 @@ function AgentPreview({
                   styles={partStyles}
                 >
                   <span
-                    className="block text-[14px] font-semibold tracking-tight"
+                    className="agent-name block text-[14px] font-semibold tracking-tight"
                     style={{ color: neutral.ink }}
                   >
                     {view === "history"
@@ -8638,6 +8712,16 @@ function AgentPreview({
             .chip-rail::-webkit-scrollbar { display: none; }
           `}</style>
         )}
+        {smallType && (
+          <style>{`
+            .small-type .agent-name { font-weight: 500; }
+            .small-type .ai-actions { display: none; }
+            .small-type .leading-relaxed { font-size: 13px; line-height: 1.6; }
+            .small-type .starter-chip { font-size: 13px; padding: 6px 12px; }
+            .small-type .notice-line { font-size: 11px; }
+            .small-type textarea { font-size: 13px; }
+          `}</style>
+        )}
         {mini && (
           /* the message card: small type, small chips, no action items.
              Here rather than with the chip styles, which sit in the
@@ -8655,7 +8739,7 @@ function AgentPreview({
            suggestions and the disclaimer on top of the spacing those two
            already carry — the conversation used to end at the last message,
            which is what that padding was for. */
-          className={`absolute inset-0 flex flex-col ${mini ? "overflow-hidden px-4 pt-3" : "overflow-y-auto px-5 pt-5"} transition-transform motion-reduce:transition-none`}
+          className={`absolute inset-0 flex flex-col ${mini ? "overflow-hidden px-4 pt-3" : smallType ? "overflow-y-auto px-4 pt-3" : "overflow-y-auto px-5 pt-5"} transition-transform motion-reduce:transition-none`}
           style={{
             transform: view === "history" ? "translateX(100%)" : "none",
             transitionDuration: `${VIEW_SLIDE_MS}ms`,
@@ -8932,6 +9016,21 @@ function AgentPreview({
                 />
               </div>
               </Hot>
+            )}
+            {mini && !loading && !quickReplies?.length && suggestions.length > 0 && (
+              /* The message card holds the suggestions' row open, empty,
+                 while the message writes itself above it, so the card is its
+                 final height from the first word — rather than settling short
+                 and growing again when the suggestions land. Same classes as
+                 the real row, so the same height. */
+              <div
+                aria-hidden
+                className="chip-rail invisible mb-3 ml-auto mt-auto w-max max-w-full pt-3"
+              >
+                <span className="starter-chip inline-block rounded-full px-4 py-2 text-[14px]">
+                  &nbsp;
+                </span>
+              </div>
             )}
             {!loading && quickReplies && quickReplies.length > 0 && (
               /* Last in the thread, inside the scroll area, so it travels with the
@@ -9254,7 +9353,7 @@ function AgentPreview({
                       empty again. */}
                   <p
                     aria-hidden={!typingHint}
-                    className="pointer-events-none absolute inset-x-4 top-0.5 truncate text-center text-[12px] leading-snug transition-all duration-200"
+                    className="notice-line pointer-events-none absolute inset-x-4 top-0.5 truncate text-center text-[12px] leading-snug transition-all duration-200"
                     style={{
                       color: neutral.secondary,
                       opacity: typingHint ? 1 : 0,
@@ -9304,7 +9403,7 @@ function AgentPreview({
                   >
                     <p
                       ref={noticeRef}
-                      className={`min-w-0 truncate text-[12px] leading-snug ${
+                      className={`notice-line min-w-0 truncate text-[12px] leading-snug ${
                         theme.bareNotice ? "text-center" : "flex-1"
                       }`}
                       style={{ color: neutral.secondary }}
@@ -9428,8 +9527,10 @@ function AgentPreview({
                   style={{
                     background: neutral.surface,
                     boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${liteOf(accent)} 55%, transparent)`,
-                    padding: 8,
-                    minHeight: 64,
+                    /* the message card's composer on the bottom sheet:
+                       48 tall, 6 round, 36 discs, no attach */
+                    padding: smallType ? 6 : 8,
+                    minHeight: smallType ? 48 : 64,
                     ["--ph" as string]: neutral.secondary,
                   }}
                 >
@@ -9437,6 +9538,7 @@ function AgentPreview({
                       line and the two controls share the second, so attach
                       takes order-2 and the send/mic disc order-3 rather than
                       the markup being written out twice. */}
+                  {!smallType && (
                   <button
                     className={`grid size-11 shrink-0 place-items-center rounded-full transition-opacity hover:opacity-80 ${
                       isMultiline ? "order-2" : ""
@@ -9446,6 +9548,7 @@ function AgentPreview({
                   >
                     <Plus className="size-5" strokeWidth={1.5} />
                   </button>
+                  )}
                   <textarea
                     ref={taRef}
                     rows={1}
@@ -9473,12 +9576,12 @@ function AgentPreview({
                       onClick={() => send(draft)}
                       disabled={thinking}
                       aria-label="Send message"
-                      className={`grid size-11 shrink-0 place-items-center rounded-full text-white transition-opacity disabled:opacity-40 ${
+                      className={`grid ${smallType ? "size-9" : "size-11"} shrink-0 place-items-center rounded-full text-white transition-opacity disabled:opacity-40 ${
                         isMultiline ? "order-3 ml-auto" : ""
                       }`}
                       style={{ background: accent }}
                     >
-                      <ArrowUp className="size-6" strokeWidth={1.75} />
+                      <ArrowUp className={smallType ? "size-5" : "size-6"} strokeWidth={1.75} />
                     </button>
                   ) : (
                     <button
@@ -9486,7 +9589,7 @@ function AgentPreview({
                       hidden={!mic.canDictate}
                       aria-label={mic.listening ? "Use what you said" : "Voice input"}
                       aria-pressed={mic.listening}
-                      className={`relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-full transition-opacity hover:opacity-80 ${
+                      className={`relative grid ${smallType ? "size-9" : "size-11"} shrink-0 place-items-center overflow-hidden rounded-full transition-opacity hover:opacity-80 ${
                         isMultiline ? "order-3 ml-auto" : ""
                       }`}
                       style={{
@@ -9502,9 +9605,9 @@ function AgentPreview({
                         />
                       )}
                       {mic.listening ? (
-                        <Check className="relative size-5" strokeWidth={2} />
+                        <Check className={`relative ${smallType ? "size-[18px]" : "size-5"}`} strokeWidth={2} />
                       ) : (
-                        <Mic className="relative size-5" strokeWidth={1.5} />
+                        <Mic className={`relative ${smallType ? "size-[18px]" : "size-5"}`} strokeWidth={1.5} />
                       )}
                     </button>
                   )}
@@ -10266,6 +10369,143 @@ function FloatingColumn({
   );
 }
 
+/* ── the button launcher's message card ──────────────────────────────────
+   The auto-open message card, resting above the button: who is talking and a
+   ✕, the first message written in, its suggestions, and the field with the
+   mic. Always showing on a first visit — nothing waits for a hover or a
+   scroll. The suggestions start the conversation; the field opens it. */
+function ButtonMsgCard({
+  width,
+  name,
+  avatar,
+  logoOnly,
+  message,
+  prompts,
+  placeholder,
+  disclaimer,
+  accent,
+  theme,
+  onClose,
+  onOpen,
+  onStart,
+}: {
+  width: number;
+  name: string;
+  avatar: string | null;
+  logoOnly: boolean;
+  message: string;
+  prompts: string[];
+  placeholder: string;
+  disclaimer: string | null;
+  accent: string;
+  theme: ReturnType<typeof useTheme>;
+  onClose: () => void;
+  onOpen: () => void;
+  onStart: (text: string) => void;
+}) {
+  const n = theme.neutral;
+  const typed = useTypedOnce(message, true);
+  const clamp4: CSSProperties = {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 4,
+    overflow: "hidden",
+  };
+  const done = typed.length >= message.length;
+  return (
+    <div className="relative">
+    {/* No header: the ✕ sits on the card's corner, the way the cluster's
+        other cards carry theirs. */}
+    <button
+      type="button"
+      aria-label="Close"
+      onClick={onClose}
+      className="absolute -right-2 -top-2 z-20 grid size-6 place-items-center rounded-full transition-colors hover:bg-[#F0F0F3]"
+      style={{ background: n.surface, color: n.ink, boxShadow: BUTTON_SHADOW }}
+    >
+      <X className="size-3.5" strokeWidth={2.2} />
+    </button>
+    <div
+      className="flex flex-col overflow-hidden rounded-[28px] text-left"
+      style={{
+        width,
+        background: n.canvas,
+        boxShadow: "0 12px 40px -8px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)",
+        animation: "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+      }}
+    >
+      <div className="flex flex-col gap-3 px-4 pt-4">
+        {/* The whole message held underneath at no opacity, the typed part
+            over it — so the card is its final height from the first letter
+            and does not grow as it writes. */}
+        {/* Cut at four lines with an ellipsis; the rest is in the
+            messenger. */}
+        <p className="relative text-[13px] leading-[1.6]" style={{ color: n.ink }}>
+          <span className="invisible" style={clamp4}>{message}</span>
+          <span className="absolute inset-0" style={clamp4}>{typed}</span>
+        </p>
+        {prompts.length > 0 && (
+          /* One row, sideways, as on the auto-open card — the scrollbar
+             hidden; held open while the message writes. */
+          <div
+            className="-mx-4 ml-auto flex w-max max-w-[calc(100%+32px)] gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ visibility: done ? "visible" : "hidden" }}
+          >
+            {prompts.map((p, i) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onStart(p)}
+                className="starter-chip shrink-0 whitespace-nowrap rounded-full text-[13px]"
+                style={{
+                  padding: "6px 12px",
+                  background: theme.bubbleFill,
+                  color: theme.bubbleInk,
+                  animation: done
+                    ? `chip-in 200ms cubic-bezier(0.16, 1, 0.3, 1) ${Math.round((i * REPLY_RUN_MS) / prompts.length)}ms both`
+                    : undefined,
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="px-4 pb-4 pt-3">
+        {disclaimer && (
+          <p className="mb-2 truncate text-center text-[11px]" style={{ color: n.muted }}>
+            {(disclaimer.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? disclaimer).replace(/[.!?]$/, "")}…
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex h-12 w-full items-center gap-1 rounded-full p-1.5 text-left"
+          style={{
+            background: n.surface,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${liteOf(accent)} 55%, transparent)`,
+          }}
+        >
+          <span
+            className="min-w-0 flex-1 truncate px-3 text-[13px] font-light tracking-[0.01em]"
+            style={{ color: n.secondary }}
+          >
+            {placeholder}
+          </span>
+          <span
+            className="grid size-9 shrink-0 place-items-center rounded-full"
+            style={{ background: accent, color: "#fff" }}
+          >
+            <Mic className="size-[18px]" strokeWidth={1.5} />
+          </span>
+        </button>
+      </div>
+    </div>
+    </div>
+  );
+}
+
 function ButtonSuggestions({
   prompts,
   side,
@@ -10288,10 +10528,14 @@ function ButtonSuggestions({
   onOpen,
   onStart,
   onDismiss,
+  msgCard,
   children,
 }: {
   prompts: string[];
   side: "left" | "right";
+  /* The message card variation: one card above the button in place of the
+     greeting and the reveal. Nothing hides behind a hover or a scroll. */
+  msgCard?: React.ReactNode;
   show: boolean;
   /* Present only for the states that put something beside the button the
      visitor did not ask for — an unread, a resume offer, their own unsent
@@ -10616,6 +10860,18 @@ function ButtonSuggestions({
       </span>
     ) : null;
   const reveal = recallCard ?? chips;
+
+  if (msgCard)
+    return (
+      <span
+        className={`relative flex flex-col gap-3 ${
+          side === "left" ? "items-start" : "items-end"
+        }`}
+      >
+        {show && msgCard}
+        {children}
+      </span>
+    );
 
   return (
     <span
@@ -10951,6 +11207,11 @@ function LauncherPreview({
      dismissed until the preview is reset. */
   const [dismissed, setDismissed] = useState<string[]>([]);
   const chipShut = dismissed.includes(session);
+  /* Demo: picking the button's popup again brings back a card closed with
+     its ✕, without reloading. */
+  useEffect(() => {
+    setDismissed((d) => d.filter((x) => x !== "first"));
+  }, [s.buttonPopup, s.greetingOn]);
 
   const unread = session === "unread" && !chipShut;
   /* The tab notifier, on while the previewed state is an unread one. Wired
@@ -11266,8 +11527,23 @@ function LauncherPreview({
   const [pull, setPull] = useState(0);
   /* the message card's thread, at its natural height (see onBodyHeight) */
   const [cardBody, setCardBody] = useState(0);
+  const growCardBody = useCallback(
+    (px: number) => setCardBody((v) => Math.max(v, px)),
+    [],
+  );
   /* the card's first turn has arrived — until then, its skeleton */
   const [cardReady, setCardReady] = useState(false);
+  /* Where the launcher was when the card took over from it — its box in the
+     frame and its fill — so the card can grow out of it and shrink back into
+     it, as one object rather than a card arriving beside a launcher. */
+  const [launchFrom, setLaunchFrom] = useState<{
+    left: number;
+    bottom: number;
+    width: number;
+    height: number;
+    radius: string;
+    fill: string;
+  } | null>(null);
   const pullFrom = useRef<{ y0: number; y: number; t: number; v: number } | null>(null);
   const [peekCloseWith, setPeekCloseWith] = useState<Msg[] | undefined>(undefined);
   /* The sheet at its auto-open height until the visitor says something —
@@ -11316,6 +11592,26 @@ function LauncherPreview({
        A tablet has the width for a panel but is held like a phone and read
        like one, and a 720-tall panel arriving on its own covers most of it. */
     if (compact || device === "tablet") {
+      /* the launcher's own rect, read off the page, in the frame's units */
+      const frame = frameRef.current;
+      const el = frame?.querySelector<HTMLElement>("[data-launch-shape]");
+      if (frame && el) {
+        const f = frame.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        const k = f.width / (frame.offsetWidth || f.width);
+        const cs = getComputedStyle(el);
+        setLaunchFrom({
+          left: (r.left - f.left) / k,
+          bottom: (f.bottom - r.bottom) / k,
+          width: r.width / k,
+          height: r.height / k,
+          radius: cs.borderRadius || "999px",
+          fill:
+            cs.backgroundImage && cs.backgroundImage !== "none"
+              ? cs.backgroundImage
+              : cs.backgroundColor,
+        });
+      } else setLaunchFrom(null);
       setCardReady(false);
       setCardBody(0);
       setPeekGrown(false);
@@ -11338,6 +11634,14 @@ function LauncherPreview({
     const id = setTimeout(() => setCardReady(true), CARD_FETCH_MS);
     return () => clearTimeout(id);
   }, [peek, cardReady, s.autoOpenStyle]);
+  /* Demo: switching auto-open off re-arms it, so switching it back on runs
+     it again without reloading the page. Off also puts away anything it
+     had opened. */
+  useEffect(() => {
+    if (s.autoOpen) return;
+    setAutoSpent(null);
+    setPeek(false);
+  }, [s.autoOpen]);
   useEffect(() => {
     if (!autoApplies || open || autoSpent === autoKey) return;
     const id = setTimeout(fireAuto, s.autoOpenDelay * 1000);
@@ -11440,6 +11744,23 @@ function LauncherPreview({
      open, not how it was opened, so the phone's answer is substituted here
      rather than at each of the dozen places that ask. */
   const speaking = peek && !open && s.autoOpenStyle === "speaks";
+  /* The launcher has turned into the auto-open card (see launchFrom). */
+  const handedOff = peek && s.autoOpenStyle === "card" && !!launchFrom;
+  /* …and has just turned back: show it at once, not on a fade, or the
+     shrunk card and the launcher would blink. Cleared on the next frame. */
+  const [peekWasCard, setPeekWasCard] = useState(false);
+  const prevHanded = useRef(false);
+  useEffect(() => {
+    if (prevHanded.current && !handedOff) {
+      setPeekWasCard(true);
+      const id = requestAnimationFrame(() =>
+        requestAnimationFrame(() => setPeekWasCard(false)),
+      );
+      prevHanded.current = handedOff;
+      return () => cancelAnimationFrame(id);
+    }
+    prevHanded.current = handedOff;
+  }, [handedOff]);
   const barOpen = speaking
     ? true
     : floating
@@ -11892,6 +12213,34 @@ function LauncherPreview({
         @keyframes sheet-up {
           from { transform: translateY(100%); }
           to   { transform: translateY(0); }
+        }
+        /* The auto-open card out of the launcher and back into it: only a
+           "from" (or "to"), so the other end is the card's own box. */
+        @keyframes card-from-launcher {
+          from {
+            left: var(--lx);
+            bottom: var(--lb);
+            width: var(--lw);
+            height: var(--lh);
+            border-radius: var(--lr);
+          }
+        }
+        @keyframes card-into-launcher {
+          to {
+            left: var(--lx);
+            bottom: var(--lb);
+            width: var(--lw);
+            height: var(--lh);
+            border-radius: var(--lr);
+          }
+        }
+        @keyframes launch-veil-out {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+        @keyframes launch-veil-in {
+          0%, 45% { opacity: 0; }
+          100%    { opacity: 1; }
         }
         @keyframes sheet-down {
           from { transform: translateY(var(--from-y, 0px)); }
@@ -12422,7 +12771,7 @@ function LauncherPreview({
             : Math.min(
               frameHeight,
               Math.round(
-                frameHeight * (stops ? stop : msgSheet ? MESSAGE_SHEET : 0.65),
+                frameHeight * (stops ? stop : msgSheet || s.autoOpenStyle === "sheet" ? MESSAGE_SHEET : 0.65),
               ) - (msgSheet ? Math.min(pull, 0) : 0),
             );
         const bottom =
@@ -12469,7 +12818,25 @@ function LauncherPreview({
                   ? `translateY(${pull}px)`
                   : undefined,
               ...({ "--from-y": `${pullable ? Math.max(pull, 0) : 0}px` } as CSSProperties),
-              animation: peekClosing
+              /* The card is the launcher, grown: it starts on the
+                 launcher's exact box and radius and grows to its own, and
+                 closing shrinks it back into the launcher. Only the box
+                 moves — what is inside is laid out once at full size. */
+              ...(card && launchFrom
+                ? ({
+                    "--lx": `${launchFrom.left}px`,
+                    "--lb": `${launchFrom.bottom}px`,
+                    "--lw": `${launchFrom.width}px`,
+                    "--lh": `${launchFrom.height}px`,
+                    "--lr": launchFrom.radius,
+                  } as CSSProperties)
+                : {}),
+              animation:
+                card && launchFrom
+                  ? peekClosing
+                    ? `card-into-launcher ${CLOSE_MS}ms ${CLOSE_EASE} both`
+                    : `card-from-launcher ${CARD_GROW_MS}ms ${V6.panelEase} both`
+                  : peekClosing
                 ? `${win ? "launcher-close" : "sheet-down"} ${win ? CLOSE_MS : SHEET_DOWN_MS}ms ${CLOSE_EASE} both`
                 : win
                   ? "launcher-open 280ms cubic-bezier(0.16, 1, 0.3, 1) both"
@@ -12482,6 +12849,25 @@ function LauncherPreview({
               closeChat(peekCloseWith);
             }}
           >
+            {/* The card's contents at their full size, pinned to its bottom
+                right, so a growing or shrinking box uncovers or covers them
+                rather than re-laying them out every frame. Every other style
+                lays its children out as before. */}
+            <div
+              style={
+                card
+                  ? {
+                      position: "absolute",
+                      right: 0,
+                      bottom: 0,
+                      width: w,
+                      height: h,
+                      display: "flex",
+                      flexDirection: "column",
+                    }
+                  : { display: "contents" }
+              }
+            >
             {stops && !grown && (
               /* The handle: drag to move between the stops, tap to go up one,
                  drag below the first stop to put it away. */
@@ -12634,7 +13020,14 @@ function LauncherPreview({
               {...agentProps}
               bodyOnly={msgSheet || card}
               mini={card}
-              onBodyHeight={card ? setCardBody : undefined}
+              /* the card's look while it is the sheet; the whole
+                 messenger's once it grows */
+              smallType={s.autoOpenStyle === "sheet" && !grown}
+              /* Only ever grows while the turn arrives: a line that
+                 wraps and unwraps as words land, or a measurement taken
+                 mid-transition, would otherwise shrink it and grow it
+                 again. Reset to 0 when auto-open fires. */
+              onBodyHeight={card ? growCardBody : undefined}
               device={compact ? "mobile" : "desktop"}
               width={w}
               /* the handle above, and room under the suggestions below */
@@ -12714,6 +13107,23 @@ function LauncherPreview({
                   </span>
                 </button>
               </div>
+            )}
+            </div>
+            {card && launchFrom && (
+              /* The launcher's own fill over the card for the first moments
+                 of the growth, fading — so a purple button does not turn white
+                 in a frame; on the way back it fills in again just before the
+                 card is the button. */
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background: launchFrom.fill,
+                  animation: peekClosing
+                    ? `launch-veil-in ${CLOSE_MS}ms ${CLOSE_EASE} both`
+                    : `launch-veil-out ${Math.round(CARD_GROW_MS * 0.6)}ms ease-out both`,
+                }}
+              />
             )}
           </div>
         );
@@ -12842,10 +13252,15 @@ function LauncherPreview({
           style={{
             ...position,
             alignItems,
-            opacity: entered ? 1 : 0,
+            /* Handed over to the auto-open card, which grows out of this
+               exact spot — gone at once, not faded, or there would be two of
+               it; back the moment the card has shrunk into it again. */
+            opacity: entered && !handedOff ? 1 : 0,
             transform: entered ? restTransform : enterTransform,
-            transition: `left ${V6.panelMs}ms ${V6.panelEase}, transform 620ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 300ms ease-out`,
-            pointerEvents: entered ? "auto" : "none",
+            transition: handedOff
+              ? `left ${V6.panelMs}ms ${V6.panelEase}, transform 620ms cubic-bezier(0.25, 0.1, 0.25, 1)`
+              : `left ${V6.panelMs}ms ${V6.panelEase}, transform 620ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${peekWasCard ? 0 : 300}ms ease-out`,
+            pointerEvents: entered && !handedOff ? "auto" : "none",
           }}
         >
           {/* Above the launcher, whichever it is. The wrapper is already a
@@ -12901,6 +13316,7 @@ function LauncherPreview({
               onMouseLeave={
                 floating || isTouch ? undefined : () => setHoverOpen(false)
               }
+              data-launch-shape
               className="relative overflow-hidden"
               style={{
                 /* One source for the width, so the box and the offset that
@@ -13564,6 +13980,32 @@ function LauncherPreview({
               onDismiss={
                 chipCloseable ? () => setDismissed((d) => [...d, session]) : undefined
               }
+              /* The message card variation, on a first visit with the
+                 greeting on. Closed with its ✕, the button rests alone for
+                 the rest of the visit. */
+              msgCard={
+                s.buttonPopup === "card" &&
+                s.greetingOn &&
+                session === "first" &&
+                !chipShut &&
+                !speaking ? (
+                  <ButtonMsgCard
+                    width={Math.min(MSG_CARD_W, siteWidth - 32)}
+                    name={name}
+                    avatar={avatar}
+                    logoOnly={logoOnly}
+                    message={callout}
+                    prompts={prompts}
+                    placeholder={s.placeholder}
+                    disclaimer={disclaimerOn ? disclaimer : null}
+                    accent={accent}
+                    theme={theme}
+                    onClose={() => setDismissed((d) => [...d, session])}
+                    onOpen={() => openChat(undefined, true)}
+                    onStart={(text) => openChat(text, true)}
+                  />
+                ) : undefined
+              }
               /* An unread outranks the greeting whether or not the greeting is
                  switched on — it is not the agent introducing itself, it is the
                  agent having said something and waiting. */
@@ -13726,6 +14168,7 @@ function LauncherPreview({
                   />
                 )}
                 <button
+                  data-launch-shape
                   onClick={() => openChat(undefined, !opensThread)}
                   aria-label="Open chat"
                   /* Lifts rather than swells. Scaling a button on hover enlarges
