@@ -12833,7 +12833,12 @@ function LauncherPreview({
         /* The card opens on the launcher's side: left on the left, right on
            the right, and right for a centred launcher — the corner a
            messenger lives in. Phones always take the right. */
-        const cardLeft = card && device !== "mobile" && s.placement === "left";
+        /* Opens on the launcher's side. A phone's composer is always
+           centred, so it takes the right; a phone's button keeps its side. */
+        const cardLeft =
+          card &&
+          s.placement === "left" &&
+          (device !== "mobile" || !isComposer);
         /* A centred launcher has no horizontal offset (the field is hidden),
            so its card — opened on the right — takes the vertical one there
            too: the same gap from both edges of the corner. */
@@ -12846,7 +12851,9 @@ function LauncherPreview({
           ? {
               /* Phone: 12 from the right edge. Tablet: the launcher's offset. */
               left: cardLeft
-                ? cardInset
+                ? device === "mobile"
+                  ? CARD_EDGE_MOBILE
+                  : cardInset
                 : siteWidth -
                   w -
                   (device === "mobile" ? CARD_EDGE_MOBILE : cardInset),

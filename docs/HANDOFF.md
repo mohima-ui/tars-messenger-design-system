@@ -888,7 +888,7 @@ wide. Offsets default to **40 / 40**.
 | Button — chips | **14px**, padding **16 × 8**, fully round | the same | **14px**, padding **12 × 6** |
 | **Auto-open** | opens the **messenger panel** | the **Message card** | the **Message card** |
 | Card — width | — | **360** | **320** |
-| Card — side | — | the launcher's side; **centred → right** | always **right** |
+| Card — side | — | the launcher's side; **centred → right** | **right**; a left-placed button → **left** |
 | Card — inset | — | the launcher's offsets (centred: vertical offset on the right too) | **12** right, **10** bottom |
 | Card — grows out of | — | the composer pill, or the button launcher's **greeting card** (the button when no greeting is showing) | the same |
 
@@ -902,7 +902,7 @@ them (`SCROLL_TURN_PX`); they fold away **4.5s** after the page stops
 |---|---|
 | Width | Phone: **320** (`MSG_CARD_W_MOBILE`). Tablet: **360** (`MSG_CARD_W_TABLET`), 20 more than the 340 composer launcher. Never wider than the screen less **10** a side |
 | Height | **hugs its content** — nothing inside scrolls (see *Height* below) |
-| Position | Phone: always on the **right**, **12** from the right (`CARD_EDGE_MOBILE`) and **10** from the bottom (`CARD_GAP`). Tablet: on the launcher's side — **left** placement opens on the left, **right** on the right, **center** on the right — at the launcher's own offsets (`offsetX` from that side, `offsetY` from the bottom). A centred launcher has no horizontal offset, so its card uses `offsetY` from the right as well as the bottom |
+| Position | Phone: on the **right**, **12** from the right (`CARD_EDGE_MOBILE`) and **10** from the bottom (`CARD_GAP`) — except a **left-placed button launcher**, whose card opens on the **left**, 12 from the left. Tablet: on the launcher's side — **left** placement opens on the left, **right** on the right, **center** on the right — at the launcher's own offsets (`offsetX` from that side, `offsetY` from the bottom). A centred launcher has no horizontal offset, so its card uses `offsetY` from the right as well as the bottom |
 | Radius | **28**, all four corners |
 | Surface | `canvas` |
 | Shadow | the cluster's card shadow (`clusterGlass`): light — `inset 0 0 0 1px rgba(18,21,33,.06)` plus `CARD_SHADOW` (`0 1px 1px`, `0 2px 4px`, `0 4px 8px`, `0 8px 16px` at `rgba(18,21,33,.045)`; `0 16px 32px` at `.05`; `0 32px 56px -20px` at `.10`). Dark — `inset 0 0 0 1px line`, `0 10px 30px rgba(0,0,0,.34)`, `0 28px 60px -20px rgba(0,0,0,.38)` |
