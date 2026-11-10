@@ -24,6 +24,14 @@ disagree, HANDOFF has the numbers; this file has the list.
 5. **Button launcher on tablet: suggestions no longer sit on top of the
    greeting.** They take its place on a scroll down, as on a phone. → HANDOFF
    §11.4 *Per screen size*
+6. **Desktop auto-open always grows the messenger out of the launcher** —
+   the same 280ms grow as a click. It is decided by the device, not the
+   compact layout: a short desktop window used to count as compact and show
+   the phone's card. → HANDOFF §11.4 *When it opens*
+7. **Phone: a left-placed button launcher's card opens on the left**, 12 from
+   the left edge. Every other phone card stays on the right. → HANDOFF §11.4
+   *The card*
+8. **Still open:** what Pop out and Conversation preview do. → HANDOFF §12 #6
 
 ### Configure panel (Launcher tab)
 

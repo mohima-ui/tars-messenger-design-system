@@ -6,7 +6,7 @@ Written against the code at `app/design/page.tsx` (the design tool) and
 so where this document and the code disagree, the code is right and this is a
 bug report.
 
-Signed off at the design review on 11 September 2026. Five things are still
+Signed off at the design review on 11 September 2026. Six things are still
 open — they are at the end, and the first of them blocks the event schema.
 
 ---
@@ -152,7 +152,13 @@ thing is before they will use it.
 - **Greeting** (on by default): the agent's own first message, beside the
   button. Switching it off does not stop the agent greeting — that line is the
   conversation's first message and belongs to the conversation.
-- On hover the greeting card gives way to the contextual suggestions.
+- On hover the greeting card gives way to the contextual suggestions. On
+  touch (tablet and phone) a **scroll down** does the same, and a scroll up
+  brings the greeting back; the two are never on screen together (§11.4 *Per
+  screen size*).
+- The greeting is the only thing beside the button at rest. The earlier
+  "Message card" popup option is gone from Configure; the Message card is now
+  auto-open only (§11.4).
 - The card carries a **dismiss ×** in the four states that raise one.
 
 ---
@@ -162,6 +168,16 @@ thing is before they will use it.
 Composer: left, centre, right. Button: left, right.
 Offsets default to **40px** horizontal and vertical, adjustable 0–120 in steps
 of 4. Centred placement has no horizontal offset to set.
+
+On a **phone** the composer is always centred and spans the screen, so it has
+**no horizontal offset**; the **Vertical offset** is its gap from the bottom.
+The button keeps its side and both offsets.
+
+**Launcher tab, top to bottom:** Preview on your site · Launcher style ·
+Placement · Button (button only) · Greeting (button only) · Placeholder ·
+**Behavior** (Pop out, Conversation preview, Auto-open — each a toggle with an
+ⓘ; Auto-open's settings under it) · Entrance (Appears after, Play a sound —
+notes behind ⓘ).
 
 ---
 
@@ -848,13 +864,14 @@ The agent opens on its own after a wait. On a desktop that is the messenger
 itself; on a **phone or tablet** it is the **Message card**: a small card
 holding the agent's first message and its suggestions, which grows out of the
 launcher and shrinks back into it. Every value here is what `/design` runs —
-Launcher tab → **Auto-open** → on, style **Message card** (the default).
+Launcher tab → **Behavior** → **Auto-open** → on. The Message card is the only
+style on phones and tablets; there is no style picker.
 
 #### When it opens
 
 | | |
 |---|---|
-| Setting | **Auto-open** on / off — **off** by default |
+| Setting | **Behavior → Auto-open** on / off — **off** by default. Its settings (Show on, Open after) appear under the toggle when it is on |
 | Show on | **All devices** (default) / **Mobile** / **Desktop**. "Mobile" means the compact layout only (see *Phone* below); a tablet counts as "Desktop" for this setting, but still gets the card, not the panel |
 | Open after | **4s** by default (stepper, seconds) after the page loads |
 | Sooner on a phone | on the compact layout it also opens as soon as the visitor has scrolled **a third** of the page, if that comes before the wait |
@@ -1037,7 +1054,7 @@ messenger, keeping the conversation:
 
 ## 12. Still open
 
-These five need answers before or during the build. The first one blocks the
+These six need answers before or during the build. The first one blocks the
 event schema.
 
 1. **Recent vs Open windows.** Currently 24 hours and 7 days. Vinit's note was
@@ -1060,6 +1077,9 @@ event schema.
    are configurable languages, but the header and callout are only laid out
    left-to-right. Design to come: mirroring the header (logo right, actions
    left) and right-aligning the callout when that language is shown.
+6. **Pop out and Conversation preview** (Launcher tab → Behavior). The toggles
+   are in Configure but not designed or wired: what each one shows, and on
+   which devices, is still to be decided. Do not build against them yet.
 
 ---
 
