@@ -860,7 +860,7 @@ Launcher tab → **Auto-open** → on, style **Message card** (the default).
 | Sooner on a phone | on the compact layout it also opens as soon as the visitor has scrolled **a third** of the page, if that comes before the wait |
 | Who | a **first visit** only — a visitor with a conversation is offered that conversation instead (§5) |
 | How often | **once per visit**: after it has opened, or the visitor has opened the messenger themselves, it does not open again |
-| Desktop | opens the messenger panel itself, exactly as a click on the launcher does (§11.3) |
+| Desktop | opens the messenger panel itself, exactly as a click on the launcher does (§11.3) — the composer pill grows into the window, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`. Decided by the device, not the compact layout: a short desktop window still gets this, never the card |
 | Phone and tablet | the Message card, below |
 
 **Phone** is the compact layout: a frame under **480** wide or under **560**

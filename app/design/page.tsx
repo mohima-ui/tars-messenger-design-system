@@ -11653,7 +11653,11 @@ function LauncherPreview({
     /* Phone and tablet get the card; only desktop opens the panel itself.
        A tablet has the width for a panel but is held like a phone and read
        like one, and a 720-tall panel arriving on its own covers most of it. */
-    if (compact || device === "tablet") {
+    /* By device, not by the compact layout: a desktop preview in a short
+       window measures under 560 tall and counted as compact, so auto-open
+       showed the phone's card instead of the messenger growing out of the
+       launcher — the same open a click plays. */
+    if (device !== "desktop") {
       setLaunchFrom(measureLaunch());
       setCardReady(false);
       setCardBody(0);
