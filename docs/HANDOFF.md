@@ -865,15 +865,44 @@ Launcher tab → **Auto-open** → on, style **Message card** (the default).
 
 **Phone** is the compact layout: a frame under **480** wide or under **560**
 tall (`COMPACT_BELOW`, `COMPACT_SHORT_BELOW`). **Tablet** is the tablet device;
-it is not compact, so it keeps the launcher's own offsets.
+it is not compact, so it keeps the launcher's own offsets. The card's **width**
+and **side** follow the device (phone / tablet); its **10** bottom gap follows
+the compact layout.
+
+#### Per screen size — at a glance
+
+Preview frames in `/design`: desktop **1000**, tablet **580**, phone **380**
+wide. Offsets default to **40 / 40**.
+
+| | Desktop | Tablet | Phone |
+|---|---|---|---|
+| **Composer launcher** — at rest | **340 × 64**, radius 32, padding 8, mic disc **44** (glyph 20) | the same | **250 × 52**, radius 26, padding 6, mic disc **40** (glyph 16) |
+| Composer — open with suggestions | **600** centred / **400** on an edge, never wider than the frame less **24** a side | the same | **342** |
+| Composer — placement | Left / Center / Right | Left / Center / Right | always **centred** (no choice) |
+| Composer — offsets | Horizontal (not when centred) + Vertical | the same | **Vertical only** — the bottom gap. No horizontal offset: it spans the screen |
+| Composer — what opens it wider | hover | a scroll down | a scroll down |
+| **Button launcher** — size | **56** default (Small 48 / Medium 56 / Large 64) | the same | **48** default (its own setting) |
+| Button — placement | Left / Right (Center is not offered) | the same | the same |
+| Button — greeting | beside the button, bottoms aligned, **232** wide, **14px** / leading-snug, padding **16 × 14**, radius **16**, at most **3** lines | the same | **above** the button, **232** wide, padding **12 × 10** |
+| Button — suggestions | take the greeting's place **on hover** | take its place **on a scroll down** — never on top of it | the same as tablet |
+| Button — chips | **14px**, padding **16 × 8**, fully round | the same | **14px**, padding **12 × 6** |
+| **Auto-open** | opens the **messenger panel** | the **Message card** | the **Message card** |
+| Card — width | — | **360** | **320** |
+| Card — side | — | the launcher's side; **centred → right** | always **right** |
+| Card — inset | — | the launcher's offsets (centred: vertical offset on the right too) | **12** right, **10** bottom |
+| Card — grows out of | — | the composer pill, or the button launcher's **greeting card** (the button when no greeting is showing) | the same |
+
+Touch suggestions (tablet and phone): a scroll of **6px** or more down shows
+them (`SCROLL_TURN_PX`); they fold away **4.5s** after the page stops
+(`SCROLL_HOLD_MS`); any scroll back up returns the greeting at once.
 
 #### The card
 
 | Part | Value |
 |---|---|
-| Width | **320**, but never wider than the screen less **10** a side |
+| Width | Phone: **320** (`MSG_CARD_W_MOBILE`). Tablet: **360** (`MSG_CARD_W_TABLET`), 20 more than the 340 composer launcher. Never wider than the screen less **10** a side |
 | Height | **hugs its content** — nothing inside scrolls (see *Height* below) |
-| Position | always on the **right**, whatever the launcher's placement. Phone: **10** from the right and **10** from the bottom (`CARD_GAP`). Tablet: the launcher's own offsets (`offsetX` from the right, `offsetY` from the bottom) |
+| Position | Phone: always on the **right**, **12** from the right (`CARD_EDGE_MOBILE`) and **10** from the bottom (`CARD_GAP`). Tablet: on the launcher's side — **left** placement opens on the left, **right** on the right, **center** on the right — at the launcher's own offsets (`offsetX` from that side, `offsetY` from the bottom). A centred launcher has no horizontal offset, so its card uses `offsetY` from the right as well as the bottom |
 | Radius | **28**, all four corners |
 | Surface | `canvas` |
 | Shadow | the cluster's card shadow (`clusterGlass`): light — `inset 0 0 0 1px rgba(18,21,33,.06)` plus `CARD_SHADOW` (`0 1px 1px`, `0 2px 4px`, `0 4px 8px`, `0 8px 16px` at `rgba(18,21,33,.045)`; `0 16px 32px` at `.05`; `0 32px 56px -20px` at `.10`). Dark — `inset 0 0 0 1px line`, `0 10px 30px rgba(0,0,0,.34)`, `0 28px 60px -20px rgba(0,0,0,.38)` |
@@ -918,17 +947,22 @@ stacked against the right edge. Pressing one opens the messenger and sends it.
 #### Arriving
 
 1. **The card grows out of the launcher.** It starts on the launcher's exact
-   box — the composer pill or the button, at their real size, position and
-   corner radius, read from the page at the moment it fires — and grows to its
+   box — the composer pill; on the button launcher, **the greeting card**
+   beside (tablet) or above (phone) the button, or the button itself when no
+   greeting is showing — at its real size, position and corner radius, read
+   from the page at the moment it fires — and grows to its
    own: `left`, `bottom`, `width`, `height` and `border-radius` together,
    **340ms** on the open curve `cubic-bezier(0.16, 1, 0.3, 1)`
    (`CARD_GROW_MS`; a touch longer than the panel's 280 because it travels
    across the screen as well as growing).
-2. **The launcher is hidden on that same frame** — at once, not faded — so
-   there are never two of it. It stays hidden while the card or the messenger
+2. **What it grew out of is hidden on that same frame** — at once, not faded —
+   so there are never two of it: the composer pill, or on the button launcher
+   the greeting card (the button stays). The greeting keeps its place in the
+   layout so the card can shrink back into it. It stays hidden while the card or the messenger
    it grows into is up.
 3. **The contents are laid out once, at full size,** pinned to the card's
-   bottom-right corner, and uncovered by the growing box (`overflow: hidden`) —
+   bottom corner on the side it opens on (bottom-left for a left launcher on
+   tablet, bottom-right otherwise), and uncovered by the growing box (`overflow: hidden`) —
    never scaled or re-flowed. The first frame shows the card's own field where
    the launcher was.
 4. **The launcher's colour fades off it.** A layer filled with the launcher's
@@ -966,12 +1000,16 @@ suggestions arrive after it as they do there (§11.3 *Suggestions arriving*).
 #### Closing — ✕
 
 The arrival, in reverse: the card shrinks from its own box back to the
-launcher's (`left`, `bottom`, `width`, `height`, `border-radius`), **200ms**
+launcher's (`left`, `bottom`, `width`, `height`, `border-radius`) — the
+launcher's box **read again at the moment ✕ is pressed**, not the one it
+opened from, since a scroll may have widened the composer since — **200ms**
 `cubic-bezier(0.7, 0, 0.84, 0)` — the close curve of §11.3. The launcher's
 fill comes back over it in the second half (opacity 0 until 45%, then → 1), so
 the last frames are the launcher. The card unmounts when the shrink ends and
-the launcher reappears **at once, on that frame** (no fade) — never both on
-screen. Auto-open does not fire again on this visit.
+what it grew out of — the composer pill, or the button launcher's greeting
+card — reappears **at once, on that frame** (no fade) — never both on
+screen. On the button launcher the box it shrinks into is the greeting's, and
+its fill is the greeting's glass. Auto-open does not fire again on this visit.
 
 #### Into the messenger
 
@@ -990,8 +1028,10 @@ messenger, keeping the conversation:
 - **Reduced motion** is not applied to the card's grow, shrink and veil yet
   (the skeleton's breath does stop). The messenger's rule should carry over:
   no animation, the card simply appears and goes.
-- The other phone styles in the dropdown (Message sheet, Bottom sheet, Sheet
-  with stops) were explored and are **not** part of this handoff.
+- The other phone styles (Message sheet, Bottom sheet, Sheet with stops)
+  were explored and are **not** part of this handoff. Their picker is gone
+  from Configure: the Message card is the only auto-open on phones and
+  tablets.
 
 ---
 

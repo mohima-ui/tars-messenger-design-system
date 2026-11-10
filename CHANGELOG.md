@@ -4,6 +4,41 @@ Design changes for engineering. Newest first. Each entry says what changed in
 `/design` and where the full spec lives in `docs/HANDOFF.md`. Where the two
 disagree, HANDOFF has the numbers; this file has the list.
 
+## 2026-11-10 — auto-open card per screen size, launcher fixes
+
+### Changed in the design
+
+1. **Message card sizes and positions, per device.** Phone **320** wide, **12**
+   from the right and **10** from the bottom, always on the right. Tablet
+   **360** wide, on the launcher's side (left → left, right → right, centred →
+   right) at the launcher's own offsets. → HANDOFF §11.4 *The card*, *Per
+   screen size — at a glance*
+2. **On the button launcher the card grows out of the greeting card**, not
+   the button, and ✕ shrinks it back into the greeting. The greeting is hidden
+   while the card is up; the button stays. → HANDOFF §11.4 *Arriving*, *Closing*
+3. **Closing re-reads the launcher's box** at the moment ✕ is pressed, so the
+   card lands on the launcher as it is now (a scroll may have widened the
+   composer) instead of jumping at the end. → HANDOFF §11.4 *Closing*
+4. **Composer on a phone uses the Vertical offset** for its bottom gap. It was
+   a fixed 24 that ignored the setting.
+5. **Button launcher on tablet: suggestions no longer sit on top of the
+   greeting.** They take its place on a scroll down, as on a phone. → HANDOFF
+   §11.4 *Per screen size*
+
+### Configure panel (Launcher tab)
+
+- **Greeting** group: the helper line and the Greeting / Message card picker
+  are gone; the greeting is the only popup beside the button.
+- **Placeholder**: its note moved behind an ⓘ.
+- **Placement**: no Horizontal offset for the composer on a phone (it is
+  centred and spans the screen).
+- **Behavior** (new, after Placeholder): **Pop out**, **Conversation
+  preview** and **Auto-open** toggles, each with an ⓘ. Pop out and
+  Conversation preview are switches only for now — not yet designed or wired.
+- **Auto-open**: the "On phones and tablets" style picker is gone; the
+  Message card is the only style.
+- **Entrance**: notes moved behind ⓘ icons.
+
 ## 2026-11-09 — auto-open on phones and tablets, the Message card
 
 ### Added to the design

@@ -17,6 +17,7 @@ import {
   useMemo,
   useState,
   useEffect,
+  useLayoutEffect,
   useId,
   useRef,
   useCallback,
@@ -73,8 +74,6 @@ import {
   Type,
   Link2,
   Link2Off,
-  MessageCircle,
-  PanelBottom,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -142,6 +141,9 @@ type LauncherSettings = {
      message card — the agent's first message and its suggestions in one
      card, always showing, with nothing to reveal. */
   buttonPopup: "greeting" | "card";
+  /* Behavior toggles. Not yet wired to the preview. */
+  popOut: boolean;
+  convoPreview: boolean;
   rules: ContextRule[];
   delay: number;
   soundOn: boolean;
@@ -332,6 +334,8 @@ const DEFAULT_LAUNCHER: LauncherSettings = {
      pattern, where nothing speaks first. */
   greetingOn: true,
   buttonPopup: "greeting",
+  popOut: false,
+  convoPreview: false,
   rules: [
     {
       id: "pricing",
@@ -2435,7 +2439,7 @@ export default function DesignPage() {
               <div className="relative h-0 shrink-0">
                 <button
                   onClick={() => setStripOpen(true)}
-                  className="absolute bottom-3 right-4 z-30 rounded-full border border-[#E5E5E5] bg-white px-3 py-1.5 text-[12px] font-medium text-[#666] shadow-sm hover:text-[#333]"
+                  className="absolute bottom-3 left-4 z-30 rounded-full border border-[#E5E5E5] bg-white px-3 py-1.5 text-[12px] font-medium text-[#666] shadow-sm hover:text-[#333]"
                 >
                   {tab === "launcher" ? "Visitor" : "Scheduler"}
                 </button>
@@ -2832,6 +2836,10 @@ const CARD_GAP = 10;
 const CARD_GROW_MS = 340;
 /* a set width, sat against the right edge — where the launcher lives */
 const MSG_CARD_W = 320;
+const MSG_CARD_W_TABLET = 360;
+const MSG_CARD_W_MOBILE = 320;
+/* Phone: the card's gap from the right edge of the screen. */
+const CARD_EDGE_MOBILE = 12;
 /* the agent's logo and name over the message — part of the card, not a bar */
 const CARD_HEAD = 48;
 /* the pill and the space round it; the privacy line adds CARD_NOTE */
@@ -3255,8 +3263,10 @@ function NumberField({
   max,
   step = 1,
   suffix,
+  info,
 }: {
   label: string;
+  info?: string;
   value: number;
   onChange: (v: number) => void;
   min: number;
@@ -3267,7 +3277,10 @@ function NumberField({
   const set = (v: number) => onChange(Math.round(clamp(v, min, max) * 10) / 10);
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[12px] text-[#666]">{label}</span>
+      <span className="relative flex items-center gap-1.5 text-[12px] text-[#666]">
+        {label}
+        {info && <InfoTip text={info} />}
+      </span>
       <div className="flex h-8 items-center rounded-lg border border-[#E5E5E5]">
         <button
           onClick={() => set(value - step)}
@@ -3358,22 +3371,42 @@ function StringList({
   );
 }
 
+/* An ⓘ beside a field label; the note shows on hover, hung from the start of
+   the label so it stays inside the settings column. */
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="group/tip flex items-center">
+      <Info
+        className="size-3.5 cursor-help text-[#B8B8B8]"
+        strokeWidth={2}
+        aria-label={text}
+      />
+      <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-max max-w-[250px] rounded-md bg-[#333] px-2 py-1 text-[11px] font-normal leading-snug text-white opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function RowToggle({
   label,
   hint,
+  info,
   on,
   onChange,
 }: {
   label: string;
   hint?: string;
+  info?: string;
   on: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <span className="block text-[12px] font-medium text-[#555]">
+        <span className="relative flex items-center gap-1.5 text-[12px] font-medium text-[#555]">
           {label}
+          {info && <InfoTip text={info} />}
         </span>
         {hint && (
           <span className="mt-0.5 block text-[11px] leading-snug text-[#A8A8A8]">
@@ -3779,7 +3812,9 @@ function LauncherControls({
           {/* Nothing to offset from when it is centred: the launcher is placed
               by the frame's middle, and a horizontal nudge would only push it
               off centre. The vertical one still applies. */}
-          {s.placement !== "center" && (
+          {/* Composer on phones spans the frame edge to edge, so there is no
+              side to nudge it away from. */}
+          {s.placement !== "center" && !(isComposer && isMobile) && (
             <NumberField
               label="Horizontal offset"
               value={s.offsetX}
@@ -4025,26 +4060,6 @@ function LauncherControls({
             />
           }
         >
-          {/* What the toggle actually governs. Off, it removes the card from
-              beside the button — it does not stop the agent greeting, because
-              that line is the conversation's first message and belongs to the
-              conversation. The old wording said the same thing but read as a
-              description of the card rather than as the caveat it is. */}
-          <p className="text-[11px] leading-snug text-[#A8A8A8]">
-            Shown beside the button. The conversation still opens with it.
-          </p>
-          {s.greetingOn && (
-            <div className="mt-3">
-              <Segmented
-                value={s.buttonPopup}
-                onChange={(buttonPopup) => set({ buttonPopup })}
-                options={[
-                  { v: "greeting" as const, label: "Greeting", Icon: MessageCircle },
-                  { v: "card" as const, label: "Message card", Icon: PanelBottom },
-                ]}
-              />
-            </div>
-          )}
           {/* The callout's words, per language — as in 2.0. */}
           <div className="mt-3">
             <FieldLabel>Message</FieldLabel>
@@ -4082,12 +4097,14 @@ function LauncherControls({
           What differs is only how much of the sentence applies: the composer
           also cycles the suggestions through it at rest, and the button
           launcher has nothing resting to cycle them through. */}
-      <Group title="Placeholder">
-        <span className="mb-2 block text-[11px] leading-snug text-[#A8A8A8]">
-          {isComposer
+      <Group
+        title="Placeholder"
+        info={
+          isComposer
             ? "Shown in the expanded launcher and the messenger. At rest it cycles the suggestions."
-            : "Shown in the messenger's message field."}
-        </span>
+            : "Shown in the messenger's message field."
+        }
+      >
         <div className="relative">
           <input
             value={placeholder}
@@ -4099,20 +4116,30 @@ function LauncherControls({
         </div>
       </Group>
 
-      {/* ── AUTO-OPEN ── */}
-      <Group
-        title="Auto-open"
-        info="Opens the messenger on its own after a wait. Desktop opens the panel; phones and tablets open it as a sheet at the bottom, never more than 65% of the screen, and full screen once they chat."
-        action={
-          <Toggle
+      {/* ── BEHAVIOR ── */}
+      <Group title="Behavior">
+        <div className="flex flex-col gap-3">
+          <RowToggle
+            label="Pop out"
+            info="Lets the visitor open the conversation in its own window."
+            on={s.popOut}
+            onChange={(popOut) => set({ popOut })}
+          />
+          <RowToggle
+            label="Conversation preview"
+            info="Shows the last exchange of an unfinished conversation above the launcher."
+            on={s.convoPreview}
+            onChange={(convoPreview) => set({ convoPreview })}
+          />
+          <RowToggle
+            label="Auto-open"
+            info="Opens the messenger on its own after a wait. Desktop opens the panel; phones and tablets open it as a sheet at the bottom, never more than 65% of the screen, and full screen once they chat."
             on={s.autoOpen}
             onChange={(autoOpen) => set({ autoOpen })}
-            size="sm"
           />
-        }
-      >
+        </div>
         {s.autoOpen && (
-          <div>
+          <div className="mt-3">
             <Segmented
               value={s.autoOpenOn}
               onChange={(autoOpenOn) => set({ autoOpenOn })}
@@ -4132,27 +4159,6 @@ function LauncherControls({
               step={1}
               suffix="s"
             />
-            <div className="mt-4" />
-            <FieldLabel>On phones and tablets</FieldLabel>
-            <div className="relative">
-              <select
-                value={s.autoOpenStyle}
-                onChange={(e) =>
-                  set({ autoOpenStyle: e.target.value as AutoOpenStyle })
-                }
-                className="h-9 w-full appearance-none rounded-lg border border-[#E5E5E5] bg-white pl-3 pr-9 text-[13px] text-[#333] outline-none focus:border-[#C9C9C9]"
-              >
-                {AUTO_OPEN_STYLES.map((o) => (
-                  <option key={o.v} value={o.v}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#9A9A9A]"
-                strokeWidth={2}
-              />
-            </div>
           </div>
         )}
       </Group>
@@ -4167,13 +4173,12 @@ function LauncherControls({
           max={30}
           step={0.5}
           suffix="s"
+          info="Counted from page load. Zero shows it immediately."
         />
-        <p className="mt-1.5 mb-3 text-[11px] leading-snug text-[#A8A8A8]">
-          Counted from page load. Zero shows it immediately.
-        </p>
+        <div className="mt-3" />
         <RowToggle
           label="Play a sound"
-          hint="As it arrives. Muted until the visitor interacts with the page."
+          info="As it arrives. Muted until the visitor interacts with the page."
           on={s.soundOn}
           onChange={(soundOn) => set({ soundOn })}
         />
@@ -10514,6 +10519,7 @@ function ButtonSuggestions({
   greetingInline,
   hoverReveal,
   promptsOpen,
+  greetingHeld,
   greetingMarkDot,
   greetingDot,
   glass,
@@ -10559,6 +10565,9 @@ function ButtonSuggestions({
      accent, same job: there is either something waiting behind this launcher or
      there is not, and the dot says so without spending any of the line. */
   greetingDot?: boolean;
+  /* The auto-open card has grown out of the greeting: it is hidden (not
+     unmounted — it keeps its place, and the card shrinks back into it). */
+  greetingHeld?: boolean;
   /* The surface every part of the cluster is made of — the greeting, the
      suggestions and the resume box alike. Passed in rather than built here: it
      is the same recipe the launcher's own glass style uses, off the same OKLCH
@@ -10905,6 +10914,7 @@ function ButtonSuggestions({
         <button
           type="button"
           onClick={onOpen}
+          data-greeting-shape
           /* No bottom margin. The column already carries gap-2 between its
              children, and the two stacked gave 16 where the row beside the
              button gives 8 — the same cluster spaced differently depending on
@@ -10927,6 +10937,7 @@ function ButtonSuggestions({
             color: glass?.color ?? ink,
             boxShadow: glass?.shadow ?? BUTTON_SHADOW,
             animation: "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+            visibility: greetingHeld ? "hidden" : undefined,
           }}
         >
           {greetingDot && (
@@ -10977,7 +10988,10 @@ function ButtonSuggestions({
               resizes, so the cursor cannot lose the element whose hover is
               driving it. */}
           <span className="relative">
-            {reveal}
+            {/* On touch the chips wait for the scroll, the same gate the
+                stacked (phone) layout uses — drawn unconditionally here, a
+                tablet showed them on top of the greeting before any scroll. */}
+            {(hoverGate || !swaps || promptsOpen !== false) && reveal}
             {/* On the card's corner, half off it. Inside the box it would be
                 competing with the message for the same padding; hung on the
                 corner it reads as the standard way out of a thing that
@@ -10986,7 +11000,7 @@ function ButtonSuggestions({
 
                 The recall card carries its own — see recallCard — because it
                 sits in the reveal slot rather than this one. */}
-            {onDismiss && showGreeting && (
+            {onDismiss && showGreeting && !greetingHeld && (
               <button
                 type="button"
                 onClick={onDismiss}
@@ -11001,6 +11015,7 @@ function ButtonSuggestions({
               <button
                 type="button"
                 onClick={onOpen}
+                data-greeting-shape
                 /* Every corner the same. The tail that squares one corner is what
                makes a bubble point at its speaker; on this line the box is
                beside the button rather than above it, and a tail would be
@@ -11044,6 +11059,7 @@ function ButtonSuggestions({
                   boxShadow: glass?.shadow ?? BUTTON_SHADOW,
                   animation:
                     "reply-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both",
+                  visibility: greetingHeld ? "hidden" : undefined,
                 }}
               >
                 {greetingDot && (
@@ -11537,6 +11553,7 @@ function LauncherPreview({
      frame and its fill — so the card can grow out of it and shrink back into
      it, as one object rather than a card arriving beside a launcher. */
   const [launchFrom, setLaunchFrom] = useState<{
+    greeting: boolean;
     left: number;
     bottom: number;
     width: number;
@@ -11585,6 +11602,51 @@ function LauncherPreview({
     session === "first" &&
     (s.autoOpenOn === "all" ||
       (s.autoOpenOn === "mobile" ? compact : !compact));
+  /* The launcher's own rect, read off the page, in the frame's units. */
+  const measureLaunch = () => {
+    const frame = frameRef.current;
+    /* Button launcher: the card grows out of the greeting card beside the
+       button, when one is on screen, and shrinks back into it. */
+    const greet = isComposer
+      ? null
+      : frame?.querySelector<HTMLElement>("[data-greeting-shape]");
+    const greetShown =
+      !!greet &&
+      greet.getClientRects().length > 0 &&
+      getComputedStyle(greet).opacity !== "0" &&
+      !greet.classList.contains("invisible");
+    const el = greetShown
+      ? greet
+      : frame?.querySelector<HTMLElement>("[data-launch-shape]");
+    if (!frame || !el) return null;
+    const f = frame.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const k = f.width / (frame.offsetWidth || f.width);
+    const cs = getComputedStyle(el);
+    return {
+      greeting: el === greet,
+      left: (r.left - f.left) / k,
+      bottom: (f.bottom - r.bottom) / k,
+      width: r.width / k,
+      height: r.height / k,
+      radius: cs.borderRadius || "999px",
+      fill:
+        cs.backgroundImage && cs.backgroundImage !== "none"
+          ? cs.backgroundImage
+          : cs.backgroundColor,
+    };
+  };
+  /* Closing the card: shrink into the launcher as it is now, not as it was
+     when the card opened. A scroll in between widens the composer (most on
+     a centred tablet launcher, 340 to the frame less its gutters), and a
+     card shrinking to the old box would end with the launcher jumping wider.
+     Read before paint so the close starts on the right target. */
+  useLayoutEffect(() => {
+    if (!peekClosing || s.autoOpenStyle !== "card") return;
+    const r = measureLaunch();
+    if (r) setLaunchFrom(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peekClosing]);
   const fireAuto = useCallback(() => {
     if (autoSpent === autoKey) return;
     setAutoSpent(autoKey);
@@ -11592,26 +11654,7 @@ function LauncherPreview({
        A tablet has the width for a panel but is held like a phone and read
        like one, and a 720-tall panel arriving on its own covers most of it. */
     if (compact || device === "tablet") {
-      /* the launcher's own rect, read off the page, in the frame's units */
-      const frame = frameRef.current;
-      const el = frame?.querySelector<HTMLElement>("[data-launch-shape]");
-      if (frame && el) {
-        const f = frame.getBoundingClientRect();
-        const r = el.getBoundingClientRect();
-        const k = f.width / (frame.offsetWidth || f.width);
-        const cs = getComputedStyle(el);
-        setLaunchFrom({
-          left: (r.left - f.left) / k,
-          bottom: (f.bottom - r.bottom) / k,
-          width: r.width / k,
-          height: r.height / k,
-          radius: cs.borderRadius || "999px",
-          fill:
-            cs.backgroundImage && cs.backgroundImage !== "none"
-              ? cs.backgroundImage
-              : cs.backgroundColor,
-        });
-      } else setLaunchFrom(null);
+      setLaunchFrom(measureLaunch());
       setCardReady(false);
       setCardBody(0);
       setPeekGrown(false);
@@ -11746,6 +11789,9 @@ function LauncherPreview({
   const speaking = peek && !open && s.autoOpenStyle === "speaks";
   /* The launcher has turned into the auto-open card (see launchFrom). */
   const handedOff = peek && s.autoOpenStyle === "card" && !!launchFrom;
+  /* Button launcher: what the card grew out of is the greeting, so that is
+     what is hidden while it is up (the button stays). */
+  const greetingHandedOff = handedOff && !isComposer && !!launchFrom?.greeting;
   /* …and has just turned back: show it at once, not on a fade, or the
      shrunk card and the launcher would blink. Cleared on the next frame. */
   const [peekWasCard, setPeekWasCard] = useState(false);
@@ -12091,7 +12137,7 @@ function LauncherPreview({
          centred in it by the column's own alignment. Fixed rather than
          inset-derived so the launcher is the same size on every handset
          instead of growing with the screen. */
-      { bottom: MOBILE.bottom, left: 0, right: 0 }
+      { bottom: s.offsetY, left: 0, right: 0 }
     : isComposer
       ? { bottom: s.offsetY, left: xFor(paneW) }
       : {
@@ -12346,7 +12392,7 @@ function LauncherPreview({
         /* The launcher-led styles: one small object above the launcher,
            each asking for as little as possible. */
         const lift =
-          (centreOnPhone ? MOBILE.bottom : s.offsetY) +
+          s.offsetY +
           (isComposer ? (isMobile ? PILL_MOBILE.height : V6.height) : buttonPx) +
           12;
         const side: CSSProperties = isMobile
@@ -12555,7 +12601,7 @@ function LauncherPreview({
       {peek && !open && (s.autoOpenStyle === "floating" || s.autoOpenStyle === "nudge") && (() => {
         /* Above the launcher, on the page — no panel. */
         const lift =
-          (centreOnPhone ? MOBILE.bottom : s.offsetY) +
+          s.offsetY +
           (isComposer ? (isMobile ? PILL_MOBILE.height : V6.height) : buttonPx) +
           12;
         const side: CSSProperties = isMobile
@@ -12754,7 +12800,11 @@ function LauncherPreview({
           frameHeight - 48,
         );
         const w = card
-          ? Math.min(MSG_CARD_W, siteWidth - CARD_GAP * 2)
+          ? /* Phone 320; tablet 360, 20 more than the 340 composer launcher. */
+            Math.min(
+              device === "mobile" ? MSG_CARD_W_MOBILE : MSG_CARD_W_TABLET,
+              siteWidth - CARD_GAP * 2,
+            )
           : compact
           ? win
             ? siteWidth - gap * 2
@@ -12776,9 +12826,26 @@ function LauncherPreview({
             );
         const bottom =
           (grown || win || card) && !compact ? s.offsetY : 0;
+        /* The card opens on the launcher's side: left on the left, right on
+           the right, and right for a centred launcher — the corner a
+           messenger lives in. Phones always take the right. */
+        const cardLeft = card && device !== "mobile" && s.placement === "left";
+        /* A centred launcher has no horizontal offset (the field is hidden),
+           so its card — opened on the right — takes the vertical one there
+           too: the same gap from both edges of the corner. */
+        const cardInset = compact
+          ? CARD_GAP
+          : s.placement === "center"
+            ? s.offsetY
+            : s.offsetX;
         const place: CSSProperties = card
           ? {
-              left: siteWidth - w - (compact ? CARD_GAP : s.offsetX),
+              /* Phone: 12 from the right edge. Tablet: the launcher's offset. */
+              left: cardLeft
+                ? cardInset
+                : siteWidth -
+                  w -
+                  (device === "mobile" ? CARD_EDGE_MOBILE : cardInset),
               bottom: compact ? CARD_GAP : s.offsetY,
             }
           : compact
@@ -12858,7 +12925,9 @@ function LauncherPreview({
                 card
                   ? {
                       position: "absolute",
-                      right: 0,
+                      /* pinned to the side it opens on, so the growth
+                         uncovers it from the launcher outward */
+                      ...(cardLeft ? { left: 0 } : { right: 0 }),
                       bottom: 0,
                       width: w,
                       height: h,
@@ -14031,6 +14100,7 @@ function LauncherPreview({
                  a message on the card stays put while the page scrolls under
                  it. */
               promptsOpen={isTouch && !holdsMessage ? scrolled : undefined}
+              greetingHeld={greetingHandedOff}
               /* Beside the button, always. Above it the callout was a
                  banner over a menu; on the same line it is a remark next to
                  the thing that made it — and on hover the suggestions take
