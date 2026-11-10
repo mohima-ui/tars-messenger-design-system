@@ -861,7 +861,7 @@ style on phones and tablets; there is no style picker.
 | Sooner on a phone | on the compact layout it also opens as soon as the visitor has scrolled **a third** of the page, if that comes before the wait |
 | Who | a **first visit** only — a visitor with a conversation is offered that conversation instead (§5) |
 | How often | **once per visit**: after it has opened, or the visitor has opened the messenger themselves, it does not open again |
-| Desktop | opens the messenger panel itself, exactly as a click on the launcher does (§11.3) — the composer pill grows into the window, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`. Decided by the device, not the compact layout: a short desktop window still gets this, never the card |
+| Desktop | opens the messenger panel itself, exactly as a click on the launcher does (§11.3) — the composer pill grows into the window, the button's panel rises in; both **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`. Decided by the device, not the compact layout: a short desktop window still gets this, never the card |
 | Phone and tablet | the Message card, below |
 
 **Phone** is the compact layout: a frame under **480** wide or under **560**
@@ -872,8 +872,8 @@ the compact layout.
 
 #### Where it opens and how it moves — by screen, launcher and placement
 
-Preview frames in `/design`: desktop **1000**, tablet **580**, phone **380**
-wide. Offsets default to **40 / 40**. "Offsets" below are the launcher's own
+Preview frames in `/design`: desktop fills the canvas (1000 × 680 before it
+is measured), tablet **580 × 680**, phone **380 × 680**. Offsets default to **40 / 40**. "Offsets" below are the launcher's own
 Horizontal (`offsetX`) and Vertical (`offsetY`) settings.
 
 **Desktop — the messenger itself, never the card**
@@ -884,14 +884,16 @@ Horizontal (`offsetX`) and Vertical (`offsetY`) settings.
 | Composer · centre | the pill grows into the window | **600 × 580**, centred, `offsetY` from the bottom | the same | the same |
 | Button · left / right | the panel **rises in** above the button | **380 × 650**, on the button's side at its offsets | opacity 0 → 1, `translateY(10px) scale(0.90)` → none, from the bottom centre, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` | the reverse, **200ms** `cubic-bezier(0.7, 0, 0.84, 0)` |
 
-Window sizes are clamped to the frame less **48**. This is exactly the open a
+The composer's window is clamped to the frame less **48** both ways; the
+button's panel is a fixed **380** wide and its height is clamped to the frame
+less 48. This is exactly the open a
 click on the launcher plays.
 
 **Tablet — the Message card, 360 wide**
 
 | Launcher · placement | Card side | Inset | Grows out of | Contents pinned to |
 |---|---|---|---|---|
-| Composer · left | **left** | `offsetX` from the left, `offsetY` from the bottom | the pill (**340 × 64**) — the card is 20 wider, so it grows straight up and a little outward | bottom-left |
+| Composer · left | **left** | `offsetX` from the left, `offsetY` from the bottom | the pill (**340 × 64** at rest; its live size is read) — the card is 20 wider, so it grows straight up and **20 inward**, toward the centre; its outer edge stays on the pill's | bottom-left |
 | Composer · right | **right** | `offsetX` from the right, `offsetY` from the bottom | the pill | bottom-right |
 | Composer · centre | **right** | `offsetY` from the right **and** the bottom (a centred launcher has no horizontal offset) | the centred pill — the card travels across to the right corner as it grows | bottom-right |
 | Button · left | **left** | `offsetX` from the left, `offsetY` from the bottom | the **greeting card** beside the button; the button itself if no greeting is showing | bottom-left |
@@ -901,7 +903,7 @@ click on the launcher plays.
 
 | Launcher · placement | Card side | Inset | Grows out of | Contents pinned to |
 |---|---|---|---|---|
-| Composer (always centred) | **right** | **12** from the right, **10** from the bottom | the centred pill (**250 × 52**) | bottom-right |
+| Composer (always centred) | **right** | **12** from the right, **10** from the bottom | the centred pill (**250 × 52** at rest; its live size is read — **342** wide after a scroll has widened it) | bottom-right |
 | Button · right | **right** | **12** from the right, **10** from the bottom | the **greeting card** above the button; the button if no greeting is showing | bottom-right |
 | Button · left | **left** | **12** from the left, **10** from the bottom | the greeting card above the button, or the button | bottom-left |
 
@@ -910,7 +912,7 @@ click on the launcher plays.
 | | Opening | Closing (✕) |
 |---|---|---|
 | Box | from the origin's exact rect and corner radius to the card's: `left`, `bottom`, `width`, `height`, `border-radius` together, **340ms** `cubic-bezier(0.16, 1, 0.3, 1)` (`CARD_GROW_MS`) | back to the origin's rect, **re-read when ✕ is pressed** (a scroll may have changed it), **200ms** `cubic-bezier(0.7, 0, 0.84, 0)` |
-| The origin (pill or greeting) | hidden on the first frame, at once — never two of it. The button stays | reappears on the frame the card unmounts, at once — no fade |
+| The launcher | the **whole launcher** is hidden on the first frame, at once — on the button launcher the button as well as the greeting — so there are never two of it. The greeting keeps its place in the layout | the whole launcher reappears on the frame the card unmounts, at once — no fade |
 | Origin's fill | a layer of the origin's fill (pill's colour, or the greeting's glass) over the card, opacity **1 → 0** over the first **204ms**, `ease-out` | opacity **0** until 45%, then **→ 1**, so the last frames are the origin |
 | Contents | laid out once at full size, pinned to the corner in the tables, uncovered by the growing box (`overflow: hidden`) — never scaled or re-flowed | covered by the shrinking box the same way |
 
@@ -952,7 +954,8 @@ the messenger (§11.3 *Desktop, tablet, phone*): phone — sideways scroll, one
 line (two once they average over 24 characters), **scrollbar hidden**; tablet —
 stacked against the right edge. Pressing one opens the messenger and sends it.
 
-**4. Footer — 72 tall** (`CARD_FOOT`), **+20** when the disclaimer is on (`CARD_NOTE`). Padding 4 top, 16 sides; the field leaves **20** under it.
+**4. Footer — 72 tall** (`CARD_FOOT`), **+20** when the disclaimer is on (`CARD_NOTE`). Padding 4 top, 16 sides; the field leaves **20** under it (about **17** when
+the disclaimer is on — the line and its 8 gap take ~23 of the extra 20).
 
 | | |
 |---|---|
@@ -973,14 +976,15 @@ stacked against the right edge. Pressing one opens the messenger and sends it.
    **340ms** on the open curve `cubic-bezier(0.16, 1, 0.3, 1)`
    (`CARD_GROW_MS`; a touch longer than the panel's 280 because it travels
    across the screen as well as growing).
-2. **What it grew out of is hidden on that same frame** — at once, not faded —
+2. **The whole launcher is hidden on that same frame** — at once, not faded —
    so there are never two of it: the composer pill, or on the button launcher
-   the greeting card (the button stays). The greeting keeps its place in the
-   layout so the card can shrink back into it. It stays hidden while the card or the messenger
+   the button and its greeting card together. The greeting keeps its place in
+   the layout so the card can shrink back into it. It stays hidden while the card or the messenger
    it grows into is up.
 3. **The contents are laid out once, at full size,** pinned to the card's
-   bottom corner on the side it opens on (bottom-left for a left launcher on
-   tablet, bottom-right otherwise), and uncovered by the growing box (`overflow: hidden`) —
+   bottom corner on the side it opens on (bottom-left whenever the card opens
+   on the left — a left launcher on tablet, a left button launcher on phone —
+   bottom-right otherwise), and uncovered by the growing box (`overflow: hidden`) —
    never scaled or re-flowed. The first frame shows the card's own field where
    the launcher was.
 4. **The launcher's colour fades off it.** A layer filled with the launcher's
@@ -1036,12 +1040,22 @@ messenger, keeping the conversation:
 
 | | Phone | Tablet |
 |---|---|---|
-| Becomes | full screen, radius **0** | the messenger panel — composer launcher **600 × 580** centred / **380 × 650** on an edge; button launcher **380 × 650** — clamped to the frame less 48; radius **32**; bottom at the launcher's `offsetY` |
-| Motion | `left`, `bottom`, `width`, `height` and radius transition together, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` | the same |
+| Becomes | full screen, radius **0** | the messenger panel — composer launcher **600 × 580** centred / **380 × 650** on an edge; button launcher **380 × 650** on its side, or **600 × 580** centred if its placement is centre (see below) — clamped to the frame less 48; radius **32**; bottom at the launcher's `offsetY` |
+| Motion | `left`, `bottom`, `width`, `height` and radius transition together, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`; at the same moment the box plays `sheet-up` (`translateY(100%)` → 0, **320ms** `cubic-bezier(0.16, 1, 0.3, 1)`) — see *Not covered* | the same |
 | Then | the messenger as it always is (header, action items, its own type sizes) | the same |
 | Closing it | slides down off the bottom, **260ms** `cubic-bezier(0.7, 0, 0.84, 0)` (`sheet-down`); the launcher returns when it has gone | the same |
 
 #### Not covered in `/design`
+
+- **Card → messenger plays a slide-up as well as the grow.** When the card
+  grows into the messenger its animation changes from the card's grow to
+  `sheet-up`, so the box slides up from below while it resizes. This is what
+  `/design` does today; it is likely unintended and should be confirmed by eye
+  before it is built.
+- **A button launcher whose placement is centre** (left over from the
+  composer — the button itself only offers left and right) sits on the right,
+  but its card uses `offsetY` as its right inset and grows into a centred
+  600 × 580 messenger.
 
 - **Reduced motion** is not applied to the card's grow, shrink and veil yet
   (the skeleton's breath does stop). The messenger's rule should carry over:

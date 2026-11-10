@@ -4133,7 +4133,7 @@ function LauncherControls({
           />
           <RowToggle
             label="Auto-open"
-            info="Opens the messenger on its own after a wait. Desktop opens the panel; phones and tablets open it as a sheet at the bottom, never more than 65% of the screen, and full screen once they chat."
+            info="Opens on its own after a wait. Desktop opens the messenger; phones and tablets open a small message card that grows into the messenger once they chat."
             on={s.autoOpen}
             onChange={(autoOpen) => set({ autoOpen })}
           />
