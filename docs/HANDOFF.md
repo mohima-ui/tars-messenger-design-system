@@ -152,13 +152,7 @@ thing is before they will use it.
 - **Greeting** (on by default): the agent's own first message, beside the
   button. Switching it off does not stop the agent greeting — that line is the
   conversation's first message and belongs to the conversation.
-- On hover the greeting card gives way to the contextual suggestions. On
-  touch (tablet and phone) a **scroll down** does the same, and a scroll up
-  brings the greeting back; the two are never on screen together (§11.4 *Per
-  screen size*).
-- The greeting is the only thing beside the button at rest. The earlier
-  "Message card" popup option is gone from Configure; the Message card is now
-  auto-open only (§11.4).
+- On hover the greeting card gives way to the contextual suggestions.
 - The card carries a **dismiss ×** in the four states that raise one.
 
 ---
@@ -168,16 +162,6 @@ thing is before they will use it.
 Composer: left, centre, right. Button: left, right.
 Offsets default to **40px** horizontal and vertical, adjustable 0–120 in steps
 of 4. Centred placement has no horizontal offset to set.
-
-On a **phone** the composer is always centred and spans the screen, so it has
-**no horizontal offset**; the **Vertical offset** is its gap from the bottom.
-The button keeps its side and both offsets.
-
-**Launcher tab, top to bottom:** Preview on your site · Launcher style ·
-Placement · Button (button only) · Greeting (button only) · Placeholder ·
-**Behavior** (Pop out, Conversation preview, Auto-open — each a toggle with an
-ⓘ; Auto-open's settings under it) · Entrance (Appears after, Play a sound —
-notes behind ⓘ).
 
 ---
 
@@ -886,32 +870,49 @@ it is not compact, so it keeps the launcher's own offsets. The card's **width**
 and **side** follow the device (phone / tablet); its **10** bottom gap follows
 the compact layout.
 
-#### Per screen size — at a glance
+#### Where it opens and how it moves — by screen, launcher and placement
 
 Preview frames in `/design`: desktop **1000**, tablet **580**, phone **380**
-wide. Offsets default to **40 / 40**.
+wide. Offsets default to **40 / 40**. "Offsets" below are the launcher's own
+Horizontal (`offsetX`) and Vertical (`offsetY`) settings.
 
-| | Desktop | Tablet | Phone |
-|---|---|---|---|
-| **Composer launcher** — at rest | **340 × 64**, radius 32, padding 8, mic disc **44** (glyph 20) | the same | **250 × 52**, radius 26, padding 6, mic disc **40** (glyph 16) |
-| Composer — open with suggestions | **600** centred / **400** on an edge, never wider than the frame less **24** a side | the same | **342** |
-| Composer — placement | Left / Center / Right | Left / Center / Right | always **centred** (no choice) |
-| Composer — offsets | Horizontal (not when centred) + Vertical | the same | **Vertical only** — the bottom gap. No horizontal offset: it spans the screen |
-| Composer — what opens it wider | hover | a scroll down | a scroll down |
-| **Button launcher** — size | **56** default (Small 48 / Medium 56 / Large 64) | the same | **48** default (its own setting) |
-| Button — placement | Left / Right (Center is not offered) | the same | the same |
-| Button — greeting | beside the button, bottoms aligned, **232** wide, **14px** / leading-snug, padding **16 × 14**, radius **16**, at most **3** lines | the same | **above** the button, **232** wide, padding **12 × 10** |
-| Button — suggestions | take the greeting's place **on hover** | take its place **on a scroll down** — never on top of it | the same as tablet |
-| Button — chips | **14px**, padding **16 × 8**, fully round | the same | **14px**, padding **12 × 6** |
-| **Auto-open** | opens the **messenger panel** | the **Message card** | the **Message card** |
-| Card — width | — | **360** | **320** |
-| Card — side | — | the launcher's side; **centred → right** | **right**; a left-placed button → **left** |
-| Card — inset | — | the launcher's offsets (centred: vertical offset on the right too) | **12** right, **10** bottom |
-| Card — grows out of | — | the composer pill, or the button launcher's **greeting card** (the button when no greeting is showing) | the same |
+**Desktop — the messenger itself, never the card**
 
-Touch suggestions (tablet and phone): a scroll of **6px** or more down shows
-them (`SCROLL_TURN_PX`); they fold away **4.5s** after the page stops
-(`SCROLL_HOLD_MS`); any scroll back up returns the greeting at once.
+| Launcher · placement | Opens as | Where | Opening | Closing |
+|---|---|---|---|---|
+| Composer · left / right | the pill **grows into the window** | **380 × 650**, on the pill's side, `offsetX` from that edge, `offsetY` from the bottom | `left`, `width`, `height` from the pill's rect (**340 × 64**) to the window's, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)`; the chat is laid out once at full size and uncovered, never scaled | the same box back to the pill, **200ms** `cubic-bezier(0.7, 0, 0.84, 0)` |
+| Composer · centre | the pill grows into the window | **600 × 580**, centred, `offsetY` from the bottom | the same | the same |
+| Button · left / right | the panel **rises in** above the button | **380 × 650**, on the button's side at its offsets | opacity 0 → 1, `translateY(10px) scale(0.90)` → none, from the bottom centre, **280ms** `cubic-bezier(0.16, 1, 0.3, 1)` | the reverse, **200ms** `cubic-bezier(0.7, 0, 0.84, 0)` |
+
+Window sizes are clamped to the frame less **48**. This is exactly the open a
+click on the launcher plays.
+
+**Tablet — the Message card, 360 wide**
+
+| Launcher · placement | Card side | Inset | Grows out of | Contents pinned to |
+|---|---|---|---|---|
+| Composer · left | **left** | `offsetX` from the left, `offsetY` from the bottom | the pill (**340 × 64**) — the card is 20 wider, so it grows straight up and a little outward | bottom-left |
+| Composer · right | **right** | `offsetX` from the right, `offsetY` from the bottom | the pill | bottom-right |
+| Composer · centre | **right** | `offsetY` from the right **and** the bottom (a centred launcher has no horizontal offset) | the centred pill — the card travels across to the right corner as it grows | bottom-right |
+| Button · left | **left** | `offsetX` from the left, `offsetY` from the bottom | the **greeting card** beside the button; the button itself if no greeting is showing | bottom-left |
+| Button · right | **right** | `offsetX` from the right, `offsetY` from the bottom | the greeting card beside the button, or the button | bottom-right |
+
+**Phone — the Message card, 320 wide**
+
+| Launcher · placement | Card side | Inset | Grows out of | Contents pinned to |
+|---|---|---|---|---|
+| Composer (always centred) | **right** | **12** from the right, **10** from the bottom | the centred pill (**250 × 52**) | bottom-right |
+| Button · right | **right** | **12** from the right, **10** from the bottom | the **greeting card** above the button; the button if no greeting is showing | bottom-right |
+| Button · left | **left** | **12** from the left, **10** from the bottom | the greeting card above the button, or the button | bottom-left |
+
+**The card's motion — the same on every row above**
+
+| | Opening | Closing (✕) |
+|---|---|---|
+| Box | from the origin's exact rect and corner radius to the card's: `left`, `bottom`, `width`, `height`, `border-radius` together, **340ms** `cubic-bezier(0.16, 1, 0.3, 1)` (`CARD_GROW_MS`) | back to the origin's rect, **re-read when ✕ is pressed** (a scroll may have changed it), **200ms** `cubic-bezier(0.7, 0, 0.84, 0)` |
+| The origin (pill or greeting) | hidden on the first frame, at once — never two of it. The button stays | reappears on the frame the card unmounts, at once — no fade |
+| Origin's fill | a layer of the origin's fill (pill's colour, or the greeting's glass) over the card, opacity **1 → 0** over the first **204ms**, `ease-out` | opacity **0** until 45%, then **→ 1**, so the last frames are the origin |
+| Contents | laid out once at full size, pinned to the corner in the tables, uncovered by the growing box (`overflow: hidden`) — never scaled or re-flowed | covered by the shrinking box the same way |
 
 #### The card
 

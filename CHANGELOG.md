@@ -9,10 +9,10 @@ disagree, HANDOFF has the numbers; this file has the list.
 ### Changed in the design
 
 1. **Message card sizes and positions, per device.** Phone **320** wide, **12**
-   from the right and **10** from the bottom, always on the right. Tablet
-   **360** wide, on the launcher's side (left → left, right → right, centred →
-   right) at the launcher's own offsets. → HANDOFF §11.4 *The card*, *Per
-   screen size — at a glance*
+   from the right and **10** from the bottom, on the right (a left-placed
+   button: on the left). Tablet **360** wide, on the launcher's side (left →
+   left, right → right, centred → right) at the launcher's own offsets. →
+   HANDOFF §11.4 *Where it opens and how it moves*
 2. **On the button launcher the card grows out of the greeting card**, not
    the button, and ✕ shrinks it back into the greeting. The greeting is hidden
    while the card is up; the button stays. → HANDOFF §11.4 *Arriving*, *Closing*
@@ -22,15 +22,14 @@ disagree, HANDOFF has the numbers; this file has the list.
 4. **Composer on a phone uses the Vertical offset** for its bottom gap. It was
    a fixed 24 that ignored the setting.
 5. **Button launcher on tablet: suggestions no longer sit on top of the
-   greeting.** They take its place on a scroll down, as on a phone. → HANDOFF
-   §11.4 *Per screen size*
+   greeting.** They take its place on a scroll down, as on a phone.
 6. **Desktop auto-open always grows the messenger out of the launcher** —
    the same 280ms grow as a click. It is decided by the device, not the
    compact layout: a short desktop window used to count as compact and show
-   the phone's card. → HANDOFF §11.4 *When it opens*
+   the phone's card. → HANDOFF §11.4 *Where it opens and how it moves*
 7. **Phone: a left-placed button launcher's card opens on the left**, 12 from
    the left edge. Every other phone card stays on the right. → HANDOFF §11.4
-   *The card*
+   *Where it opens and how it moves*
 8. **Still open:** what Pop out and Conversation preview do. → HANDOFF §12 #6
 
 ### Configure panel (Launcher tab)
