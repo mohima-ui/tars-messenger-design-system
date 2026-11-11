@@ -4,6 +4,15 @@ Design changes for engineering. Newest first. Each entry says what changed in
 `/design` and where the full spec lives in `docs/HANDOFF.md`. Where the two
 disagree, HANDOFF has the numbers; this file has the list.
 
+## 2026-11-11 — Configure toggle colour
+
+### Fix in the build
+
+1. **The Configure toggle is the wrong purple.** The build uses a very dark
+   purple; the design's track is **`#8B55C3`** when on and `#D8D8D8` when off,
+   with a white knob. Sizes: 28 × 16 on Configure rows (knob 12), 36 × 20
+   regular (knob 16). → HANDOFF §14 *Configure panel — toggle*
+
 ## 2026-11-10 — auto-open card per screen size, launcher fixes
 
 ### Changed in the design

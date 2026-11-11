@@ -1198,6 +1198,22 @@ component that ships. Tailwind's scale is in quarters of a rem, so `size-9` is
 | Discs | 44 attach and mic/send, 20px glyphs |
 | Ring | inset 1px `brand-lite` at 55%, solid `var(--brand)` on focus |
 
+### Configure panel — toggle
+
+The on/off switch on every Configure row (Behavior, Auto-open, Transparent
+background, Center…). The build uses a much darker purple than the design;
+match these values.
+
+| Part | Value |
+|---|---|
+| Track, on | **`#8B55C3`** |
+| Track, off | `#D8D8D8` |
+| Knob | white `#FFFFFF`, soft shadow, 1px ring of black at 5% |
+| Small (Configure rows) | track 28 × 16, knob 12 |
+| Regular | track 36 × 20, knob 16 |
+| Knob inset | 2 from the track edge, on and off |
+| Motion | track colour and knob position both animate on switch |
+
 ---
 
 ## 15. Where things are
